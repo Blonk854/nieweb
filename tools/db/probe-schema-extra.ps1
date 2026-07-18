@@ -15,11 +15,16 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$OutputDir = (Join-Path $PSScriptRoot 'out')
+    [ValidatePattern('^[A-Z][A-Z0-9_]*_$')]
+    [string]$Prefix = 'AOI_POSTREFLOW_',
+    [string]$OutputDir
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+
+$sourceTag = ($Prefix -replace '^AOI_', '' -replace '_$', '').ToLower()
+if (-not $OutputDir) { $OutputDir = Join-Path $PSScriptRoot (Join-Path 'out' $sourceTag) }
 
 # --- 1. Locate and load .env -------------------------------------------------
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
@@ -35,22 +40,23 @@ Get-Content -LiteralPath $envPath | ForEach-Object {
         $envVars[$Matches[1]] = $Matches[2].Trim('"').Trim("'")
     }
 }
-foreach ($key in 'AOI_SERVER','AOI_DATABASE','AOI_USER','AOI_PASSWORD') {
+foreach ($suffix in 'SERVER','DATABASE','USER','PASSWORD') {
+    $key = "${Prefix}${suffix}"
     if (-not $envVars.ContainsKey($key) -or [string]::IsNullOrWhiteSpace($envVars[$key])) {
         throw "Missing or empty $key in $envPath"
     }
 }
-$server   = $envVars['AOI_SERVER']
-$database = $envVars['AOI_DATABASE']
-$user     = $envVars['AOI_USER']
-$password = $envVars['AOI_PASSWORD']
+$server   = $envVars["${Prefix}SERVER"]
+$database = $envVars["${Prefix}DATABASE"]
+$user     = $envVars["${Prefix}USER"]
+$password = $envVars["${Prefix}PASSWORD"]
 $connTO   = if ($envVars.ContainsKey('AOI_CONNECT_TIMEOUT')) { [int]$envVars['AOI_CONNECT_TIMEOUT'] } else { 15 }
 $queryTO  = if ($envVars.ContainsKey('AOI_QUERY_TIMEOUT'))   { [int]$envVars['AOI_QUERY_TIMEOUT']   } else { 60 }
 
 # --- 2. Read-only guard + SqlClient connection ------------------------------
 $forbidden = '\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|MERGE|EXEC|EXECUTE|GRANT|REVOKE|CREATE)\b'
 $connString = "Server=$server;Database=$database;User Id=$user;Password=$password;" +
-              "Application Name=Nieweb-probe-schema-extra;Connect Timeout=$connTO;" +
+              "Application Name=Nieweb-probe-schema-extra-$sourceTag;Connect Timeout=$connTO;" +
               "TrustServerCertificate=True;Encrypt=False;"
 Add-Type -AssemblyName 'System.Data'
 
@@ -86,7 +92,7 @@ function Invoke-ReadOnlyQuery {
 }
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-Write-Host "Probing $server/$database (extra tables, read-only)..." -ForegroundColor Cyan
+Write-Host "Probing $server/$database (extra tables, source=$sourceTag, read-only)..." -ForegroundColor Cyan
 
 # --- 3. Column-layout probes for remaining tables ---------------------------
 $colProbes = @(

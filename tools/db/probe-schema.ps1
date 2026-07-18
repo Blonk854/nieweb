@@ -13,17 +13,30 @@
     refuse to execute -- this is a defensive guard, not a substitute for a
     read-only DB account.
 
+.PARAMETER Prefix
+    Environment-variable prefix identifying which AOI credential set to use.
+    Defaults to `AOI_POSTREFLOW_` (Phase 1 HLYAOI). Use `AOI_PREREFLOW_` for
+    the Phase 2 pre-reflow Mycronic database.
+
 .PARAMETER OutputDir
     Directory to write probe result CSVs into. Defaults to
-    `<repo>/tools/db/out/`.
+    `<repo>/tools/db/out/<source>/` where <source> is derived from `-Prefix`
+    (postreflow / prereflow).
 
 .EXAMPLE
-    PS> .\tools\db\probe-schema.ps1
+    PS> .\tools\db\probe-schema.ps1                           # post-reflow
+    PS> .\tools\db\probe-schema.ps1 -Prefix AOI_PREREFLOW_    # pre-reflow
 #>
 [CmdletBinding()]
 param(
-    [string]$OutputDir = (Join-Path $PSScriptRoot 'out')
+    [ValidatePattern('^[A-Z][A-Z0-9_]*_$')]
+    [string]$Prefix = 'AOI_POSTREFLOW_',
+    [string]$OutputDir
 )
+
+# Derive a short source tag ("postreflow", "prereflow", ...) from the prefix.
+$sourceTag = ($Prefix -replace '^AOI_', '' -replace '_$', '').ToLower()
+if (-not $OutputDir) { $OutputDir = Join-Path $PSScriptRoot (Join-Path 'out' $sourceTag) }
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -33,7 +46,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $envPath  = Join-Path $repoRoot '.env'
 
 if (-not (Test-Path -LiteralPath $envPath)) {
-    throw "Missing $envPath - copy .env.example to .env and fill in AOI_USER / AOI_PASSWORD."
+    throw "Missing $envPath - copy .env.example to .env and fill in ${Prefix}USER / ${Prefix}PASSWORD."
 }
 
 $envVars = @{}
@@ -44,16 +57,17 @@ Get-Content -LiteralPath $envPath | ForEach-Object {
     }
 }
 
-foreach ($key in 'AOI_SERVER','AOI_DATABASE','AOI_USER','AOI_PASSWORD') {
+foreach ($suffix in 'SERVER','DATABASE','USER','PASSWORD') {
+    $key = "${Prefix}${suffix}"
     if (-not $envVars.ContainsKey($key) -or [string]::IsNullOrWhiteSpace($envVars[$key])) {
         throw "Missing or empty $key in $envPath"
     }
 }
 
-$server   = $envVars['AOI_SERVER']
-$database = $envVars['AOI_DATABASE']
-$user     = $envVars['AOI_USER']
-$password = $envVars['AOI_PASSWORD']
+$server   = $envVars["${Prefix}SERVER"]
+$database = $envVars["${Prefix}DATABASE"]
+$user     = $envVars["${Prefix}USER"]
+$password = $envVars["${Prefix}PASSWORD"]
 $connTO   = if ($envVars.ContainsKey('AOI_CONNECT_TIMEOUT')) { [int]$envVars['AOI_CONNECT_TIMEOUT'] } else { 15 }
 $queryTO  = if ($envVars.ContainsKey('AOI_QUERY_TIMEOUT'))   { [int]$envVars['AOI_QUERY_TIMEOUT']   } else { 60 }
 
@@ -63,7 +77,7 @@ $forbidden = '\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|MERGE|EXEC|EXECUTE|GRA
 # Build a connection string with Application Name so DBAs can identify us.
 # TrustServerCertificate=True because older archived servers often use self-signed certs.
 $connString = "Server=$server;Database=$database;User Id=$user;Password=$password;" +
-              "Application Name=Nieweb-probe-schema;Connect Timeout=$connTO;" +
+              "Application Name=Nieweb-probe-schema-$sourceTag;Connect Timeout=$connTO;" +
               "TrustServerCertificate=True;Encrypt=False;"
 
 Add-Type -AssemblyName 'System.Data'
@@ -107,7 +121,7 @@ function Invoke-ReadOnlyQuery {
 # --- 4. Ensure output dir ----------------------------------------------------
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
-Write-Host "Probing $server/$database as $user (read-only)..." -ForegroundColor Cyan
+Write-Host "Probing $server/$database as $user (source=$sourceTag, read-only)..." -ForegroundColor Cyan
 
 # --- 5. Probes ---------------------------------------------------------------
 $probes = [ordered]@{

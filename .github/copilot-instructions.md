@@ -184,21 +184,59 @@ matches — the skill descriptions are keyword-rich for discovery.
 - Never write to the VIT Superviseur DB from any Sigmalink or Nieweb code
   path — the same performance warning as Vieweb applies.
 
-## Development database (archived HLYAOI)
+## Development databases (live AOI Superviseur DBs)
 
-An archived copy of the AOI production DB is available for development at
-`HLYMSSQL2/HLYAOI` (SQL Server, Vision3D CR4 / Vision20 CR5 schema — same
-tables and constants documented in the `vit-aoi-database` skill).
+Nieweb reads from two live AOI Superviseur databases — one per reflow
+stage. Both are SQL Server 2022 Enterprise and both follow the Vision3D
+CR4 / Vision20 CR5 shape documented in the `vit-aoi-database` skill, but
+the pre-reflow instance is on an older schema revision and is missing
+several tables.
 
-**Credentials.** SQL Server auth (Windows auth is not available for our
-account). The account currently has **write** access because a read-only
-account was not yet provisioned. Credentials live in a git-ignored `.env`
-at the repo root — see `.env.example` for keys (`AOI_SERVER`,
-`AOI_DATABASE`, `AOI_USER`, `AOI_PASSWORD`). Never paste the password into
-chat, into a commit message, or into any file that isn't `.env`.
+- **Post-reflow (Phase 1) — `HLYMSSQL2 / HLYAOI`.** Schema `5.0`,
+  DATABASEID 1762100668. Contains `PIN`, `PIN_MEASURE`, all four
+  `*_HISTO` tables, and the `Barcode_Product` view. `Panel_Status`
+  values `{-2,-1,0,1,2}`. Login `svc_hlyaoiprod` currently has
+  **write** access because a read-only account was not yet provisioned
+  — read-only discipline is enforced in code (see below).
+- **Pre-reflow (Phase 2) — `HLYMSSQL1 / MEAOI`.** Schema `4.3.1`,
+  DATABASEID 1783421400. **Missing entirely:** `PIN`, `PIN_MEASURE`,
+  `CARDS_HISTO`, `PANELS_HISTO`, `PIN_HISTO`, `TESTED_OBJECT_HISTO`,
+  `Barcode_Product` (+ related views). Adds paste-print / stencil
+  columns to `PANELS` and `CARDS` (`PastePads_*`, `Stencil_D*`,
+  `Number_Of_Pads`, `Nb_Of_Tests_On_Pads`). Lacks post-reflow-only
+  columns `IS_LAST_INSPECTION`, `IPC610_INSPECTION_CLASS`, the
+  `CONVEYING_TIME_S` / `BUY_SELL_PANEL_TIME_S` / `WAITING_REVIEW_TIME_S`
+  timing fields on `PANELS`; the `DPMO_*_DEFECT_NB` helpers and
+  `OPERATOR_ID` on `CARDS`; and the `ERROR_TABLE_AR`,
+  `NOT_INSPECTED_CAUSE`, `MES_TILT_UM`, `MEASURES`, `EXPECTED_POS*_UM`,
+  `EXPECTED_ANGLE_DG` columns on `TESTED_OBJECT`. `RECIPE` lacks
+  `VARIANT_NAME`. `OBJECT_TYPE` lacks `FOREIGN_MATERIAL` (33554432).
+  `Panel_Status` includes an extra value `3`. Login `meaoiprodinq` is
+  properly read-only. Only the pre-reflow DB has meaningful `FEEDER`
+  data (594 rows vs 3 stubs on post-reflow).
 
-**Read-only discipline (mandatory until an RO account is provisioned).**
-Every code path that touches HLYAOI must:
+**Never write** to either DB. Never mix them in a single query. Any
+Nieweb feature that needs pin-level data, review audit trail, barcode-
+to-product lookup, or `IS_LAST_INSPECTION` filtering is post-reflow
+only; any feature that needs paste-print / stencil metrics or per-
+machine feeder analytics is pre-reflow only. The data-adapter layer must
+expose these capability flags rather than assume a single unified schema.
+
+**Credentials.** SQL Server auth. Both connections' credentials live in
+a git-ignored `.env` at the repo root under two prefixes — see
+`.env.example`:
+
+- `AOI_POSTREFLOW_SERVER`, `AOI_POSTREFLOW_DATABASE`,
+  `AOI_POSTREFLOW_USER`, `AOI_POSTREFLOW_PASSWORD`
+- `AOI_PREREFLOW_SERVER`, `AOI_PREREFLOW_DATABASE`,
+  `AOI_PREREFLOW_USER`, `AOI_PREREFLOW_PASSWORD`
+- Shared: `AOI_CONNECT_TIMEOUT`, `AOI_QUERY_TIMEOUT`.
+
+Never paste any password into chat, into a commit message, or into any
+file that isn't `.env`.
+
+**Read-only discipline (mandatory for both DBs).** Every code path that
+touches either Superviseur DB must:
 
 - Refuse to issue `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`,
   `MERGE`, `EXEC`, `GRANT`, `REVOKE`, `CREATE`. The reference guard is in
@@ -207,15 +245,17 @@ Every code path that touches HLYAOI must:
   `SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; SET NOCOUNT ON;`
 - Use `WITH (NOLOCK)` on `SELECT` from production-shaped tables so we
   can't block or be blocked.
-- Set `ApplicationName='Nieweb-<script-name>'` on connections so DBAs can
-  identify our sessions.
+- Set `ApplicationName='Nieweb-<script-name>-<source>'` on connections
+  (e.g. `Nieweb-probe-schema-postreflow`) so DBAs can identify our
+  sessions.
 - Time-window filter every query on the large tables (`PANELS`, `CARDS`,
   `TESTED_OBJECT`, `PIN`, `PIN_MEASURE`, `*_HISTO`) — never a bare
   `SELECT * FROM …`.
 
-**Reference tooling.** `tools/db/probe-schema.ps1` connects with the above
-guards and dumps `INFORMATION_SCHEMA` + row counts + a few status
-distributions into `tools/db/out/*.csv` (git-ignored) so we can verify the
-`vit-aoi-database` skill against the live schema. Any new dev script must
-adopt the same guard pattern (load `.env`, refuse write keywords, prefix
-isolation level, tag `ApplicationName`).
+**Reference tooling.** `tools/db/probe-schema.ps1` and
+`tools/db/probe-schema-extra.ps1` take a `-Prefix` parameter
+(`AOI_POSTREFLOW_` default, or `AOI_PREREFLOW_`) and write per-source
+CSVs into `tools/db/out/<sourceTag>/` (git-ignored). They enforce the
+guards above; any new dev script must adopt the same pattern (load
+`.env`, refuse write keywords, prefix isolation level, tag
+`ApplicationName`, per-source output directory).
