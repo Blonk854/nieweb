@@ -1,0 +1,88 @@
+
+===== PAGE 1 =====
+Sigmalink Analysis v1.6.5
+Release notes and Installation notes
+===== PAGE 2 =====
+1 Release notes
+1.1 Features in 1.6.5
+1.1.1 New Panel Analysis
+Panel analysis page is now a single view for every equipment of each line.
+Images of defects is displayed in the same screen main screen.
+The indicators for each equipment are stored in tabs for each of them. They contain the same
+information as before:
+- Summary counters and view
+- Errors, Warnings, Measures tables
+- Measure charts
+Limitation on analysis of glue deposit defects, localization and correlation are not supported
+when component are not defined.
+===== PAGE 3 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+1.2 Corrected Bugs in 1.6.5
+Id Module Description
+Page 3
+===== PAGE 4 =====
+2 Installation
+2.1 Requirement
+ Microsoft Windows 7 minimum
+ Java 7 minimum
+2.2 Prepare installation
+Preparation is same for the SigmaLink server or inline review.
+Administrator rights on the computer are necessary to perform the installation.
+Download a Java Virtual Machine (JVM).
+Windows 32 bits or Windows 64 bits
+If you prefer you can download directly on Oracle web site
+Download the installer
+http://sigmalink.vitechnology.com/deliver/download/analyse/1.6.3/installer/windows_32
+http://sigmalink.vitechnology.com/deliver/download/analyse/1.6.3/installer/windows_64
+2.3 Installation
+Administrator rights on the computer are necessary to perform the installation.
+Launch the downloaded binary by double clicking on the file installer.jar.
+In some cases, double-click doesn’t work. Then use a command line and launch java –jar
+installer.jar in the directory of the downloaded file.
+===== PAGE 5 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+1.1. New Installation
+On Windows 7, you’ll have this warning. Click “ Yes” button.
+Select “Server installation” for first installation or
+“Server upgrade” for updating existing installation (§1.2), then click “Next” button.
+Page 5
+===== PAGE 6 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+We recommend installing into C:\VIT_analyse. Then click “Next” button.
+You’ll have a confirmation message in two cases:
+If the target folder already exists
+If the target folder does not exists
+Page 6
+===== PAGE 7 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+Every component of the installer are mandatory
+When the installation is done, click “Next” button.
+Page 7
+===== PAGE 8 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+If you want, you can change the name of the shortcut group, then click “Next” button.
+Let cleaning operation progress, then click “Next” button
+Page 8
+===== PAGE 9 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+Window contain can be quite different according to installer version and operating system. If
+operation succeed next button is available.
+System can display warning message if “C++ redistribuable library” have been already installed
+on your computer. Click “Yes” to continue.
+Installation done
+Last step create the uninstaller. This operation can take few minutes.
+1.2. Update an existing installation
+Page 9
+===== PAGE 10 =====
+Sigmalink Analysis v1.6.5 Release notes and Installation notes
+To avoid risk of corruption, we recommend backup your data before.
+If you want to update an existing installation:
+Stop the existing server
+Reboot computer
+Follow wizard using “Inline upgrade” option
+Select server upgrade
+Be sure to define the same installation path than the previous installation in the first step of
+the wizard.
+2.4 Server startup and configuration
+Please refer to user guide for server startup and configuration
+Page 10

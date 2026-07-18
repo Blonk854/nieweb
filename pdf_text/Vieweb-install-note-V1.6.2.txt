@@ -1,0 +1,399 @@
+
+===== PAGE 1 =====
+Vieweb 1.6.2
+Installation guide
+===== PAGE 2 =====
+Vieweb Installation note
+1. Recommended configuration
+Vieweb is a client-server application.
+1.1 Server side
+Computer configuration
+OS All Windows platform
+Memory available Minimum 1GB
+HDD 500 MBytes
+You might need a licence delivered by VITechnology. Please contact support.
+2. Server installation
+2.1 Prepare installation
+The installation package contains 2 files:
+1. Java installer: jdk-7u67-windows-i586.exe
+2. Vieweb installer
+The two installer must be installed in this order.
+2.2 Java installation
+Not required if you re-install Vieweb 1.6
+Execute jdk-7u40-windows-i586.exe.
+Administrator rights on the computer are necessary to perform the installation.
+Version 1.6.2 Page 2
+===== PAGE 3 =====
+Vieweb Installation note
+On Windows 7, you’ll have this warning. Click on Yes button.
+Click on “Next” button.
+Don’t change the default path and click « Next ».
+Wait during the installation process.
+Version 1.6.2 Page 3
+===== PAGE 4 =====
+Vieweb Installation note
+.
+Click on the “Close” button.
+Version 1.6.2 Page 4
+===== PAGE 5 =====
+Vieweb Installation note
+2.3 Starting installer and selection installation path
+Launch installer as by double clicking on the file vieweb-jdk7-installer-32bits-eng.jar.
+In some case, nothing happen when you double click or another program is launched. In this
+case, start DOS command promt, and use the command
+> java –jar vieweb-jdk7-installer-32-1.6.1.jar
+Administrator rights on the computer are necessary to perform the installation.
+For seven, right clic on installer and select ‘Run as Administrator’
+We recommend to install into C:\VIT_Vieweb. Then click “Next” button.
+If you already have installed Vieweb, you will have a confirmation message:
+Version 1.6.2 Page 5
+===== PAGE 6 =====
+Vieweb Installation note
+2.4 Select installation mode
+3 modes of installation are available:
+1. New installation: all components will be installed. Follow §2.5.
+2. Upgrade from Vieweb 1.5. Follow §2.6.
+3. Re-install Vieweb 1.6.1 or upgrade from Vieweb 1.6.0 (repair server or change
+configuration) Follow §2.7.
+Version 1.6.2 Page 6
+===== PAGE 7 =====
+Vieweb Installation note
+2.5 New Installation Mode
+Make sure you’ve no MySQL server already installed.
+Select first option then click “Next”.
+All packages are required.
+Check the Database URL is localhost:3306/vieweb and the click next
+Version 1.6.2 Page 7
+===== PAGE 8 =====
+Vieweb Installation note
+Server configuration
+Values Default value
+Database type SQLSERVER, ORACLE or ACCESS SQLSERVER
+Default language English (en) or French (fr) en
+Refresh frequency Time in seconds (must be greater than 0). 5
+Batch refresh Time in seconds (must be greater than 0). 1440
+frequency
+Generated reports Existing path (report error if directory doesn’t exist. c:\Batchreports
+directory
+Mail server Name or IP of the SMTP server
+SMTP Port Port used by the SMTP server
+Mail sender Email of the report sender
+SMTP login (optional according to the SMTP server configuration) The
+account to use to connect to the SMTP server.
+SMTP password (optional according to the SMTP server configuration) The
+account password to use to connect to the SMTP server.
+SMPT encryption type (optional according to the SMTP server configuration) none none
+or SSL or TLS
+Version 1.6.2 Page 8
+===== PAGE 9 =====
+Vieweb Installation note
+When the installation is done, if you select it, the mysql or JDK installer will be launched. Otherwise
+click “Next” button.
+MySQL is necessary for the application. Don’t skip this installation.
+Click Next
+Choose typical and click next
+Version 1.6.2 Page 9
+===== PAGE 10 =====
+Vieweb Installation note
+Click on install button
+MySQL is installing…
+Select Skip sign-up and click Next
+Version 1.6.2 Page 10
+===== PAGE 11 =====
+Vieweb Installation note
+Click on Finish
+Click on next
+Choose the first option Detailed Configuration and click Next
+Version 1.6.2 Page 11
+===== PAGE 12 =====
+Vieweb Installation note
+For windows XP, choose the second option Server Machine and click Next
+For Window 7, choose the first option Developper Machine and click Next
+Choose the first option Multifunctional Database and click Next
+Click Next
+Version 1.6.2 Page 12
+===== PAGE 13 =====
+Vieweb Installation note
+Choose the second option Online Transaction Processing (OLTP) and click Next
+Set the port number to 3306 and click Next
+Never change this port. If you’ve an error because the port is already in use, you already have
+an installation of MySQL. You can’t install Vieweb on this machine or you’ve to choose another
+installation mode.
+Version 1.6.2 Page 13
+===== PAGE 14 =====
+Vieweb Installation note
+Choose the first option Standard Character Set and click Next
+Please pay attention to the SQL version you’re installing.
+Here we installed MySQL so the service name to select is MySQL.
+If you install MySQL 4.1 or other versions, please select the according service name in the
+dropping list. Example: MySQL41
+If you don’t select the good service, the ckeckbox “Start service” as described later will be with a
+red cross.
+Pay attention if a version of MySQL is already installed on your computer.
+You’ll have to select a different service name of the one installed.
+Password must be
+"root"
+(Make sure you are
+not uppercase and do
+not put brackets)
+Set a root password for database administration and click Next
+The root password must be "root" (Make sure you are not uppercase and do not put brackets)
+Version 1.6.2 Page 14
+===== PAGE 15 =====
+Vieweb Installation note
+To begin database configuration, click on Execute button
+Check that the configuration is successful and click on Finish Button
+Click on Next button
+Version 1.6.2 Page 15
+===== PAGE 16 =====
+Vieweb Installation note
+Click on Next button
+If you want, you can change the name of the shortcut group, then click “Next” button.
+This screen explains the vieweb license, please read it and then click “Next” button.
+Version 1.6.2 Page 16
+===== PAGE 17 =====
+Vieweb Installation note
+Installation done.
+Go to §2.8: you don’t have to follow §2.6 and %27.
+Version 1.6.2 Page 17
+===== PAGE 18 =====
+Vieweb Installation note
+2.6 Upgrade from Vieweb 1.5
+Upgrade process is for users who want to keep reports after installation of the new version of
+Vieweb.
+Don’t use Vieweb 1.5 to uninstall or you’ll lose all your reports
+Some parameters will be ask again during Vieweb 1.6 installation.
+Concerned Parameters:
+- smtpServer
+- bachEmailFrom
+- batchReportDirectory
+The settings of these parameters are available under C:\Program Files (x86)\jakarta-tomcat-
+4.1.31\webapps\Vieweb\WEB-INF\properties\ViewebParameters.properties
+Please check Pre-conditions before to start upgrade.
+Ensure the Vieweb 1.5 server is stopped. http://localhost:8080/VIEWEB must display an error
+“Page not found”. If necessary close the DOS Window called “Tomcat”.
+Click “Next”.
+Version 1.6.2 Page 18
+===== PAGE 19 =====
+Vieweb Installation note
+2 packages are optional, but we recommend keeping these two packages checked.
+(cid:1) Remove Vieweb 1.5 Server: unchecked this package, if you install Vieweb 1.6 for test and you
+don’t want to uninstall Vieweb 1.5.
+(cid:1) Remove Vieweb 1.5 JDK: unchecked this package, if another program installed on your server
+required Java v1.4.02.
+You’ll be able to remove Vieweb 1.5 by script after installation.
+Vieweb 1.5 and 1.6 can be installed on the same machine, but only one server can be started at
+a moment.
+Check the Database URL is localhost:3306/vieweb and the click next
+Version 1.6.2 Page 19
+===== PAGE 20 =====
+Vieweb Installation note
+Enter parameters and the click next (cf. §2.5 to see parameters description)
+Installation can take a long while.
+If you’ve check “Remove Vieweb 1.5 JDK”, you’ll have to confirm JDK un installation.
+Version 1.6.2 Page 20
+===== PAGE 21 =====
+Vieweb Installation note
+If you’ve check “Remove Vieweb 1.5 JDK”, you’ll have to confirm JRE un installation.
+Click on Next button
+Click on Next button
+Version 1.6.2 Page 21
+===== PAGE 22 =====
+Vieweb Installation note
+If you want, you can change the name of the shortcut group, then click “Next” button.
+This screen explains the vieweb license, please read it and then click “Next” button.
+Installation done
+Go to §2.8: you don’t have to follow §2.7.
+Version 1.6.2 Page 22
+===== PAGE 23 =====
+Vieweb Installation note
+2.7 Re-install Vieweb 1.6
+Use this installation mode, if you want to re configure vieweb or if you want to repair your
+installation.
+You’re report and database definition will be preserved.
+Click “Next”
+1 package is optional
+(cid:1) Reset Vieweb configuration: if you check this package, you’ll have to complete all the Vieweb
+settings then you’re old setting will be overridden. If you uncheck this package, your current
+setting will be kept.
+Version 1.6.2 Page 23
+===== PAGE 24 =====
+Vieweb Installation note
+Check the Database URL is localhost:3306/vieweb and the click next
+If you have check “Reset Vieweb configuration”, enter parameters and the click next (cf. §2.5 to see
+parameters description)
+Click on Next button
+Version 1.6.2 Page 24
+===== PAGE 25 =====
+Vieweb Installation note
+Click on Next button
+If you want, you can change the name of the shortcut group, then click “Next” button.
+This screen explains the vieweb license, please read it and then click “Next” button.
+Version 1.6.2 Page 25
+===== PAGE 26 =====
+Vieweb Installation note
+Installation done
+Version 1.6.2 Page 26
+===== PAGE 27 =====
+Vieweb Installation note
+2.8 Check installation directory
+Installation directory must be similar to:
+Version 1.6.2 Page 27
+===== PAGE 28 =====
+Vieweb Installation note
+3. Starting with Vieweb 1.6
+3.1 License configuration
+Only required configuration is to copy the license file into C:\VIT_vieweb\conf.
+License is not required. By default you have one user license.
+3.2 Starting Vieweb server
+You can launch the server:
+1. from the windows menu “VIT Vieweb”
+2. Or by a double click on the file C:\VIT_Vieweb\start_server.bat
+Server is started if no ERROR have been displayed and if the last line is “INFO: Server startup in
+XXXXms”
+the port to use in URL to connect to the server is 8081.
+Version 1.6.2 Page 28
+===== PAGE 29 =====
+Vieweb Installation note
+3.3 Stopping Vieweb server
+Use Ctrl+C in the DOS window and wait until server is stopped, then close the window.
+3.4 Installation as service
+You can find two scripts in the directory named tools/ to install or uninstall Viewb as windows
+service.
+These scripts have been done for the Java installer provided with your Vieweb installer. If you’re
+using another Java version, you’ll have to update this script.
+Version 1.6.2 Page 29
+===== PAGE 30 =====
+Vieweb Installation note
+3.5 Test installation
+Use a web browser to connect to http://localhost:8081/VIEWEB.
+You must replace localhost by the IP or the name of the server, if you’re not on the same
+machine.
+Login admin
+Password admin
+Log in with default account.
+VieWeb application works with popup and dynamics html pages. The client browser has to allow
+theses popups in order to let the application working fine
+Version 1.6.2 Page 30
+===== PAGE 31 =====
+Vieweb Installation note
+3.6 Database backup
+The Vieweb database contains:
+1. Reports definition
+2. Supervisor database definition
+If you want to backup your database:
+Open a DOS command
+Change directory to c:\Programs Files\MySQL\MySQL Server 4.1\bin .
+According to operating system, directory can change. In the example, the operating system is
+Windows 7 64bits, then installation path is C:\Program Files (x86)\MySQL\MySQL Server 4.1\bin
+Launch the command:
+mysqldump -u viuser -pviuser Vieweb > c:\save_mysql_vieweb.dmp
+3.7 Database restore
+The Vieweb database contains:
+Reports definition
+Version 1.6.2 Page 31
+===== PAGE 32 =====
+Vieweb Installation note
+3. Supervisor database definition
+If you want to restore:
+1. Open a DOS command prompt (cf. §3.8) in the MySQL bin directory.
+2. Launch the command:
+mysql -u viuser -pviuser Vieweb < c:\save_mysql_vieweb.dmp
+Where save_mysql_vieweb.dmp must be replaced by the file name used during backup.
+Version 1.6.2 Page 32
+===== PAGE 33 =====
+Vieweb Installation note
+4. Trouble shooting
+4.1 Rollback to Vieweb 1.5
+If you want to reinstall Vieweb 1.5 after an upgrade, use the vieweb 1.5 installer and use the
+installation mode “Repair”. Follow all the steps and accept all installations.
+4.2 Bad java version
+ERROR
+If when you launch the start_server.bat you have:
+Can't start server : bad java version (found XXX/ require 1.7)
+Please set properly the environment variable JAVA_HOME then restart the server
+Or
+Can't start server : java runtime environment not found
+Please set properly the environment variable JAVA_HOME then restart the server
+EXPLANATION
+The startup script try to find a Java Virtual Machine and fail to find.
+SOLUTION 1
+This message can appear if you don’t have installed the Java provided with Vieweb.
+Ensure the directory C:\Program Files (x86)\Java\jdk1.7.0_40 or C:\Program Files\Java\jdk1.7.0_40
+exists (directory name for Program Files is depending of the OS language).
+If not, follow (cf. Java Installation), then restart server (cf. Starting server).
+SOLUTION 2
+A message appear if Java is already installed on the machine. The installation can be cancelled in this
+case. But you’ll have to follow the configuration step of the JAVA_HOME.
+Version 1.6.2 Page 33
+===== PAGE 34 =====
+Vieweb Installation note
+In this case, ensure Java is at least a java 1.7 version using the command line:
+C:\java -version
+java version "1.7.0_XXX"
+Java(TM) SE Runtime Environment (build 1.7.0_XXX)
+Java HotSpot(TM) xx-bits Server VM (build XX.X-bXX, mixed mode)
+The message can be quite different, but the version must be 1.7.
+In this case, you have to edit the file c:\VIT_Vieweb\start_server.bat.
+Update the line 16 : SET JAVA_DIR=%PRG_FILES_32%\Java\jdk1.7.0_40 by defining the real
+installation path of your JDK.
+e.g. SET JAVA_DIR=c :\jdk1.7.0_41
+If you change the Java Version, many problems can occur. Be sure to understand what you’re
+doing.
+Version 1.6.2 Page 34
+===== PAGE 35 =====
+Vieweb Installation note
+4.3 I can login, but I’ve a blank screen after
+ERROR
+Vieweb is started, you can login but when you click on the login button, a blank screen is displayed.
+You can check the log file c:\VIT_Vieweb\logs\vieweb\Vieweb.log if message “Could not obtain
+connection”.
+EXPLANATION
+Vieweb fail to connect to its internal database MySQL.
+SOLUTION 1
+Check if the service MySQL is started.
+Control panel > Adminsitration tools > Services
+Check that the service called MySQL is started.
+If not, start the service, then stop and start the Vieweb server (cf. Starting server).
+SOLUTION 2
+Check if the database is always available.
+In command line, go to bin directory of MySQL.
+cd C:\Program Files\MySQL\MySQL Server 4.1\bin (*)
+mysql -u root -proot
+show databases;
+(*) can be different according to the OS language and the OS architecture.
+if the obtaining list doesn’t contains the name vieweb, your database have been dropped. Contact
+the support and send the Vieweb.log file.
+Version 1.6.2 Page 35
+===== PAGE 36 =====
+Vieweb Installation note
+5. Annex
+Important notes concerning advanced browser configuration:
+1. Check that in "internet Options", "Connections", "LAN setting" tab, "automatically detect setting"
+must be checked not "use a proxy server for your LAN...". You can also try to add Vieweb server
+IP address in "exception" under "advanced" menu.
+2. In Explorer "options tools", "advanced" tab, "Security" section, tick the parameter "allow
+active content to run in files on My Computer".
+3. Client browser configuration
+VieWeb application works with popup and dynamics html pages. The client browser has to allow
+theses popups in order to let the application working fine.
+4. Internet explorer configuration
+VieWeb is working with internet explorer version 6 and more. The browser has to be set as
+follow:
+(cid:2) Allow the popup with Internet explorer
+(cid:2) Select the menu Utils/Options internet and select the Security tab.
+o Click on the button Custom Level ...
+o Deactivate the blocker of inopportune advertising windows (if available)
+o Activate scripting
+(cid:2) Internet settings are now OK.
+5. Firefox configuration
+Allow the popup with Firefox by:
+(cid:2) Selecting the menu Tools/Options and select the Web Features tab
+(cid:2) If popups are blocked, click on Allowed Sites button to allow them for the VieWeb serveur.
+(cid:2) Add the server ip and click on Allow button.
+6. Image resizing
+(cid:2) Selecting the menu Tools/Options and select the Advanced tab and deselect the option
+Resize large
+images to fit in the browser window. Then, click OK
+(cid:2) Firefox settings are now OK.
+Version 1.6.2 Page 36

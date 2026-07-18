@@ -1,0 +1,989 @@
+
+===== PAGE 1 =====
+KSeries production database columns
+and constants
+(from Vision3D CR4
+and last Vision20 CR5)
+10/05/2018 1/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 2 =====
+Contents:
+1 Introduction ............................................................................................................. 3
+2 Warning .................................................................................................................... 3
+3 What’s new in version 5.0? ........................................................................................ 4
+4 Database structure ................................................................................................... 5
+5 Tables ...................................................................................................................... 7
+5.1 Table PANELS ........................................................................................................ 7
+5.2 Table CARDS (sub-panels) ................................................................................... 11
+5.3 Table TESTED_OBJECT (components, texts alone, macros, foreign materials) ....... 13
+5.4 Table PIN ............................................................................................................ 17
+5.5 Table PIN_MEASURE ............................................................................................. 18
+5.6 Table PANELS_HISTO ........................................................................................... 19
+5.7 Table CARDS_HISTO ............................................................................................ 19
+5.8 Table TESTED_OBJECT_HISTO .............................................................................. 19
+5.9 Table PIN_HISTO.................................................................................................. 20
+5.10 Table MACHINE ................................................................................................ 20
+5.11 Table PRODUCT ............................................................................................... 20
+5.12 Table RECIPE .................................................................................................... 21
+5.13 Table LIBRARY ................................................................................................. 22
+5.14 Table OPERATOR ............................................................................................. 22
+5.15 Table PIXEL_SIZE (obsolete) .............................................................................. 22
+5.16 Table TOLERANCE ............................................................................................ 23
+5.17 Table PART_NUMBER ........................................................................................ 24
+5.18 Table JEDEC ..................................................................................................... 24
+5.19 Table FEEDER ................................................................................................... 25
+5.20 Table OBJECT_TYPE .......................................................................................... 25
+5.21 Table SPC (obsolete) ........................................................................................ 25
+5.22 Table SPC_Object (obsolete) ............................................................................. 25
+5.23 Table LOG_PROD ............................................................................................. 26
+6 Records by default .................................................................................................. 26
+7 Maintenance ........................................................................................................... 27
+10/05/2018 2/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 3 =====
+1 Introduction
+This document presents the database used by the Vi technology inspection system to save
+the inspection and review results.
+This document is confidential and must not be distributed without Vi technology
+agreement.
+Modifications made on the database in this version are displayed in blue. They are also
+presented in §3 “What’s new in version 5.0?”.
+2 Warning
+Vi TECHNOLOGY recommends that customers do not develop any application that access to
+this database as it could impact the performances and stability of the whole system:
+❖ applications that would overload the database server with too much or too long requests
+would prevent the Superviseur software to save or read inspection results in time. It can
+impact the inspection cycle time or worst, it can stop the production on the AOI that
+would reach the time-out!
+❖ Vi TECHNOLOGY can’t be taken as responsible for such instabilities appearing on the line
+as soon as such requests are made in the database and slow down the server.
+❖ Vi TECHNOLOGY will not be able to help customer for such communication issues
+(slowness, lost connections...) as we don’t master the overall system.
+❖ The database format can be changed when Vi TECHNOLOGY enhances his Vision solution.
+As result, customers will have to adapt their own applications.
+Vi TECHNOLOGY recommends that customers get the expected data either:
+❖ from one of our standard outputs:
+➢ Vi550 communication module which exports inspection/review results with respect
+of the IPC CAMX standard.
+➢ The output file that Vision software can generate (text file)
+❖ an output developed by Vi TECHNOLOGY and adapted to the customer needs. Customer
+must provide detailed specifications.
+10/05/2018 3/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 4 =====
+3 What’s new in version 5.0?
+❖ JOINT_BRIDGE table replaced by new PIN and PIN_MEASURE tables. Data are not grouped
+in the same way:
+➢ In the previous JOINT_BRIDGE table, they were grouped by defect type (1 row could
+concern several pins)
+➢ In the PIN table, they are grouped by pin (1 row could concern 0, 1 or several
+defects).
+❖ New tables for historization of data that can be changed after review.
+➢ PANELS_HISTO
+➢ CARDS_HISTO
+➢ TESTED_OBJECT_HISTO
+➢ PIN_HISTO
+❖ New columns in tables
+➢ PANELS
+➢ CARDS
+➢ TESTED_OBJECT
+➢ TOLERANCE
+❖ If we inspect several times a same panel side on the same machine, the previous
+inspection results are not deleted anymore.
+10/05/2018 4/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 5 =====
+4 Database structure
+Legend: new tables and columns are marked in red.
+The database is organized as a tree.
+It starts with the table MACHINE: it can be an AOI or a review station.
+In PANELS, you can find the list of panel inspection results of all the panels that has been
+inspected on a given machine. The tables are linked by Ids (auto-incremental values).
+In CARDS, you can find the inspection results of all the sub-panels of a given panel.
+In TESTED_OBJET, you can find the results of all the components (and solder paste…)
+inspected on a given sub-panel and the Foreign Materials discovered.
+In PIN, you can find the status of all component pins (it gives the list of defects like a bad
+solder joint or a solder bridge between 2 pins).
+In PIN_MEASURE, you can find the values of the measures made on the pin with the
+associated tolerances.
+10/05/2018 5/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 6 =====
+PANELS_HISTO, CARDS_HISTO, TESTED_OBJECT_HISTO, PIN_HISTO store the previous
+values of columns that are changed after a review in the associated tables.
+The other tables give more information about the panels, their components, the inspection
+parameters...
+10/05/2018 6/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 7 =====
+5 Tables
+5.1 Table PANELS
+This table does not really present panels but panel inspection results:
+1 record = 1 inspection of 1 side of 1 panel. A same side of a same panel can be inspected
+several times, at different production step or at the same production step in case of
+inspection issue.
+A panel is identified by its code (barcode or DATAMATRIX code).
+A side is identified by the associated side number (column Face_Number)
+No Unique Constraint.
+If we inspect several times a same panel side on the same machine, the column Crossing
+is incremented.
+Remark: a panel can be referenced in the database while it has not been inspected. When
+a panel is ejected from the AOI without being inspected, we need to explain to the operator
+what it happened when the board arrives on a review station. So, we save it in the database.
+Panel_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Panel_Bar_Code: This column identifies a Panel. Generally, it corresponds to a
+barcode or DATAMATRIX code attached to the panel. If there is no
+barcode reader on the machine, this code is generated by the AOI
+with the inspection date-time.
+Face_Number: Identifies the side which has been inspected (0 or 1). -1 indicates
+that the side number is undefined in the used inspection program
+and that no dual side ID code reader has been used to determine
+it. Note that the process engineer should define the side number
+in the inspection program when the system is not able to deduce
+it.
+Face: Name associated to a side. It can be “Top”, “Bottom” …
+Machine_Id: Link to the “Machine” table. It identifies the AOI that inspected the
+panel
+Lane_Number: For DualLane AOI, it gives the internal lane number (1 or 2) where
+the panel has been inspected.
+0 for single lane machine.
+Prod_Step: Production step:
+0: undefined
+1: pre-reflow
+2: post-reflow
+Prod_Info: This column gives the lot number associated to the inspected
+panels (but the user can use it to store any kind of information that
+he needs to attach to the results of all panels inspected within the
+production session).
+Panel_Info: provides the operator comment in case of a global sanction as
+scrapped panel.
+Panel_Numeric_Date: Date and time of the inspection. It is an ANSI time_t value. It is the
+number of seconds elapsed since midnight (00:00:00), January 1,
+1970, coordinated universal time, according to the system clock.
+10/05/2018 7/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 8 =====
+Conveying_Time_s: Time (in seconds) to convey the panel inside and outside the AOI.
+NOT AVAILABLE YET.
+Test_Time: inspection duration (in s). It does not include the time necessary to
+convey the panel inside and outside the AOI.
+Buy_Sell_Panel_Time_s: Time (in seconds) to wait upstream and downstream machine. NOT
+AVAILABLE YET.
+Waiting_Review_Time_s: Time (in seconds) to wait the end of the review (for embedded
+review only). NOT AVAILABLE YET.
+Product_Id: Link to the Product table. It identifies the inspection program.
+Library_Id: Link to the Library table. It identifies the inspection model library
+used with the inspection program.
+IPC610_Inspection_Class: from class 1 to 3. 0 when there is no IPC 610 test.
+Nb_Of_Valid_Cards: Number of good sub-panels.
+Nb_Of_Tested_Object: gives the number of components and paste pads that has been
+inspected on this panel.
+Nb_Of_Error_Object: gives the number of faulty components and paste pads. This value
+is updated after reviewing. This value does not include defects of
+invalid sub-panels. This value equals 0 if the operator has washed
+the panel on the review station.
+Has_Been_Reviewed: Indicates that the panel has been presented on a review station.
+0: not passed on a review station
+1: passed on a review station (even if the operator pressed on
+Escape)
+255: transitory state that indicates that the panel results are not
+fully saved. It is used by offline FIFO Review to not get results
+before they are ready.
+Anomaly_BR (before reviewing) and Anomaly_AR (after reviewing): It gives the global state
+of the panel. It's a field of 12 bits. You can use a mask to have the
+state of the panel. If there's no error, this field equals 0.
+After inspection and before reviewing, Anomaly_BR = Anomaly_AR.
+Binary decimal meaning
+bit 1 0000 0000 0001 1 fiducial error -> the panel has not been
+inspected
+bit 2 0000 0000 0010 2 code reading error (barcode or DATAMATRIX
+code)
+bit 3 0000 0000 0100 4 unexpected code root (barcode or DATAMATRIX
+code)
+bit 4 0000 0000 1000 8 This panel has been ejected by the review
+operator
+bit 5 0000 0001 0000 16 This panel has been washed by the review
+operator
+bit 6 0000 0010 0000 32 found one or more defects on the panel (see
+faulty components and faulty paste pads in
+the table TESTED_OBJECT).
+bit 7 0000 0100 0000 64 not specified error. In General, it is used by
+communication modules when a panel is
+ejected without being inspected.
+Bit 8 0000 1000 0000 128 axis error (if an axis error happens, the panel
+results should not be saved in the database).
+bit 9 0001 0000 0000 256 This panel has not been inspected. All its sub-
+panels have been skipped
+10/05/2018 8/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 9 =====
+bit 10 0010 0000 0000 512 One of its sub-panels has an error on its code
+(barcode or DATAMATRIX code)
+bit 11 0100 0000 0000 1024 There are too many defects on the panel (the
+limit has been reached), so they have not
+been saved in the table TESTED_OBJECT.
+bit 12 1000 0000 0000 2048 This is the reference to know if the panel has
+been inspected (=0) or not (=1). Panels are
+saved in the database while they have not
+been inspected in order to present the
+problem to the operator when these panels
+arrive on a review station.
+Panel_Status: gives the panel status. It is like Anomaly_AR but it ignores the ID
+code reading error because this is not a panel defect and it is not
+a binary field. That way, it can be used as a filter in database
+requests.
+Type: tiny int
+Value Meaning
+-2 Still faulty after reviewing
+-1 Faulty (after inspection)
+0 not inspected
+1 Good (after inspection)
+2 Good because all defects were dummy faults
+3 Good after reviewing
+Msg_For_Repair_Operator: It is used for panels that have been ejected from the AOI
+without being inspected. When the panel arrives on a review
+station, this message is shown to the operator. That way, the
+operator knows that the panel has not been inspected and why.
+Crossing: Number of times that this panel side has been inspected on the
+same machine.
+Is_Last_Inspection: Indicates if this row corresponds to the last inspection of this
+side of this panel on this machine: 0 = FALSE, 1 = TRUE.
+Operator_Id: Link to the Operator table that gives the review operator name.
+It is used in case of a global sanction as scrapped panel.
+Pixel_Size_Id: Link to the Pixel_Size table. Obsolete column. It was used by
+old generation of 3D inspection machines.
+Columns used to calculate the Cp values:
+Components_AvgDev_X: average deviation of components on X axis (µm). Type: double.
+Components_AvgDev_Y : average deviation of components on Y axis (µm). Type: double.
+Components_AvgDev_Theta: average rotation of components (degree). Type: double.
+Components_StdDev_X: standard deviation of components on X axis (µm). Type:
+double.
+Components_StdDev_Y: standard deviation of components on Y axis (µm). Type:
+double.
+Components_StdDev_Theta: standard rotation of components (degree). Type: double.
+PastePads_AvgDev_X: average deviation of paste pads on X axis (µm). Type: double.
+PastePads_AvgDev_Y: average deviation of paste pads on Y axis (µm). Type: double.
+PastePads_AvgDev_Surf: average of paste pad surface area errors (µm²). Type: double.
+10/05/2018 9/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 10 =====
+PastePads_StdDev_X: standard deviation of paste pads on X axis (µm). Type: double.
+PastePads_StdDev_Y: standard deviation of paste pads on Y axis (µm). Type: double.
+PastePads_StdDev_Surf: standard deviation of paste pad surface area errors (µm²).
+Type: double.
+Stencil_DX, Stencil_DY, Stencil_DTheta: when the AOI is just after a printer machine, we can
+calculate the deviation of the stencil using the deviation of all
+the inspected paste pads. Units: micron and degree.
+FreeFields (1->4): columns used for custom purpose.
+10/05/2018 10/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 11 =====
+5.2 Table CARDS (sub-panels)
+This table gives information about sub-panels.
+On a panel, we identify all its sub-panels by their associated number (see the column
+Card_Number). These numbers come from the inspection program (TST file).
+Unique Constraint: combination of the columns Panel_Id and Card_Bar_Code.
+Card_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table. This is a BIGINT since version 5.0 of the
+database.
+Panel_Id: Link to the panel to which this sub-panel belongs.
+Card_Bar_Code: If the sub-panel has its own code (barcode or DATAMATRIX code), it
+is saved in this column. It can be used to identify the sub-panel. It
+is often generated by the AOI using the panel code.
+Card_Number: Number affected to the sub-panel (1 to n).
+Card_Info: provides the operator comment in case of a global sanction as
+scrapped sub-panel.
+Anomaly_BR (before reviewing) and Anomaly_AR (after reviewing): It gives the global state
+of one sub-panel of the panel. It's a field of 12 bits. You can use a
+mask to have the state of the sub-panel. If there's no error, this
+field equals 0.
+After inspection and before reviewing, Anomaly_BR = Anomaly_AR.
+Binary decimal meaning
+bit 1 0000 0000 0001 1 Fiducial error -> the panel has not been
+inspected
+bit 2 0000 0000 0010 2 Code reading error (barcode or DATAMATRIX
+code)
+bit 3 0000 0000 0100 4 Unexpected code root (barcode or
+DATAMATRIX code)
+bit 4 0000 0000 1000 8 This panel has been ejected by the review
+operator
+bit 5 0000 0001 0000 16 This panel has been washed by the review
+operator
+bit 6 0000 0010 0000 32 Found one or more defects on this sub-
+panel (see faulty components and faulty
+paste pads in the table TESTED_OBJECT).
+bit 7 0000 0100 0000 64 Not specified error. In General, it is used by
+communication modules when a panel is
+ejected without being inspected.
+bit 8 0000 1000 0000 128 Axis error (if an axis error happens, the
+panel results should not be saved in the
+database).
+bit 9 0001 0000 0000 256 skipped sub-panel
+bit 10 0010 0000 0000 512 This sub-panel has been invalidated by the
+review operator. The panel status does not
+take care of its invalidated sub-panels. The
+panel can be considered as a good panel. If
+all the sub-panels are invalidated, the panel
+is considered as ejected (Panel.
+Anomaly_AR = 8)
+bit 11 0100 0000 0000 1024 There are too many defects on the panel
+(the limit has been reached), so they have
+not been saved in the table
+TESTED_OBJECT.
+10/05/2018 11/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 12 =====
+bit 12 1000 0000 0000 2048 This is the reference to know if this sub-
+panel has been inspected (=0) or not (=1).
+Card_Status: gives the sub-panel status. It is similar to Anomaly_AR but it
+ignores the ID code reading error because this is not a panel
+defect and it is not a binary field. That way, it can be used as a
+filter in database requests.
+Type: tiny int
+Value Meaning
+-2 Still faulty after reviewing
+-1 Faulty (after inspection)
+0 not inspected
+1 Good (after inspection)
+2 Good because all defects were dummy faults
+3 Good after reviewing
+Operator_Id: Link to the Operator table that gives the review operator name.
+It is used in case of a global sanction as “scrapped sub-panel.”
+Number_Of_Component: Number of components inspected on this sub-panel.
+Number_Of_Pads: Number of paste pads inspected on this sub-panel.
+Number_Of_Anomaly: Number of faulty components and paste pads found on this
+sub-panel.
+This column is like the column in Panels.Nb_Of_Error_Object.
+However, it is not updated in the same way after reviewing. If
+the panel is washed or if the sub-panel is invalidated by the
+review operator, this column keeps its initial value. Otherwise,
+it is updated accordingly to the operator actions.
+Nb_Of_Tests_On_Comp: Number of unitary tests performed to inspect the components
+of the sub-panel. It is used to calculate the DPMO. Type: long
+integer.
+Nb_Of_Tests_On_Pads: Number of unitary tests performed to inspect the paste pads
+of the sub-panel. It is used to calculate the DPMO. Type: long
+integer.
+Fields used to calculate the Cp values:
+Components_AvgDev_X: average deviation of components on X axis (µm). Type: double.
+Components_AvgDev_Y: average deviation of components on Y axis (µm). Type: double.
+Components_AvgDev_Theta: average rotation of components (degree). Type: double.
+Components_StdDev_X: standard deviation of components on X axis (µm). Type:
+double.
+Components_StdDev_Y: standard deviation of components on Y axis (µm). Type:
+double.
+Components_StdDev_Theta: standard rotation of components (degree). Type: double.
+PastePads_AvgDev_X: average deviation of paste pads on X axis (µm). Type: double.
+PastePads_AvgDev_Y: average deviation of paste pads on Y axis (µm). Type: double.
+PastePads_AvgDev_Surf: average of paste pad surface area errors (µm²). Type: double.
+PastePads_StdDev_X: standard deviation of paste pads on X axis (µm). Type: double.
+PastePads_StdDev_Y: standard deviation of paste pads on Y axis (µm). Type: double.
+PastePads_StdDev_Surf: standard deviation of paste pad surface area errors (µm²).
+Type: double.
+FreeFields (1->4): columns used for custom purpose.
+10/05/2018 12/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 13 =====
+5.3 Table TESTED_OBJECT (components, texts alone, macros, foreign
+materials)
+It gives the results of a tested object. It can be a component, a paste pad, a connector, a
+pin of a connector, a text (OCV tests are often associated to a component, they are not
+alone).
+But it can also provide:
+❖ the result of a macro (distance or angle between 2 components, or with a given line…),
+❖ the position and the encompassing area of a detected foreign material.
+Generally, only the faulty objects are saved in the database (for performance reason). But
+it is also possible to save all the tested objects.
+Unique Constraint: combination of the columns Card_Id and Topology.
+Tested_Object_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table. This is a BIGINT since version 5.0 of the
+database.
+Card_Id: Link to the sub-panel to which this TESTED_OBJECT belongs. This is a
+BIGINT since version 5.0 of the database.
+Topology: Name of the component given by the customer (= reference designator).
+It is unique within a sub-panel.
+Object_Type_Id: Link to the Object_Type table that gives the kind of the tested object:
+Component, paste pad…
+Part_Number_Id: Link to the Part_Number table. It is the Manufacturer reference of the
+component. To apply to “Components” or “Connectors”. In the case of a
+macro, it gives the kind of macro.
+Belong_To: Obsolete column. To apply to “Pins” of “Connectors”. It gives the
+topology of the connector to which it belongs.
+Inspection Results:
+Error_Table: It gives the list of defects found on this tested object by the AOI
+(provided in a field of bits). It is not updated after the operator review.
+Looking if this field equals 0 is not enough to know if this component is
+good, it is also necessary to check that it has been inspected with the
+Not_Inspected_Cause field
+Binary decimal meaning
+bit 1 0000 0000 0000 0000 0000 0000 0001 1 object missing
+bit 2 0000 0000 0000 0000 0000 0000 0010 2 polarity error
+bit 3 0000 0000 0000 0000 0000 0000 0100 4 solder joint defect (refer to PIN table)
+bit 4 0000 0000 0000 0000 0000 0000 1000 8 solder bridge defect (refer to PIN
+table)
+bit 5 0000 0000 0000 0000 0000 0001 0000 16 OCV error
+bit 6 0000 0000 0000 0000 0000 0010 0000 32 model not found in library (NOT used
+anymore, replaced by the column
+Not_Inspected_Cause)
+bit 7 0000 0000 0000 0000 0000 0100 0000 64 Delta_X value out of range
+bit 8 0000 0000 0000 0000 0000 1000 0000 128 Delta_Y value out of range
+bit 9 0000 0000 0000 0000 0001 0000 0000 256 Delta_Theta value out of range
+bit 10 0000 0000 0000 0000 0010 0000 0000 512 Delta_Thickness out of range
+bit 11 0000 0000 0000 0000 0100 0000 0000 1024 paste surface area out of range
+10/05/2018 13/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 14 =====
+bit 12 0000 0000 0000 0000 1000 0000 0000 2048 element skipped (NOT used anymore,
+replaced by the column
+Not_Inspected_Cause)
+bit 13 0000 0000 0000 0001 0000 0000 0000 4096 Connector: the space between 2 pin
+columns is not respected (obsolete)
+bit 14 0000 0000 0000 0010 0000 0000 0000 8192 Connector: the space between 2 pin
+rows is not respected (obsolete)
+bit 15 0000 0000 0000 0100 0000 0000 0000 16384 Connector: a pin is missing (obsolete)
+bit 16 0000 0000 0000 1000 0000 0000 0000 32768 Connector: bad pin alignment
+(obsolete)
+bit 17 0000 0000 0001 0000 0000 0000 0000 65536 Volume value out of range (obsolete)
+bit 18 0000 0000 0010 0000 0000 0000 0000 131072 Bad appearance (obsolete)
+bit 19 0000 0000 0100 0000 0000 0000 0000 262144 Potential defect imported from SPI
+bit 20 0000 0000 1000 0000 0000 0000 0000 524288 Tilt error (bad coplanarity)
+bit 21 0000 0001 0000 0000 0000 0000 0000 1048576 Side overhang (IPC 610)
+bit 22 0000 0010 0000 0000 0000 0000 0000 2097152 Length overhang (IPC 610)
+bit 23 0000 0100 0000 0000 0000 0000 0000 4194304 Foreign material detected
+Bit 24 0000 1000 0000 0000 0000 0000 0000 8388608 Component present (it should not)
+Bit 25 0001 0000 0000 0000 0000 0000 0000 16777216 Lifted lead (refer to PIN Table)
+Error_Table_AR: It gives the current list of defects found of this tested object. This is
+the same as Error_Table but it is updated after the operator review by
+the classification (the operator can add or remove or change some
+defects) and by the sanction (ex: a dummy fault sanction removes all
+the defects). If the component has no defect, this field has the value
+0. This is a BIGINT, its 32 upper bits are used by classification.
+Looking if this field equals 0 is not enough to know if this component
+is good, it is also necessary to check that it has been inspected with
+the Not_Inspected_Cause field.
+Not_Inspected_Cause: Indicates if this component has been inspected or not and why:
+0 Inspected
+1 ManuallySkipped: the operator chose to skip the inspection
+of this component.
+In previous version of the database, this information was
+provided using a specific bit in the Error_table column
+2 ModelNotFound
+3 BadProgramming
+Score: Score of the winner model.
+Delta_X: Deviation of the component on the X axis (µm).
+In the case of a macro, this field provides the calculated distance (it
+can be a distance on the x axis or not, it depends on the macro type
+provided by the associated Part Number).
+In case of a ForeignMaterial, this field provides the X position of its
+encompassing area center.
+Delta_Y: Deviation of the component on the Y axis (µm).
+In the case of a macro, this field provides the calculated distance (it
+depends on the macro type provided by the associated Part Number).
+In case of a ForeignMaterial, this field provides the Y position of its
+encompassing area center.
+10/05/2018 14/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 15 =====
+Delta_Theta: Rotational deviation of the component (degree)
+In the case of a macro, this field provides the calculated angle (it
+depends on the macro type provided by the associated Part Number).
+Delta_Thickness: Difference between real and expected thickness (µm). In case of a
+ForeignMaterial, this field provides its height.
+Delta_Surface: Difference between real and expected surfaces (%)
+Delta_Volume: Obsolete column. Difference between real and expected volumes (%)
+Mes_Tilt_um: Difference of height between the lowest and the highest points of the
+treatment area (µm)
+Expected_PosX_um: Used for macros only, 0 in the other cases (µm)
+Expected_PosY_um: Used for macros only, 0 in the other cases (µm)
+Expected_Angle_dg: Used for macros only, 0 in the other cases (degree)
+Expected_Thickness: Expected thickness (µm). In case of a ForeignMaterial, this field
+provides the height in µm of its encompassing area.
+Expected_Surface: Expected surface (µm²)
+Expected_Volume: Expected volume (µm3). In case of a ForeignMaterial, this field
+provides the width in µm of its encompassing area.
+Read_Text: text read by OCR treatment or text checked by OCV or text read by a
+Trace object (‘ID code’ model type result).
+Measures: Values of the internal treatment variables specified in the ‘Measures’
+equation of the winner model.
+Inspection conditions:
+Model: Name of the model used to inspect the component. This column is
+used by the Reparation software. To apply to “Components”.
+Tolerance_Id: Link to the Tolerance table. It gives the test tolerances.
+Is_3D_Test: 0 or 1 if the object has been inspected with a 3D test (at least one of
+its models does a 3 test, even if the winner model doesn’t use it).
+Review result and information:
+Repair_State_result: It gives the current state of the component:
+values <= 0 are given by the AOI, values > 0 are given by the
+Review.
+-2 not inspected (manually skipped or bad programming)
+-1 not detected as faulty by AOI
+0 detected as faulty by AOI but not reviewed yet
+1 repaired
+2 good (acceptable or dummy fault)
+3 confirmed as faulty
+Repair_Button_Comment: Name of the button selected by the operator
+Repair_Error_Comment: Comment associated to the button selected by the operator
+Repair_Operator_Comment: Operator comment
+Repair_Numeric_Date_Hour: Date and time of the operator’s diagnosis. It is an ANSI time_t
+value. It is the number of seconds elapsed since midnight
+(00:00:00), January 1, 1970, coordinated universal time,
+according to the system clock.
+Operator_Id: Link to the Operator table that gives the review operator
+name.
+10/05/2018 15/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 16 =====
+Miscellaneous:
+Feeder_Id: Link to the Feeder table. It identifies the placement machine,
+the gantry, the feeder, and the nozzle used to place the
+component. Used with “Components” or “Connectors”.
+Traceability: 0 or 1 to indicate that the user wants to keep the inspection
+results of this component even when it is good.
+FreeFields (1->2): columns used for custom purpose.
+10/05/2018 16/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 17 =====
+5.4 Table PIN
+This table provides the status of all component pins (it gives the list of pin defects like a
+bad solder joint or a solder bridge between 2 pins).
+1 row = 1 pin.
+Tested_Object_Id: Link to the TESTED_OBJECT to which this pin belongs.
+Pin_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Component_Side: Indicates on which component side the pin belongs to. It is relative
+to the component at 0 degree as it is defined in the library
+0 top side (North)
+1 right side (East)
+2 bottom side (South)
+3 left side (West)
+Pin_Index_On_Side: Index of the pin on its component side
+They are indexed on 0 (0 corresponds to the 1st pin of the side).
+They are increased following the clockwise direction.
+IPC_Pin_Nb: Global number of this pin as specified in IPC standard.
+0 indicates that is value is not defined.
+Error_Table It gives the list of defects found on this pin by the AOI. It is not
+updated after the operator review. As TESTED_OBJECT.Error_Table,
+this a binary field. Each bit corresponds to a kind of defect (it uses
+the same bits as TESTED_OBJECT.Error_Table). If there's no defect,
+this field has the value 0.
+Error_Table_AR It gives the current list of defects found on this pin. This is the
+same as Error_Table but it is updated after the operator review by
+the classification (the operator can add or remove or change some
+defects) and by the sanction (ex: a dummy fault sanction removes
+all the defects)
+Bridge_Id This value identifies each bridge found on a panel by a unique
+number (unique for a panel inspection). It allows to group all pins
+that belongs to a same bridge.
+0 when this pin doesn’t belong to a bridge.
+Review_Sanction provides the last operator sanction on this pin.
+-1 not in error (can happen only in case of full traceability)
+0 detected as faulty by AOI but not reviewed yet
+1 repaired
+2 good (acceptable or dummy fault)
+3 confirmed as faulty
+Review_Comment Comment of the operator who made the sanction.
+10/05/2018 17/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 18 =====
+5.5 Table PIN_MEASURE
+This table provides the measures made on a pin with the associated tolerance values.
+Pin_Id: Link to the PIN on which this measure was made.
+Pin_Measure_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Measure_Type: Kind of measure:
+1 SideOverhang_per
+2 LengthOverhang_um
+3 Joint3D_Height_um
+4 Joint3D_Width_um
+5 Joint3D_Length_um
+6 Joint3D_Convexity
+7 Joint3D_TailVolume_mm3
+8 Joint3D_Volume_mm3
+9 Joint3D_Uniformity_per
+10 Joint2D_Average_g
+11 Joint2D_Area_per
+12 LeadHeight_um
+13 Joint3D_TerminationHeight_um
+14 Joint3D_WettingAngle_deg
+15 Joint3D_Height_per
+16 Joint3D_Width_per
+17 Joint3D_TailVolume_per
+Value: Measured value. Its unit depends on the kind of measure:
+- SideOverhang values are %
+- LengthOverhang values are in µm
+- Joint3D_Height values are in µm
+- Joint3D_Width values are in µm
+- Joint3D_Length values are in µm
+- Joint3D_Convexity (-1->1)
+- Joint3D_TailVolume values are in mm3
+- Joint3D_Volume values are in mm3
+- Joint3D_Uniformity values are %
+- Joint2D_Average values are grey level (0->255)
+- Joint2D_Area values are %
+- LeadHeight values are in µm
+- Joint3D_TerminationHeight values are in µm
+- Joint3D_WettingAngle values are in degrees
+- Joint3D_Height values are %
+- Joint3D_Width values are %
+- Joint3D_TailVolume values are %
+Tolerance_Min: Associated tolerance.
+Tolerance_Max: Associated tolerance.
+Degraded_Mode: Indicates that the measure has been done on a 2D image in place
+of 3D (it can happen when the 3D image quality is not good enough
+10/05/2018 18/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 19 =====
+at this position). At- present it is a boolean value (0/1) but it could
+be extended in the future with more values for different cases.
+5.6 Table PANELS_HISTO
+Stores the previous values of PANELS columns that have been changed following an
+operator review.
+As soon as any of the following columns are modified in the PANELS table, a row is inserted
+in this table to save the previous values. Note that some of them are copied while they were
+not changed.
+Panel_Id: ID of the PANELS table row that has been modified.
+old_Panel_Bar_Code: Previous value.
+old_Anomaly_AR: Previous value.
+old_Panel_Status: Previous value.
+old_Nb_Of_Valid_Cards: Previous value.
+old_Nb_Of_Error_Object: Previous value.
+old_Operator_Id: Previous value.
+old_Panel_Info: Previous review operator comment.
+DateTime: UTC Date of the modification.
+5.7 Table CARDS_HISTO
+Stores the previous values of CARDS columns that have been changed following an operator
+review.
+As soon as any of the following columns are modified in the CARDS table, a row is inserted
+in this table to save the previous values. Note that some of them are copied while they were
+not changed.
+Card_Id: ID of the CARDS table row that has been modified.
+old_Card_Bar_Code: Previous value.
+old_Anomaly_AR: Previous value.
+old_Card_Status: Previous value.
+old_Number_Of_Anomaly: Previous value.
+old_Operator_Id: Previous value.
+old_Card_Info: Previous review operator comment.
+DateTime: UTC Date of the modification.
+5.8 Table TESTED_OBJECT_HISTO
+Stores the previous values of TESTED_OBJECT columns that have been changed following
+an operator review.
+As soon as any of the following columns are modified in the TESTED_OBJECT table, a row
+is inserted in this table to save the previous values. Note that some of them are copied
+while they were not changed.
+Tested_Object_Id: ID of the TESTED_OBJECT table row that has been
+modified.
+old_Error_Table_AR: Previous value.
+old_Repair_State_Result: Previous value.
+10/05/2018 19/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 20 =====
+old_Repair_Button_Comment: Previous value.
+old_Repair_Error_Comment: Previous value.
+old_Repair_Operator_Comments: Previous value.
+old_Repair_Numeric_Date_Hour: Previous value.
+old_Operator_Id: Previous value.
+DateTime: UTC Date of the modification.
+5.9 Table PIN_HISTO
+Stores the previous values of PIN columns that have been changed following an operator
+review.
+As soon as any of the following columns are modified in the PIN table, a row is inserted in
+this table to save the previous values. Note that some of them are copied while they were
+not changed.
+Pin_Id: ID of the PIN table row that has been modified.
+old_Error_Table_AR: Previous value.
+old_Review_Sanction: Previous value.
+old_Review_Comment: Previous value.
+DateTime: UTC Date of the modification.
+5.10 Table MACHINE
+This table lists the machines that are connected (through a Supervisor) to this database.
+Machine_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Machine_Name: Name of the machine (name of its computer)
+Machine_Type: 1 = AOI
+2 = Review station
+Machine_Type_Name: same as Machine_Type but readable form.
+Create_Date: Creation date of this record (for database administrator). It is a
+float value, but it is readable. Example: 2.0050128183733 ->
+2005/01/28 18:37:33
+5.11 Table PRODUCT
+This table lists the products (and their revisions) that has been inspected by the AOIs.
+Unique Constraint: combination of the columns Product_Name and Revision.
+Product_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Product_Name: Product name (defined in the TST property page)
+Revision: Revision of the product (defined in the TST property page)
+Description: Product description (defined in the TST property page). If this column
+is modified but not the revision column, the previous description is
+erased (we keep the description provided by the last used TST).
+Product_Date: It corresponds to the record creation date.
+10/05/2018 20/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 21 =====
+5.12 Table RECIPE
+This table contains all inspection programs (and their revisions) that has been used by the
+AOIs.
+Different inspection programs can correspond to a given product:
+❖ The inspection program can be linked to a face: top or bottom or Both in case of
+symmetrical panels
+❖ We can have different versions of an inspection program depending on the placement
+of the AOI in the production line. An inspection program can be associated to a
+production step (before or after oven…)
+❖ Evolution of an inspection program -> X versions of the same inspection program: we
+differentiate the inspection program using the last TST modification date.
+When the date of the TST file (= inspection program) changes, we consider the inspection
+program has been changed so we save it again with a new ID.
+Unique Constraint: combination of the columns File_Name and File_Date.
+Recipe_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+File_Name: Inspection program file name (without path and extension)
+File_Date: Date of the inspection program file (last modification). It is an ANSI
+time_t value. It is the number of seconds elapsed since midnight
+(00:00:00), January 1, 1970, coordinated universal time, according
+to the system clock.
+Product_ID: Link to the Product table. It identifies the associated product.
+Inspected_Side_Nb: number of the board side inspected with this recipe (defined in TST
+property page)
+-1: this recipe can be used to inspect both sides. This is the case
+of symmetrical boards.
+0: it can be Top or Bottom side, it depends on the customer
+strategy.
+1: it can be Top or Bottom side, it depends on the customer
+strategy.
+Inspected_Side_Name: name of the board side inspected with this recipe (defined in TST
+property page)
+Author: Author of the inspection program (defined in TST property page)
+Revision: Revision of the inspection program (defined in TST property page)
+Production_Step: Production step where this recipe should be used (defined in TST
+property page)
+Customer: customer for whom the product is dedicated (defined in TST
+property page)
+FreeFields (1->2): columns used for custom purpose.
+10/05/2018 21/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 22 =====
+5.13 Table LIBRARY
+A library defines how to inspect each kind of components. An inspection program specifies
+which test of the library (=model) should be used for each component of the panel. We do
+not need a library when we only inspect paste pads.
+When the library file date changes, we consider the library has been changed so we save it
+again with a new ID.
+Unique Constraint: combination of the columns Library_Name and Library_Date.
+Library_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Library_Name: Test library file name (without path and extension)
+Library_Date: Date of the library file. It is an ANSI time_t value. It is the number
+of seconds elapsed since midnight (00:00:00), January 1, 1970,
+coordinated universal time, according to the system clock.
+Comments: for database administrator
+Create_Date: Creation date of this record (for database administrator). It is a
+float value, but it is readable. Example: 2.0050128183733 ->
+2005/01/28 18:37:33
+5.14 Table OPERATOR
+This table lists the operator’s names. Currently, it only includes review operator’s names.
+Operator_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Operator_Name: Operator’s name.
+Create_Date: Creation date of this record (for database administrator). It is a
+float value, but it is readable. Example: 2.0050128183733 ->
+2005/01/28 18:37:33
+5.15 Table PIXEL_SIZE (obsolete)
+This table gives the pixel size that is used on the AOI that inspected the panel. It was used
+by old generation of 3D inspection machines.
+Pixel_Size_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Size_X, SizeY: Width and Length of pixels (micron)
+Size_Z: Height of a gray level (micron)
+10/05/2018 22/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 23 =====
+5.16 Table TOLERANCE
+This table saves the tolerances used for each inspected object (component or paste pad).
+One record gives all the tolerances used to inspect an object.
+Following the kind of object, only some tolerances are used.
+Unique Constraint: combination of all the tolerance values.
+Tolerance_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Delta_Position_X_Min_um: Minimum deviation accepted on the X axis (µm). Mainly required
+for macros because in the other cases, this value is the opposite of
+max value.
+Delta_Position_X: Maximum deviation accepted on the X axis (µm)
+Delta_Position_Y_Min_um: Minimum deviation accepted on the Y axis (µm). Mainly required
+for macros because in the other cases, this value is the opposite of
+max value.
+Delta_Position_Y: Maximum deviation accepted on the Y axis (µm)
+Delta_Angle_Min_dg: Minimum rotational deviation accepted (degree). Mainly required
+for macros because in the other cases, this value is the opposite of
+max value.
+Delta_Angle: Maximum rotational deviation accepted (degree). It is used only for
+components and macros.
+Delta_Thickness_Min: Maximum difference between real and expected.
+Delta_Thickness_Max: Maximum difference between real and expected thickness.
+Delta_Surface_Min: Maximum difference between real and expected surfaces if there
+is not enough paste (%). It is used only for paste pads.
+Delta_Surface_Max: Maximum difference between real and expected surfaces if there
+is too many paste (%). It is used only for paste pads.
+Delta_Volume_Min: Obsolete column. Maximum difference between real and expected
+volumes if there is not enough paste (%). It is used only for paste
+pads.
+Delta_Volume_Max: Obsolete column. Maximum difference between real and expected
+volumes if there is too many paste (%). It is used only for paste
+pads.
+Max_Tilt_um: Maximum tilt value (µm)
+10/05/2018 23/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 24 =====
+5.17 Table PART_NUMBER
+A Part-Number is the Manufacturer reference of a component.
+This table gives the part-number of each inspected component.
+It can also contain the types of the used macros:
+❖ DISTANCE_X
+❖ DISTANCE_Y
+❖ DISTANCE
+❖ ANGLE_2_TOPO
+❖ ANGLE_STRAIGHTLINE_TOPO
+❖ DISTANCE_POS+ANGLE_STRAIGHTLINE_2_TOPO
+❖ ANGLE_3_TOPO
+❖ DISTANCE_2_TOPO_STRAIGHTLINE_TOPO
+❖ DISTANCE_TOPO1_TO_PROJECTED_TOPO3_ON_STRAIGHTLINE_TOPO1_TOPO2
+Part_Number_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Part_Number: reference of the component
+Jedec_Id: Link to the JEDEC table. It identifies the shape of the component.
+Create_Date: Creation date of this record (for database administrator). It is a
+float value, but it is readable. Example: 2.0050128183733 ->
+2005/01/28 18:37:33
+5.18 Table JEDEC
+A JEDEC identifies a component shape. This table gives the number of pins on each side of
+a component.
+It can also contain the types of the used macros:
+❖ DISTANCE_X
+❖ DISTANCE_Y
+❖ DISTANCE
+❖ ANGLE_2_TOPO
+❖ ANGLE_STRAIGHTLINE_TOPO
+❖ DISTANCE_POS+ANGLE_STRAIGHTLINE_2_TOPO
+❖ ANGLE_3_TOPO
+❖ DISTANCE_2_TOPO_STRAIGHTLINE_TOPO
+❖ DISTANCE_TOPO1_TO_PROJECTED_TOPO3_ON_STRAIGHTLINE_TOPO1_TOPO2
+Jedec_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Jedec_Name: Name that identifies a component shape
+Face_N: number of pins on the North side of the component
+Face_S: number of pins on the Sud side of the component
+Face_E: number of pins on the Est side of the component
+Face_W: number of pins on the West side of the component
+Create_Date: Creation date of this record (for database administrator). It is a
+float value, but it is readable. Example: 2.0050128183733 ->
+2005/01/28 18:37:33
+10/05/2018 24/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 25 =====
+5.19 Table FEEDER
+This table gives information about placement machines. These information are imported
+at one time before launching a production session. Afterwards, they are not updated so it
+is not possible to verify their validity.
+Generally, this table is populated with placement machine name, nozzle gantry and feeder
+that have been used to place a component. But it depends of the imported files.
+Unique Constraint: combination of all the columns (except Feeder_Id)
+Feeder_Id: Auto incremental value generated by the database engine. It is the
+Primary Key of this table.
+Feeder_Machine: Placement machine name
+Feeder_ Level_1->4: Identify placement machine parts
+Create_Date: Creation date of this record (for database administrator). It is a
+float value, but it is readable. Example: 2.0050128183733 ->
+2005/01/28 18:37:33
+5.20 Table OBJECT_TYPE
+This table presents the different kinds of tested objects: component, paste pad…
+It is designed for the database administrator.
+Object_Type_Id: code which identifies the kind of the tested object
+hexadecimal decimal meaning
+0x00000001 1 Component
+0x00000008 8 Text (text alone, not associated to a
+component)
+0x00000010 16 Paste pad
+0x00001000 4096 Macro (combination of several tests)
+0x00010000 65536 Connector (obsolete)
+0x00020000 131072 Group of connectors (obsolete)
+0x02000000 33554432 FOREIGN_MATERIAL
+Object_Type_Name: readable form of the code
+Comments: for database administrator.
+5.21 Table SPC (obsolete)
+This table saves the SPC warnings generated during the production by the embedded SPC
+engine.
+A warning does not concern only one panel but a group of panels. In the database, a
+warning is attached to the last panel that make it occurred.
+5.22 Table SPC_Object (obsolete)
+This table identifies the SPC variables that generated a warning.
+SPC variables: it can be one of the inspection results (like Delta_X) of specific component
+which we are studying the variations (Example: the Delta_X values of the Component C001)
+10/05/2018 25/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 26 =====
+5.23 Table LOG_PROD
+This table is not used yet. It should store the machine working transitions like “load new
+board”, “start inspection”, “complete inspection” …
+6 Records by default
+The following tables have a record by default with the ID 1:
+- LIBRARY,
+- OPERATOR,
+- TOLERANCE
+- PART_NUMBER
+- JEDEC,
+- FEEDER.
+They are used for the database integrity.
+Example: when we do not have the placement machine data, the TESTED_OBJECTs point to
+the Feeder_Id 1.
+10/05/2018 26/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 27 =====
+7 Maintenance
+When the database size becomes huge, it is necessary to either:
+- delete the oldest results in order to reduce its size and not overload the database server,
+- or continue the production on a new database but it brings the issue to lose the most
+recent results (almost those of panels that have not been reviewed yet). So, it is
+necessary to import the most recent results in the new database.
+Vi TECHNOLOGY doesn’t provide any tool to do that, so it is necessary to do that manually
+with some SQL requests.
+In both solutions, keep in minds that tables are linked with each other’s with foreign keys:
+TESTED_OBJECT rows have a Card_Id column which points to 1 row of the CARDS table,
+CARDS rows have a Panel_Id column which points to 1 row of the PANELS table… So, it is
+not possible to add a row in CARDS before creating the associated row in PANELS. For the
+same reason, it is not possible to delete a row in PANELS before deleting all the rows in
+CARDS which point to this row (this is not true anymore with SQL server databases created
+with Vision3D CR4 (or newest ones) because they are deleted in cascade).
+The chart displayed in §4 au-dessus shows all the dependencies.
+1st solution recommendations:
+You just have to focus on PIN_MEASURE, PIN, TESTED_OBJECT, CARDS and PANELS tables
+and delete their rows in this order.
+To select the panel results that you want to delete you can select those whose:
+- Panel_Numeric_Date are under than your datetime limit
+- Panel_Status is >= 0 if you want to delete all good panels
+- HAS_BEEN_REVIEWED column is equal to 1 if you want to delete all reviewed panels
+2nd solution recommendations:
+For each panel that you want to copy in the new database:
+- you must first insert the associated rows in the tables MACHINE, PRODUCT, RECIPE,
+LIBRARY, OPERATOR, PIXEL_SIZE.
+- Then read the ID of the new rows and use them when you insert the new PANELS row
+(don’t keep the original values of Recipe_Id, Product_Id… because there are specific to
+the original database).
+- Before inserting the associated CARDS rows, you have to insert, for each of them, the
+associated rows in the OPERATOR table.
+- Read the ID of each of them and also the PANEL_ID then insert the CARDS rows.
+- Before inserting the associated TESTED_OBJECT rows, you have to insert, for each of
+them, the associated rows in the following tables: JEDEC, PART_NUMBER, TOLERANCE,
+OPERATOR and FEEDER.
+- Read the ID of each of them and also the CARD_ID then insert the TESTED_OBJECT rows.
+- Read the TestedObject_Id of the new TESTED_OBJECT rows and insert the associated
+rows in the PIN table.
+- Read the Pin_Id of the new PIN rows and insert the associated rows in the PIN_MEASURE
+table.
+To select the panel results that you want to copy, you can select those whose:
+10/05/2018 27/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited
+===== PAGE 28 =====
+- Panel_Numeric_Date are upper than your datetime limit
+- Panel_Status is < 0 if you want to keep only faulty panels
+- HAS_BEEN_REVIEWED column is equal to 0 if you want to keep only not reviewed panels
+10/05/2018 28/28 Vincent SAFFRE
+Confidential document, property of VIT, copy and disclosure prohibited

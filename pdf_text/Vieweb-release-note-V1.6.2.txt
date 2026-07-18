@@ -1,0 +1,73 @@
+
+===== PAGE 1 =====
+VViieewweebb 11..66..22
+RReelleeaassee nnoottee
+Enhancement
+• PPoossssiibbiilliittyy ttoo cchheecckk tthhee vveerrssiioonn
+Setup
+TThhee sseettuupp ccaann bbee ddoowwnnllooaaddeedd ffrroomm::
+hhttttpp::////ffttpp..vviitteecchhnnoollooggyy..ccoomm
+Corrected bugs
+• [[VViieewweebb]] BBllaannkk ssccrreeeenn wwhheenn uussiinngg mmuullttii-user license ((ffoorr 44 uusseerrss))
+• [Vieweb] LLLaaasssttt nnn dddaaayyy///mmmooonnnttthhh dddoooeeesss nnnooottt ssseeettt ttthhheee cccooorrrrrreeecccttt ssstttaaarrrtttiiinnnggg dddaaattteee
+===== PAGE 2 =====
+Vieweb 1.6.2 Release note
+1. Enhancement
+1.1 Possibility to check the version
+It is now possible to display the vieweb version.
+With URL /VIEWEB/version, the current version of the application is displayed.
+Page 2
+===== PAGE 3 =====
+Vieweb 1.6.2 Release note
+2. Current ffuunnccttiioonnaalliittiieess
+TThheessee ffuunnccttiioonnaalliittiieess aarree aavvaaiillaabbllee ffrroomm vveerrssiioonn 11..66
+2.1 AAdddd LLoott iinnffoorrmmaattiioonn iinn ffiilltteerrss lliissttss
+WWWiiittthhh ttthhhiiisss nnneeewww vvveeerrrsssiiiooonnn,,, iiittt iiisss nnnooowww pppooossssssiiibbbllleee tttooo dddiiisssppplllaaayyy rrreeesssuuullltttsss bbbaaassseeeddd ooonnn ttthhheee lllooottt nnnuuummmbbbeeerrr (((bbbaaatttccchhh))) gggiiivvveeennn fffooorrr
+a production.
+2.2 PPaanneell ssiiddee nnaammee ddiissppllaayyeedd iinn rreports
+FFFrrrooommm nnnooowww,,, ttthhheee rrreeesssuuullltttsss dddiiisssppplllaaayyyeeeddd iiinnn VVViiieeewwweeebbb cccooonnntttaaaiiinnn ttthhheee pppaaannneeelll sssiiidddeee nnnaaammmeee iiinnnfffooorrrmmmaaatttiiiooonnn (((bbbyyy iiinnnssstttaaannnccceee
+TOP/BOTTOM).
+Page 3
+===== PAGE 4 =====
+Vieweb 1.6.2 Release note
+2.3 New filter: Board status equal to different in FPY table
+This filter can be used for example to retrieve panels that have not been inspected.
+2.4 Full screen mode can by activated with F11 key
+Press F11 key in the keyboard to switch to full screen mode.
+Page 4
+===== PAGE 5 =====
+Vieweb 1.6.2 Release note
+2.5 Panel ID code and Board ID code become free input fields
+The pre-filled list has been replaced by free input field. The ID code used to filter the results must be
+input manually.
+3. Corrected BUGs
+18416 [Vieweb] Blank screen when using multi-user license
+17966 [Vieweb] Last n day/month does not set the correct starting date
+4. Compatibility
+Compatible Web browsers:
+• Microsoft Internet Explorer
+• Mozilla Firefox
+• Google Chrome
+5. Recommended server configuration
+For server
+OS All Windows platform
+Memory available Minimum 1GB
+HDD 500 MBytes
+6. Installation
+Please refer to “Vieweb 1.6 Installation guide”
+Page 5
+===== PAGE 6 =====
+Vieweb 1.6.2 Release note
+7. Known bugs
+• 9699: Send Reports by email are not working in some cases
+• 12421: Weekly reports totals differ from daily totals
+• 11211: Wrong Defect shown in Vieweb
+• 18915: Cannot export more than 250 colums
+Vi Technology® is a registered trademark of Vi Technology®.
+All products and brands, named in this document, are trademarks of their respective owners. Specifications are subject to
+change without notice. @2013 Vi TECHNOLOGY
+Europe Asia / Pacific The Americas
+Tel. : + 33 (0)4 76 33 59 78 Tel. : + 65 6747 6550 Tel. : + 1 978 372 1230
+Fax : + 33 (0)4 76 75 05 19 Fax : + 65 6747 6558 Fax : + 1 978 372 1767
+E-mail: info@vitechnology.com - Internet: www.vitechnology.com
+Page 6

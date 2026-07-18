@@ -1,0 +1,1123 @@
+
+===== PAGE 1 =====
+Chapter 1
+VieWeb overview
+1.1 Getting started
+VieWeb is a full-screen web-application accessible through web browsers (eg. Microsoft Internet Ex-
+plorer® or Mozilla Firefox). Please refer to the installation guide to get the detailed connection proce-
+dure.
+To connect the application, type the following URL into your internet browser, as described in chapter
+4 of the installation guide (Ex: http://localhost:8080/VIEWEB)
+It is enough to inform the login and the password to connect itself to the application.
+To get your account created, please contact your administrator.
+VieWeb 1.0 User manual Rev 01 1 - 1
+===== PAGE 2 =====
+VieWeb overview
+1.2 VieWeb functions
+VieWeb aims at performing reporting on data recorded on the VIT AOI systems. The reporting can be
+either on line (Real Time View) or as predefined reports (Reports List).
+With the Real Time View, you can quickly build single entity that will not be saved. An entity, such as
+defined in the VieWeb application, represents a specific functional analysis. Available entities are
+displayed as tables (FPY, DPMO, traceability, process capability, measurement system analysis, test
+empty master) or charts (error, deviation and trend).
+With Reports List, you can build multi-entity reports and save them on the server to be reused later for
+analysis on other period of time.
+All functions of the application are described in this manual.
+3 user profiles are available in the application:
+(cid:132) Readers can perform online analysis and use pre-defined reporting.
+(cid:132) Authors can create reports and configure several parameters.
+(cid:132) Administrators have full access to the application and in particular are responsible for the applica-
+tion configuration.
+The accessibility of the functions depends on the user profile: admin / author / reader.
+Reader rights are included in author rights; author rights are included in admin rights.
+The restriction of the function to Author (°) or Admin (*) is specified when necessary.
+1 - 2 VieWeb 1.0 User manual Rev 01
+===== PAGE 3 =====
+VieWeb overview
+1.3 Icons
+Icons are used throughout the application to represent actions.
+They can be either at the top or bottom of the page (page icons) or inside a page at the report level for
+instance (report icons).
+Page icons Report icons
+Cancel Calendar
+Create (new) Delete
+Go to the top of the page Duplicate
+OK Export to Excel
+Save Lock
+View Unlock
+Modify
+Print
+Send by email
+VieWeb 1.0 User manual Rev 01 1 - 3
+===== PAGE 4 =====
+VieWeb overview
+1.4 Error messages
+Error messages are displayed at the top of the page, for example when the title of a report already
+exists in the list.
+1 - 4 VieWeb 1.0 User manual Rev 01
+===== PAGE 5 =====
+VieWeb overview
+1.5 VieWeb architecture diagram
+VieWeb is based on the following web structure for intranet access:
+VieWeb can be used as an internet application. Its installation has then to be secured and accessible
+from outside the enterprise (Firewall, HTTP Server) by the internet port (80).
+VieWeb 1.0 User manual Rev 01 1 - 5
+===== PAGE 6 =====
+
+===== PAGE 7 =====
+Chapter 2
+VieWeb configuration
+This chapter describes how to configure VieWeb application. Configurations are mainly performed by the ad-
+ministrator. Most of them are mandatory.
+VieWeb is performing analysis on production databases that have been recorded by VIT supervisor software.
+VIeWeb configuration is done through the Parameters menu.
+For information, the menu bar is ac-
+cessible on top of all the application
+pages as shown above:
+2.1 The very first configurations
+2.1.1 Databases - - creation (°) - - modification / deletion (∗)
+One database at least must be defined to further use any functionality of VieWeb application.
+The list of available databases is defined in the menu Parameters / Databases List.
+To connect the application to a new database, click on the Create button.
+The following page is displayed, depending on database type as defined in the property file of
+the application:
+2.1.1.1 Access database type
+The database name is the name
+that will be displayed in the ap-
+plication to refer to this database
+(databases list, entity creation or
+modification).
+User and password are not man-
+datory (they depend on the data-
+base connection parameters).
+The database path is made of:
+\\ + IP address of the server or machine network name + \\ + path on the server + \\ +
+database name .mdb.
+The directory owning Access database has to be shared before declaring the
+database in the application with correct access and permissions.
+VieWeb 1.0 User manual Rev 01 2 - 1
+===== PAGE 8 =====
+VieWeb use
+The very first configurations
+2.1.1.2 SQL SERVER ORACLE
+All fields are mandatory.
+The database name is the
+name that will be displayed in
+the application to refer to this
+database (databases list, entity
+creation or modification).
+Server name can be the IP
+Adress or the network name of
+the database server.
+SID is the unique system iden-
+tifier for the database instance.
+Default Oracle port : 1521
+Default SQL Server port: 1433
+From the databases list page, the VieWeb databases definitions can be modified and deleted
+using the appropriate buttons.
+The modification page is similar to the creation one (same fields).
+The deletion is done without confirmation.
+2.1.2 Users’ list (∗)
+The management of users is available for administrators and is accessible in the menu Param-
+eters / Users list.
+Default user is Admin (password same as login by default).
+To create a new user, click on the Create but-
+ton.The following page is displayed:
+Enter the login, user name and email of the user
+and choose the group (Reader / Author / Admin)
+and language (French / English).
+The group defines the rights of the user in the
+application.
+The language defines the language used in the
+user interface of the application.
+E-mail is used as the sender field for reports
+mailing and by the administrator to send a re-initialized password.
+From the users list page, users can be modified and deleted using the appropriate buttons.
+The deletion is done without confirmation.
+The modification page is similar to the creation one and there is an additional button to re-ini-
+tialize the user’s password.
+Click on Reset password to re-initialize the user’s password. The reset
+is done with no confirmation. The new password is the user login.
+The reset button can be used when a user forget his password. This password will then
+be sent by mail.
+2 - 2 VieWeb 1.0 User manual Rev 01
+===== PAGE 9 =====
+VieWeb use
+2.2 Home page definition
+VieWeb home page displays a list of reports that can be organized in groups and customized for the
+connected user.
+Each user can select the list of reports to display when connecting to the application.
+Go to the menu Parameters /
+Home page definition and
+click on the reports to display
+on the home page.
+Use the buttons Check All /
+Check None to check or
+uncheck all reports in one
+click.
+Use the button Check Mine to
+check the reports created by
+the connected user.
+When you have finished your selection, click on the Save button to save your configuration or on the
+cancel button to go back to your home page with no changes.
+Example:
+VieWeb 1.0 User manual Rev 01 2 - 3
+===== PAGE 10 =====
+VieWeb use
+2.3 Password modification
+Every single user can change his password. When user is connected to the application and wants to
+modify its password, go to the menu Parameters / Password.
+Enter your new password and type it again in
+the confirmation text box.
+Password can not be empty.
+If you have forgotten your password, you have to contact your administrator for a re-initializa-
+tion of the password.
+2 - 4 VieWeb 1.0 User manual Rev 01
+===== PAGE 11 =====
+VieWeb use
+2.4 Application parameters (°/∗)
+The following parameters have to be set before using some functionalities of the application:
+(cid:132) MSA limits (∗)
+(cid:132) Application parameters (∗)
+(cid:132) Production lines (∗)
+(cid:132) Shift definition (∗)
+(cid:132) Report groups (°)
+2.4.1 MSA limits (∗)
+MSA stands for Measurement System Analysis. MSA is a statistical tool available with VIT AOI
+software that aims at analysing inspection models. Refer to the Avision user manual for more
+details on MSA.
+Limits to determine if the capability (CP) / repeatability (%EV) / reproducibility (GR&R) are OK,
+acceptable or Fault are specified in the menu Parameters / MSA limits. These limits define the
+colour code of the MSA result table.
+Limits can be defined for the following measurements:
+Average
+Standard Deviation
+6 * Standard Deviation
+CP
+GR&R
+EV
+%EV
+Each measurement has to be defined for:
+Deviation X
+Deviation Y
+Deviation Theta
+1. Select the type of lim-
+it in the combo box. 1
+2. Set the limits.
+2
+The save button is effective for all types of MSA limits. You can set all your MSA limits, and save
+only once.
+Default values for MSA limits are:
+Deviation X Deviation Y Deviation Theta
+Acceptable Out Acceptable Out Acceptable Out
+Average 0.2 0.3 0.2 0.3 5 10
+VieWeb 1.0 User manual Rev 01 2 - 5
+===== PAGE 12 =====
+VieWeb use
+Application parameters
+Standard deviation 0.2 0.3 0.2 0.3 5 10
+6 * Standard deviation 1.2 1.8 1.2 1.8 30 60
+CP 8 10 8 10 8 10
+GR&R 10 30 10 30 10 30
+EV 0.1 0.3 0.1 0.3 0.1 0.3
+%EV 10 15 10 15 10 15
+Minimum and maximum values for MSA limits are:
+Deviation X Deviation Y Deviation Theta
+Min Max Min Max Min Max
+Average -10 10 -10 10 0 360
+Standard deviation -10 10 -10 10 -10 360
+6 * Standard deviation -60 60 -60 60 -60 2160
+CP 0 100 0 100 0 100
+GR&R 0 100 0 100 0 100
+EV 0 10 0 10 0 10
+%EV 0 100 0 100 0 100
+2.4.2 Application parameters (∗)
+There are 3 types of parameters that can be setup in the Parameters / Application parame-
+ters menu:
+(cid:132) Paste pads tolerance intervals
+(cid:132) Components tolerance intervals
+(cid:132) MSA parameters
+Paste pads ITx, ITy and ITS parameters are used
+in the calculation of CP and GR&R of paste pads
+IT=Tolerance Interval
+ITS=IT for Surface
+Components ITx, ITy and ITS parameters are
+used in the calculation of CP and GR&R of compo-
+nents
+The Confidence coefficient is used in the calcu-
+lation of EV.
+The Tolerance EV is used in the calculation of the
+%EV.
+See chapter 3 for detailed calculation of MSA.
+2 - 6 VieWeb 1.0 User manual Rev 01
+===== PAGE 13 =====
+VieWeb use
+Application parameters
+2.4.3 Production lines (not mandatory) (∗)
+The definition of production lines is done in the menu Parameters / Production lines list.
+Click on the Create button to add a new production line.
+Production lines are used in the process capability entity.
+2.4.3.1 Add a machine to the production line
+1
+2
+3
+4
+1. Enter a name of the production line.
+2. Select a category from the drop-down list …
+3. … then select a machine.
+4. … and add it to the line.
+VieWeb 1.0 User manual Rev 01 2 - 7
+===== PAGE 14 =====
+VieWeb use
+Application parameters
+2.4.3.2 Delete a machine from the production line
+2
+1
+1. Select a machine in the line …
+2. … and remove it!
+From the production lines page, lines can be modified and deleted using the ap-
+propriate buttons.
+The modification page is similar to the creation one (same fields).
+The deletion is done without confirmation.
+2.4.4 Shift definition (not mandatory) (∗)
+The definition of shifts is done in the menu Parameters / Shift definition.
+Shifts are defined on a 24-hour cycle.
+Shift = work group, used as entities analysis parameters.
+Examples:
+(cid:132) 08h00 – 16h00 – 08h00
+(cid:132) 08h00 – 16h00 – 00h00 – 08h00
+(cid:132) 04h00 – 08h00 – 12h00 – 16h00 – 20h00 – 00h00 – 04h00
+To create a cycle with 3 shifts (like the second example above), follow the steps as described
+below:
+1. Enter the beginning of the first shift and click on
+Add button.
+2 - 8 VieWeb 1.0 User manual Rev 01
+===== PAGE 15 =====
+VieWeb use
+Application parameters
+2. Enter the beginning of the second shift and click on
+Add button.
+3. Enter the beginning of the third shift and click on
+Add button
+In case of error, click on the hour to remove and click
+on Remove button
+2.4.5 Report groups (not mandatory) (°)
+Report groups can be used to organize users home page. Groups will help to sort reports on a
+visual point of view.
+Report groups are optional. If some groups are defined reports may be affected to any group.
+For example you can define groups to store reports on production line FPY, Defects, Placement
+machine information, …
+Report groups are common to all users and a report can belong to one group only.
+The above home page
+presents reports classi-
+fied by group (AOI,
+DPMO and FPY).
+1. Go to the menu Pa-
+rameters / Report
+Groups List.
+To create a new report
+group, click on the Cre-
+ate button.
+VieWeb 1.0 User manual Rev 01 2 - 9
+===== PAGE 16 =====
+VieWeb use
+Application parameters
+Enter a Report group name in the text box and
+click on the Save button. You can also cancel by
+clicking on the appropriate button.
+You can modify an existing group name and de-
+lete a group using the Modify and Delete buttons.
+Only empty report groups can be deleted.
+2. Go to menu Reports List and click on the Modify button of a report to specify the group of
+the selected report. Repeat this operation on all reports to modify. See chapter 3 for more details
+on Reports List section.
+Report groups can also be created during report creation (see chapter 3 for more de-
+tails).
+2 - 10 VieWeb 1.0 User manual Rev 01
+===== PAGE 17 =====
+VieWeb use
+2.5 Automatic treatments (°)
+Automatic treatments enable you to schedule the generation of a report at a given frequency (daily,
+weekly, monthly) and / or to send the results by email to a list of addresses.
+The definition of automatic treatments is done in the menu Parameters / Automatic treatments List (°).
+Follow these steps to create a new automatic treatment:
+1. Click on the Create button.
+2. Select the report in the list (all available reports are listed in alphabetic order).
+3. Setup the parameters of the treatment:
+A B C D
+A Same month previous
+year
+B Previous month
+The report can be sent by mail and / or generated on the server. The frequency can be daily, weekly
+or monthly. Specify the starting date.
+4. Click on the Save button.
+From the automatic treatments list page, treatments can be modified and deleted using the
+appropriate buttons.
+The modification page is similar to the creation one (same fields).
+The deletion is done without confirmation.
+For reports generated as Excel files and saved on the server, Root backup folder is set during the
+application installation, as described in chapter 3.5.2 of the installation guide.
+Make sure the free disk space is sufficient to save reports on the application server.
+VieWeb 1.0 User manual Rev 01 2 - 11
+===== PAGE 18 =====
+VieWeb use
+Automatic treatments
+Automatic treatments can be activated or deactivated using the Parameters / Batch management (∗)
+menu.
+Click on the hyperlink to activate the automatic treatments.
+Click on the hyperlink to deactivate the automatic treatments.
+If the batch is activated, report will be automatically sent as mail or/and saved in the server batch folder
+(Excel format) according to the settings of the automatic treatments.
+2 - 12 VieWeb 1.0 User manual Rev 01
+===== PAGE 19 =====
+Chapter 3
+VieWeb use
+VieWeb use is made of 2 parts:
+(cid:132) Real time view enables the online analysis on a given entity (chart, process capability, table, MSA, test
+empty master, traceability). The analysis can not be saved.
+(cid:132) Reports list enables to build a report with one or multiple entities (chart, process capability, table, MSA) and
+to save the setup.
+All entities are detailed in the Real time view chapter. Reports list chapter focuses on the report structure and
+related functions.
+3.1 Real time view
+Real time view is available through the Real Time View menu.
+Each sub-menu of this menu is a VieWeb entity.
+An entity is first configured and then viewed. Entity configuration is made of different sections:
+(cid:132) General
+(cid:132) Parameters (for most of them)
+(cid:132) Other criteria like Chart type, Analysis
+(cid:132) Filters (for most of them)
+The General section is common to all entities and is then described separately.
+The mechanism of filters is common to all entities with filters and is then described separately as well.
+Entity results can be exported to Excel and printed. These mechanisms are common to all entities and
+are then described separately.
+3.1.1 Entity configuration: General section
+The Title of the entity is displayed in the results page
+at the top of the page and is the name of the exported
+Excel file. It can be either manual (i.e. entered by the
+user) or automatic (i.e. generated by the application).
+The Description of the entity is displayed in the re-
+sults page at the bottom of the page but is not export-
+ed in Excel format.
+Choose the Database to use for this analysis.
+VieWeb 1.0 User manual Rev 01 3 - 1
+===== PAGE 20 =====
+VieWeb use
+Real time view
+3.1.2 Entity configuration: filters mechanism
+Filters can be used to restrict the scope of the analysis. The selection of filters modifies the result
+of the report to the selected criteria, for example a machine or particular defect.
+Use filters when you need to explore more in details a situation and do not forget to remove them
+if it is a temporary search.
+You can combine multiple filters to add multiple conditions to the search (e.g. a board ID and a
+P&P machine. Your request will thus bring back some computed data of components included
+in this board and inspected by this P&P machine).
+Combining multiple filters can alter the report response time.
+Beware that all operators are not available for all filters as some fields can be used with complex
+operators (e.g. ID codes can be used with a between operator) but not all of them.
+Like operator means that the element to look for contains the criteria entered.
+Example: ID code LIKE ‘0508’
+In operator asks for a list of values between brackets to look for elements of that list.
+Example: ID code IN (12, 13, 14)
+Some filters offer to choose values among a list of values. For example if you choose to filter
+on Board ID code and you select any operator different from like or not like, you get the follow-
+ing interface:
+1. Click on the Add button
+2. Choose one or several values depending on the chosen operator.
+3. Click on the next arrows if needed.
+4. When finished, click on Save button or Cancel button to go back
+to the filter definition screen.
+5. Click on Save button or Cancel button to go back to the entity
+screen
+3 - 2 VieWeb 1.0 User manual Rev 01
+===== PAGE 21 =====
+VieWeb use
+Real time view
+6. You can modify or delete the filter when you are back to
+the entity screen
+The available operators by filter are described in the above table:
+Filter Equal Different In Not In Between Not Between Like Not Like <= >=
+Board number X X X X X X X X
+P&P machine X X X X X X
+P&P sub-element 1 X X X X X X
+P&P sub-element 2 X X X X X X
+P&P sub-element 3 X X X X X X
+P&P sub-element 4 X X X X X X
+Part Number X X X X X X
+Inspected Object X X X X
+Product X X X X X X
+Package (Jedec) X X X X X X
+Repair status X X X X
+Repair comment X X X X X X
+Reference Designator X X X X X X
+Default X X X X
+Panel Bar code X X X X X X X X X X
+Board ID code X X X X X X X X X X
+AOI X X X X X X
+Panel status X
+Board status X
+3.1.3 Export & Print
+Entities results can be exported as Excel files. The results are exported as tables, whatever the
+format available in Vieweb (table or chart).
+Click on the Export button and you will be asked for opening or saving the generated Excel file.
+The name of the exported file is the title of the entity.
+User has to select the directory to save excel file.
+Entity results can be printed.
+VieWeb 1.0 User manual Rev 01 3 - 3
+===== PAGE 22 =====
+VieWeb use
+Real time view
+Click on the Print button. The en-
+tity results are copied in a sepa-
+rate page and the Windows print
+page is displayed to configure the
+printing.
+3.1.4 Charts: error charts, deviation charts, trend charts
+The following specific sections are available to configure charts:
+3.1.4.1 Parameters
+You can select the last xx Hour / Day / Month
+/ Panel / Week to refine the analysis on the
+selected criteria.
+You can choose a date interval to restrict the
+analysis on a given period.
+If no hour is selected, the applica-
+tion will consider 00h00 AM.
+For the date to: if no hour is select-
+ed, the selected day will not be in-
+cluded in the analysis.
+3 - 4 VieWeb 1.0 User manual Rev 01
+===== PAGE 23 =====
+VieWeb use
+Real time view
+3.1.4.2 Chart type
+3 chart types are available here: er-
+ror charts, deviation charts and
+trend charts.
+Each chart type is described more
+in details below.
+3.1.4.3 Filters
+See details in each chart type section.
+When you have finished the entity configuration, click in the View button to
+see the results.
+3.1.4.4 Error charts
+Error charts enable a synthesis of errors occurring during the inspection on different axis.
+Analysis axes are defined by the Draw type and the Analyzed by parameters.
+Draw type By day: X-coordinate of the graph will be the days
+(Mandatory) By shift: X-coordinate of the graph will be the shifts
+Top 10: gives the ten most occurring data of your selection
+Analyzed The selection made here will be decomposition of the graph for day and shift and the X-coor-
+by dinate for Top 10.
+(Mandatory)
+Available values are:
+ß Board number sub-panel number
+ß Defect error type (e.g. missing, polarity, solder joint, …)
+ß P&P sub-element 1
+ß P&P sub-element 2
+ß P&P sub-element 3
+ß P&P sub-element 4
+ß P&P machine Pick&Place (placement) machine name
+ß Inspected object component, solder pad, text, connector, …
+ß By package (Jedec) name of the package
+ß By part number name of the part number
+ß By product inspection program name
+ß Repair comment comment associated to the repair action
+ß Repair status status associated to the repair action
+ß By Reference designator topology
+ß AOI vision machine name
+By shift drawtype is available only if shifts have been defined. See Chapter 2
+VieWeb configuration, § 2.4 Application parameters for more details.
+VieWeb 1.0 User manual Rev 01 3 - 5
+===== PAGE 24 =====
+VieWeb use
+Real time view
+Divided By and Scale enable the description of the Y-coordinate of the chart.
+Divided by The selection made here will be decomposition of the graph for Top 10. This parameter is
+(Optional) available for Top 10 only.
+Available values are the same as the ones available in the Analyzed by section (see above).
+Scale Y-coordinate of the graph.
+(Mandatory) DPMO (Default Per Million Opportunities):
+(number of faults x 1 000 000) / (total number of tests)
+PPM (Part Per Million):
+(number of faults x 1 000 000) / (total number of components checked)
+Real values: real values
+Error charts are displayed as histograms or tables (Representation field).
+Error charts filters can be chosen
+among the opposite list of values.
+Oracle and SQL Server
+databases offer also a
+filter on the error type.
+Example 1:
+Top 10 analyzed by Board number with PPM scale
+This report gives a view of boards which generate most errors.
+3 - 6 VieWeb 1.0 User manual Rev 01
+===== PAGE 25 =====
+VieWeb use
+Real time view
+Example 2:
+By day analyzed by defect with DPMO scale
+Example 3:
+Top 10 analyzed by defect and divided by repair status with DPMO scale
+VieWeb 1.0 User manual Rev 01 3 - 7
+===== PAGE 26 =====
+VieWeb use
+Real time view
+Example 4:
+Top 10 analyzed by package (Jedec)
+3.1.4.5 Deviation charts
+Deviation charts enable the analysis of the different deviations that can be detected dur-
+ing the visual inspection be it X, Y, Z, surface or theta deviation.
+Average of the deviations of the components in a panel is proposed as well.
+Deviation charts take into account only the components which do not miss.
+Deviation charts are displayed as curves and apply on the following elements to choose
+in a drop-down list:
+(cid:132)Average(X)
+(cid:132)Average(Y)
+(cid:132)Average(Z)
+(cid:132)Average(surface)
+(cid:132)Average(theta)
+(cid:132)Theta
+(cid:132)X
+(cid:132)Y
+(cid:132)Z
+(cid:132)Surface
+The chart displays the curve of the chosen element plus:
+(cid:132) Tolerance + Maximum and minimum toler- For X, Y, Z, Surface and Theta
+(cid:132) Tolerance - ances on the panel
+(cid:132) Average Average and standard deviation For All
+(cid:132) +3xStandard deviation of the displayed values
+(cid:132) - 3xStandard deviation
+3 - 8 VieWeb 1.0 User manual Rev 01
+===== PAGE 27 =====
+VieWeb use
+Real time view
+X-coordinate of the curve is:
+Element X-coordinate
+X, Y, Z, Surface, Theta Reference Designator
+Average(X), Average(Y), Average(Z), Panel
+Average(Surface), Average(Theta)
+Y-coordinate of the curve is:
+Element Y-coordinate
+X, Y, Z mm
+Average(X), Average(Y), Average(Z)
+Surface %
+Average(Surface)
+Theta Degree
+Average(Theta)
+Filters available for deviation charts are the same as the ones available for error charts.
+See chapter 1.4.1.
+Example 1:
+Average(X) deviation
+VieWeb 1.0 User manual Rev 01 3 - 9
+===== PAGE 28 =====
+VieWeb use
+Real time view
+Example 2:
+Y deviation
+3.1.4.6 Trend charts
+Trend charts enable an analysis of one indicator in time and with different time decom-
+position.
+It allows following the evolution of the production performances.
+Trend charts show one indicator at a time to be chosen among the list below (with de-
+tailed calculation for each). Calculation is performed only on inspected components with
+no missing error.
+All calculations are based on the same formulas: see Appendix.
+Indicators:
+(cid:132)Cpk (X paste, Y paste, Surface paste, X component, Y Component, Theta component)
+(cid:132)Cp (X paste, Y paste, Surface paste, X component, Y Component, Theta component)
+(cid:132)DPMO (defects, defects components, defects paste, false defect, false defects compo-
+nents, false defects paste, real defects, real defects components, real defects paste)
+(cid:132)FPY (After repair, AOI, Diagnostic)
+X-coordinate of the chart is chosen in the Decomposition drop-down list:
+(cid:132)1 hour
+(cid:132)3 hours
+(cid:132)6 hours
+(cid:132)12 hours
+(cid:132)Shift
+(cid:132)Day
+(cid:132)Week
+(cid:132)Month
+3 - 10 VieWeb 1.0 User manual Rev 01
+===== PAGE 29 =====
+VieWeb use
+Real time view
+Y-coordinate of the chart depends on the indicator:
+FPY indicators %
+DPMO indicators Real values
+Cp and Cpk indicators
+The analysis can be done on panel or board for all in-
+dicators except the DPMO indicators which apply only
+on boards. The choice is made with radio buttons:
+Available Filters differ if the analysis is made on panel or on board and if the indicator is
+a DPMO indicator or not:
+Available Filters Panel Board
+DPMO indicator Same as for error charts – see 1.4.1 chapter
+Other indicator Panel ID code Board ID code
+Panel status Board number
+By product Board status
+AOI By product
+AOI
+Trend charts are displayed as histograms or curves (Representation field).
+Example of trend chart:
+FPY Diagnostic per 3-hour
+VieWeb 1.0 User manual Rev 01 3 - 11
+===== PAGE 30 =====
+VieWeb use
+Real time view
+3.1.5 Process capability
+Process capability enables to see production line capability and easily compare AOI performanc-
+es based on several criteria.
+This entity shows similar indicators as Trend charts but displayed as a table for the entire chosen
+period (one figure per indicator for the period) and on a given production line.
+Production lines must be defined. See chapter 2 – Application parameters for more de-
+tails
+The following specific sections are available to configure process capability tables:
+3.1.5.1 Production lines
+Select a production line in the drop down list which
+contains all available production lines that have been
+configured in the vieweb parameters.
+Choose an analysis per panel or per board (used in
+the calculation of most indicators).
+3.1.5.2 Parameters
+Same as charts (see 1.4)
+3.1.5.3 Statistics
+Choose here which indicators you would like to
+see in the results table.
+You can choose one or multiple indicators.
+For the detailed meaning of FPY, CP, CPk and
+DPMO, please refer to glossary.
+Inspection number displays the number of in-
+spected panels or boards, depending on the se-
+lection in Production lines section.
+Average cycle duration: average of the AOI in-
+spection time.
+AOI efficiency: % of AOI use in production on the
+selected period of time.
+3 - 12 VieWeb 1.0 User manual Rev 01
+===== PAGE 31 =====
+VieWeb use
+Real time view
+Clicking on the View button displays the process capability table as configured above:
+There is one column per AOI system present in the selected production line (in the ex-
+ample above: AOI system 1 and AOI system 2).
+3.1.6 Table: FPY tables, DPMO tables
+Tables enable to compile and present several data in a clearly defined format.
+Proposed analyses are on FPY and DMPO.
+The following specific sections are available to configure tables:
+3.1.6.1 Parameters
+Same as charts (see 1.4)
+3.1.6.2 Type of table
+There are 2 types of tables available
+here: FPY and DMPO.
+Each type of table is described more in
+details below.
+3.1.6.3 Filters
+See details in each type of table section.
+VieWeb 1.0 User manual Rev 01 3 - 13
+===== PAGE 32 =====
+VieWeb use
+Real time view
+3.1.6.4 FPY tables
+FPY = First Pass Yield.
+FPY tables can show data by AOI or by product.
+FPY analysis can be done on panels or boards.
+Filters available on FPY calculation are:
+Filters available
+Panel Panel ID Code
+Panel status
+By product
+AOI
+Board Board ID code
+Board status
+By product
+AOI
+Clicking on the View button displays the following table ordered by increasing FPY value:
+Real defects are all defaults detected by the AOI and that are not considered as dummy
+faults by the repair operator.
+Dummy false is a default detected by the AOI and invalidated by the repair operator.
+FPY AOI and FPY Diagnostic: see formula in glossary.
+3.1.6.5 DPMO tables
+Defect Per Million Opportunities (DPMO) tables can show data:
+(cid:132) By AOI
+(cid:132) By defect
+(cid:132) By package (Jedec)
+(cid:132) By part number
+(cid:132) By product
+(cid:132) By Reference designator
+Furthermore the results can be detailed by package and/or by error type.
+Details after diagnostic can be displayed to give information on real and dummy faults.
+3 - 14 VieWeb 1.0 User manual Rev 01
+===== PAGE 33 =====
+VieWeb use
+Real time view
+Clicking on the View button displays the following table:
+A B C
+A Displayed only if Detailed by package is checked
+B Displayed only if Detailed by error type is checked
+C Displayed only if Detailed after diagnostic is checked
+DPMO formulas (DPMO, DPMO dummy false and DPMO real defects) are described in
+glossary.
+All filters described in 1.4.1 apply on DPMO tables.
+3.1.7 MSA
+MSA is a statistical tool available with Vision 2006 software that aims at analysing inspection
+models. Refer to the Vision 2006 user manual for more details on MSA.
+MSA can be used to verify capability, repeatability and reproducibility of packages or reference
+designators.
+MSA can be configured according to the following parameters:
+A specific database must be used for MSA.
+3.1.7.1 Analysis type
+Capability measures Cp and CPk
+Repeatability measures EV and %EV
+Reproducibility measures GR&R
+The analysis can be performed either on Refer-
+ence Designator or Package.
+The analysis can be performed on X, Y and/or
+Theta Deviations. There is one table per checked
+deviation in the results page.
+Clicking on the View button displays the following
+tables:
+3.1.7.2 Summary table description
+VieWeb 1.0 User manual Rev 01 3 - 15
+===== PAGE 34 =====
+VieWeb use
+Real time view
+It gives an overview of the number
+and percentage of components
+that are OK for the selected crite-
+ria.
+The rules applied to compute the
+number set in the OK, Acceptable
+or In error column are the same for
+Capability, Repeatability or Re-
+producibility line.
+(cid:132) To be entered as OK, an ele-
+ment has to be considered OK
+in all the displayed tables (X
+and/or Y and/or Theta devia-
+tions), according to the MSA pa-
+rameters (chapter 2 – MSA
+limits).
+(cid:132) To be entered as Acceptable,
+an element has to be consid-
+ered at least once as Accept-
+able and not In Error in all the
+displayed tables (X and/or Y
+and/or Theta deviations), ac-
+cording to the MSA parameters
+(chapter 2 – MSA limits).
+(cid:132) In the other cases, the element is considered In error.
+The columns Percentage represent the OK, Acceptable or In error percentage of com-
+ponents compared to the total number of inspected components.
+Colour coding comes from the definition of MSA limits ; see chapter 2 – MSA limits for
+more details.
+Used formulas are detailed in glossary.
+All filters described in 1.4.1 apply on MSA.
+3.1.8 Test Empty Master
+This functionality enables the analysis of empty panels for a given product.
+This analysis is done on a specific database that contains data recorded on empty panels.
+On the AOI, if you want to perform such a test, you have to send all results to the data-
+base so as to keep track on components which have been inspected OK.
+The result of this analysis gives a quick and precise overview of the library models that need to
+be tuned because they will generate escapes during inspection.
+Do not forget to choose the database you created for this particular test in the General
+section of the configuration page.
+3 - 16 VieWeb 1.0 User manual Rev 01
+===== PAGE 35 =====
+VieWeb use
+Real time view
+The following parameters & filters can be configured:
+3.1.8.1 Parameters
+Choose the product (inspection pro-
+gram) to analyze. The list shows avail-
+able inspected products in the selected
+database.
+You can select a time period to refine
+the analysis.
+If this section is left empty, all dates will
+be taken into account.
+3.1.8.2 Filters
+If you need to refine the analysis on one or several panels, click on Add but-
+ton …
+… and select one Panel ID code or a range of panel ID codes.
+Available operators here are: Between, Different,
+Equal, In, Like, <=, >=, Not between, Not in, Not like.
+Click on the Save button.
+Filters can be modified or deleted. The modification
+page is the same as the creation one.
+The deletion is done without confirmation.
+VieWeb 1.0 User manual Rev 01 3 - 17
+===== PAGE 36 =====
+VieWeb use
+Real time view
+Once you have selected all elements in these sections, click on the View button and
+check the results.
+The list of defects is displayed per Reference designator, board number, part number
+package, error type (grouped with a +) and with an occurrence.
+A synthesis of the analysis is available on top of the results page.
+3.1.9 Traceability
+Traceability functionality enables to get all details of inspection on a given panel or board. It tab-
+ulates all information recorded by the AOI system and stored in the production database, like in-
+spection date, number of boards per panel and defect status, defect detail and repair action…
+It is recommended to only restrict query to a given panel or board.
+However, it is possible, but not recommended (because of increasing request response time), to
+do the query on multiple panels or boards using ; as a separator.
+Traceability analysis can be restricted to a range of ID codes in the configuration page:
+1. Select one or several ID codes. You can use
+a * to specify codes like something (e.g.
+E20050708*)
+2. Indicate if the ID code refers to a panel or a
+board.
+If you choose Equal operator, do not use * or you will get very long response time.
+Once you have selected all elements in these sections, click on the View button and check the results.
+If you have selected Panel, 3 tables are displayed.
+If you have selected Board, 2 tables are displayed (tables 2 & 3).
+3 - 18 VieWeb 1.0 User manual Rev 01
+===== PAGE 37 =====
+VieWeb use
+Real time view
+Table 1: summary of panels status
+Table 2: summary of boards status
+Table 3: details of tested objects
+3.1.10 Meaning of error type icons
+Component Connector Paste Text
+Bridge Bridge Aspect Missing
+Joint Joint Bridge Skipped
+Missing Missing Missing
+Polarity Pin alignment Position X
+Position X Pin missing Position XY
+Position XY Polarity Position Y
+Position Y Position X Skipped
+Skipped Position XY Surface
+Text Position Y Theta
+Theta Step X Thickness
+Step XY Volume
+Step Y
+Text
+Theta
+VieWeb 1.0 User manual Rev 01 3 - 19
+===== PAGE 38 =====
+VieWeb use
+3.2 Reports list
+Clicking on Reports list menu displays the application home page.
+Reports list to display is user defined.
+First the reports organized in groups - if any - are displayed and then the reports with no groups. For
+each report, there is a list of possible actions:
+(cid:132)View
+(cid:132)Modify (↔)
+(cid:132)Delete (↔)
+(cid:132)Lock / Unlock (↔)
+(cid:132)Duplicate (↔)
+(cid:132)Print
+(cid:132)Export
+(cid:132)Mail
+Authors and administrators are able to create new reports (Create button).
+3.2.1 Report creation & view
+Click on the Create button to setup a new report. Display the report properties page which makes
+it possible to configure page-setting and entities:
+Layout of the report …
+Title of a report is unique in the list of reports.
+Report group can be specified at this step. It is Optional.
+Description of the report is visible on the reports list page.
+The Logo may be included in the header and / or footer of the report. Its size must be compliant
+with the header & footer definition
+Header and Footer can be made of: Date, Description, Logo, Title, User or nothing
+Automatic refresh can be setup when keeping the results on screen to get the data refreshed online.
+Choose to display the results on 2 columns when you select the automatic refresh option, in par-
+ticular with charts entities (some tables entities are too wide to be displayed in 2 columns mode).
+3 - 20 VieWeb 1.0 User manual Rev 01
+===== PAGE 39 =====
+VieWeb use
+Reports list
+… and then the content
+1. Click on Add button
+2. Select the entity to add to the report and click on OK to val-
+idate (or Cancel to go back to the layout definition page)
+3. Now you are back on the layout page and ready to cus-
+tomize your entity.
+3.2.1.1 Focus on entity … Comment
+This entity is added as a free text box to add a comment on the other entity(ies) dis-
+played. The comment appears on screen and on printing only.
+Example
+3.2.1.2 Focus on entity …. Chart
+When you click on Chart, a default chart is added to your report and called Defects anal-
+ysis by Board number.
+To customize the chart, either click on the chart name or on the Modify button or select
+the chart name in the drop down list at the top of the screen.
+Detailed configuration of charts is described in chapter 1.4.
+Time parameters are configured in a different way when charts are added to re-
+ports. There is indeed only a check box that will pop-up a window when viewing
+the report and asking for a date interval.
+Check box Pop-up window
+VieWeb 1.0 User manual Rev 01 3 - 21
+===== PAGE 40 =====
+VieWeb use
+Reports list
+3.2.1.3 Focus on entity …. MSA
+When you click on MSA, a default MSA entity is added to your report and called Mea-
+surement System Analysis data.
+To customize the entity, either click on the name or on the Modify button or select the
+name in the drop down list at the top of the screen (Detailed configuration of MSA entities
+is described in chapter 1.7).
+3.2.1.4 Focus on entity …. Table
+When you click on Table, a default table is added to your report and called Table of the
+FPY panel by AOI.
+To customize the table, either click on the table name or on the Modify button or select
+the table name in the drop down list at the top of the screen.
+Detailed configuration of tables is described in chapter 1.6.
+Time parameters are configured in a different way when tables are added to re-
+ports. There is indeed only a check box that will pop-up a window when viewing
+the report and asking for a date interval.
+3.2.1.5 Focus on entity …. Process Capability
+When you click on Process Capability, a default table is added to your report and called
+Process capability by panel.
+To customize the entity, either click on the name or on the Modify button or select the
+name in the drop down list at the top of the screen.
+Detailed configuration of process capability is described in chapter 1.5.
+Time parameters are configured in a different way when process capability ta-
+bles are added to reports. There is indeed only a check box that will pop-up a
+window when viewing the report and asking for a date interval.
+You can add as many entities as you want by repeating actions #1, #2 and #3.
+Once an entity is added to a report, 3 action buttons are available to Modify, Delete and
+Duplicate the entity in the report.
+Modification page is the same as the creation one (same fields).
+Deletion is done with confirmation.
+Duplication is done without confirmation. It duplicates the whole entity and places it in
+end of entities list.. You can then modify the copy with the Modify button.
+When you have finished adding content, click on the View button to visualize the report
+results.
+You can view each entity added to your report separately by clicking on the View button
+in the entity creation or modification page.
+3 - 22 VieWeb 1.0 User manual Rev 01
+===== PAGE 41 =====
+VieWeb use
+Reports list
+3.2.1.6 Report example
+The report presented in example contains a table and a chart entity.
+Report configuration
+Results
+VieWeb 1.0 User manual Rev 01 3 - 23
+===== PAGE 42 =====
+VieWeb use
+Reports list
+3.2.2 Report operations
+From VieWeb home page, reports can be modified, deleted, locked / unlocked, duplicated, print-
+ed, exported to Excel and sent by email.
+All these functionalities are described in this section.
+View button to open the visualisation page of the report.
+Modify button (or select hyperlink) to open the configuration page of the report and modify
+layout and / or content (same fields as 2.1).
+Delete button to suppress the report from the application. There is a confirmation message
+before the deletion.
+Lock button to protect the
+report with a password. En-
+ter a password to lock the
+report and confirm it in the
+appropriate text box.
+Click on Save to validate or Cancel to go back to the home page.
+Once locked, the available
+icons change and you can un-
+lock the report by clicking on
+Unlock button.
+Enter the password and click on Save to validate or Cancel to go back to the home page.
+Report duplication creates a report with the same layout and content and with a title
+like Copy of + title of copied report.
+Duplicate button opens the configuration page of the duplicated report. The duplicate report
+is created in the same report group as the original one. The owner of the duplicated report
+is the connected user. This means that you can duplicate a report (even if locked) done by
+another user and adapt it with your own parameters.
+Print button opens a copy of the report results and displays the Windows print page to con-
+figure the printing.
+Export button asks for opening or saving the generated Excel file. The name of the exported
+file is the title of the report. Results are exported as tables whatever the format available in
+VieWeb (table or chart).
+In case of multiple entities, VieWeb generates one Excel tab per entity (except for comments
+entities).
+Mail button send report results by email in excel format.
+Make sure the SMTP server has been properly configured during the VieWeb in-
+stallation. Please refer to installation procedure for more details.
+3 - 24 VieWeb 1.0 User manual Rev 01
+===== PAGE 43 =====
+VieWeb use
+Reports list
+A new page offers to enter the email addresses (to, c, cc) and the object (“report” by default):
+If you want to enter several email
+addresses, use ; as separator.
+Click on Send button to send the
+mail or Cancel button to go back to
+the home page.
+VieWeb 1.0 User manual Rev 01 3 - 25
+===== PAGE 44 =====
+VieWeb use
+3.3 How to quit the application ?
+Click on Exit menu …
+… and click on OK or Cancel.
+3 - 26 VieWeb 1.0 User manual Rev 01
+===== PAGE 45 =====
+VieWeb use
+3.4 Appendix
+Use cases chart:
+Real Time View Test Empty Master Traceability Connect VieWeb
+Home page definition
+Reader Consult a report
+Print a report
+Export a report
+Mail a report
+Change password
+Create a report
+Manage Reports
+Modify a report
+Delete a report
+Duplicate a report
+Author Lock / Unlock a report
+Manage report group
+Create database
+Automatic Treatments
+Modify/delete database
+Manage Users
+Administrator
+Define production lines
+Define shifts
+Define MSA limits
+Define application
+parameters
+VieWeb 1.0 User manual Rev 01 3 - 27
+===== PAGE 46 =====
+
+===== PAGE 47 =====
+Glossary
+AOI: Automatic Optical Inspection refers to any VIT equipment that performs PCB inspection.
+AOI efficiency: % of AOI use in production on the selected period of time.
+Board: Panel sub element;
+Cp: Capability. Cp = IT / 6σ. IT parameters are defined in the configuration of the application. See Chapter 2
+Application parameters for more details.
+Cpk: Cpk = Min { IT/2 – Avg(deviations) / 3σ ; IT/2 + Avg(deviations) / 3σ }. IT parameters are defined in the
+configuration of the application. See Chapter 2 Application parameters for more details.
+DPMO: Default Per Million Opportunities. DPMO = (Number of defects * 1 000 000) / (total number of tests).
+EV: Equipment Variation. Confidence coefficient parameter can be modified in the configuration of the appli-
+cation. EV = Confidence coefficient * σ. See Chapter 2 MSA Limits for more details.
+%EV: Tolerance EV parameter can be modified in the configuration of the application. %EV = EV * 100 / Tol-
+erance EV. See Chapter 2 MSA Limits for more details.
+FPY: First Pass Yield. FPY = (Number of panels (or boards)) / (Number of inspected panels (or boards)) * 100.
+3 types of FPY:
+- FPY AOI: FPY including all defects found by the AOI. Reflect the AOI performance.
+- FPY diagnostic: FPY that does not include dummy faults that have been categorized by the repair operator.
+Reflect the real product quality.
+- FPY after repair: FPY including repaired defects. Reflect the product quality after reparation: informs on de-
+fects that needs to be repaired.
+IT: Interval of Tolerances. IT parameters are defined in the configuration of the application. See Chapter 2 Ap-
+plication parameters for more details.
+MSA: Measurement System Analysis.
+Panel: A panel is a group of boards that are inspected at 1 time by the AOI.
+GR&R: Gage Repeatability and Reproducibility. GR&R = 4.33 * Mean of differences * 100 / IT. Mean of differ-
+ences shall be calculated following the example detailed below. Given a list of 9 elements. Only 8 will be taken
+into account and listed as shown below:
+First list Second list Difference
+Delta_X 1 Delta_X 5 Abs(Delta_X 5 - Delta_X 1)
+Delta_X 2 Delta_X 6 Abs(Delta_X 6 - Delta_X 2)
+Delta_X 3 Delta_X 7 Abs(Delta_X 7 - Delta_X 3)
+Delta_X 4 Delta_X 8 Abs(Delta_X 8 - Delta_X 4)
+Mean of differences
+PPM: Part Per Million. PPM = (Number of defects) / (Number of components + pads)* 1 000 000.
+P&P: Pick & Place equipment = placement machine.
+Shift: Work group, used as entities analysis parameters.
+VieWeb 1.0 User manual Rev 01 1 - 1
+===== PAGE 48 =====

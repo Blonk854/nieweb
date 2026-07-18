@@ -1,0 +1,1289 @@
+
+===== PAGE 1 =====
+Sigma Analysis V1.6.5
+User manual
+===== PAGE 2 =====
+Sigma Analysis V1.6.5 User manual
+Contents
+1 Introduction ...............................................................................................................................4
+1.1 Installation ..........................................................................................................................5
+1.1.1 Sigma Analysis workflow (Client Server) ....................................................................................................... 5
+2 Administration ...........................................................................................................................6
+2.1 Quick presentation ..............................................................................................................7
+2.2 Check version ......................................................................................................................8
+3 Presentation ...............................................................................................................................9
+3.1 Introduction ...................................................................................................................... 10
+3.1.1 Requirements ............................................................................................................................................ 10
+3.1.2 Installation ................................................................................................................................................ 10
+3.2 Vocabulary ........................................................................................................................ 11
+3.3 Screen Layout .................................................................................................................... 12
+3.4 Common actions GUI ......................................................................................................... 13
+3.4.1 Equipment Selector ................................................................................................................................... 13
+3.4.2 Export/Print .............................................................................................................................................. 13
+3.4.3 Zoom ........................................................................................................................................................ 14
+3.4.4 Select curves shown in the graphs .............................................................................................................. 14
+3.4.5 Navigation ................................................................................................................................................. 14
+4 Modules ................................................................................................................................... 16
+4.1 Live Module ....................................................................................................................... 17
+4.1.1 SPI Equipment Live .................................................................................................................................... 17
+4.1.2 AOI Equipment Live ................................................................................................................................... 18
+4.1.3 Live Header ............................................................................................................................................... 18
+4.1.4 FPY Chart .................................................................................................................................................. 19
+4.1.5 Stencil offset chart..................................................................................................................................... 19
+4.1.6 Volume per panel ...................................................................................................................................... 19
+4.1.7 Production history widget .......................................................................................................................... 20
+4.1.8 Yields Chart ............................................................................................................................................... 20
+4.1.9 TOP Defects trend by JEDEC with defects Trend ......................................................................................... 20
+4.1.10 TOP Defects trend by TYPE with defects Trend....................................................................................... 21
+4.1.11 TOP 10 JEDEC with defects Chart ........................................................................................................... 21
+4.1.12 Inspection result Chart .......................................................................................................................... 21
+4.1.13 Layout customization ............................................................................................................................ 21
+4.2 Line performance Module ................................................................................................. 24
+4.2.1 Line Performance Filters ............................................................................................................................ 25
+Page 2
+===== PAGE 3 =====
+Sigma Analysis V1.6.5 User manual
+4.2.2 Combined Yields ........................................................................................................................................ 25
+4.2.3 SigmaLine Correlated Defects chart............................................................................................................ 25
+4.2.4 Panel Status .............................................................................................................................................. 26
+4.2.5 Line Performance Time .............................................................................................................................. 26
+4.2.6 Defect per Type SPI ................................................................................................................................... 26
+4.2.7 Defect per Type AOI .................................................................................................................................. 26
+4.2.8 Subpanel Status ......................................................................................................................................... 27
+4.2.9 Top 5 Programs ......................................................................................................................................... 27
+4.2.10 TOP 10 JEDEC with defects Chart ........................................................................................................... 27
+4.2.11 Dashboard Table ................................................................................................................................... 27
+4.2.12 Summary Table ..................................................................................................................................... 28
+4.2.13 Log Table .............................................................................................................................................. 28
+4.3 Product Module................................................................................................................. 29
+4.3.1 Panel Status .............................................................................................................................................. 30
+4.3.2 Defects per type SPI................................................................................................................................... 30
+4.3.3 Defect per Type AOI .................................................................................................................................. 30
+4.3.4 Defects per group ...................................................................................................................................... 31
+4.3.5 Subpanel Status ......................................................................................................................................... 31
+4.3.6 Top 10 Components in error ...................................................................................................................... 31
+4.3.7 TOP 10 JEDEC with defects Chart ............................................................................................................... 31
+4.3.8 Dashboard Table ....................................................................................................................................... 32
+4.3.9 Panels Table .............................................................................................................................................. 32
+4.3.10 Log Table .............................................................................................................................................. 33
+4.3.11 Version Table ........................................................................................................................................ 33
+4.3.12 Measures Table .................................................................................................................................... 34
+4.3.13 Errors Table .......................................................................................................................................... 34
+4.3.14 Warning Table ...................................................................................................................................... 35
+4.4 Panel Module .................................................................................................................... 36
+4.4.1 Panel Filters:.............................................................................................................................................. 36
+4.4.2 Images tab ................................................................................................................................................ 38
+4.4.3 SPI Tab ...................................................................................................................................................... 40
+4.4.4 AOI Tab ..................................................................................................................................................... 45
+4.5 CP/CPK Module (SPI Only) ................................................................................................. 49
+4.5.1 Panel Filters:.............................................................................................................................................. 49
+4.5.2 Cp/Cpk Radar View .................................................................................................................................... 49
+4.5.3 Cp/Cpk Histograms Status .......................................................................................................................... 50
+4.5.4 Cp/Cpk panels table ................................................................................................................................... 50
+4.5.5 Cp/Cpk result table .................................................................................................................................... 52
+Page 3
+===== PAGE 4 =====
+Sigma Analysis V1.6.5 User manual
+1 Introduction
+This document explains how to use Sigmalink Analysis module.
+Don’t hesitate to ask your own account to VIT support team support.inspection@vitechnology.com .
+Page 4
+===== PAGE 5 =====
+Sigma Analysis V1.6.5 User manual
+1.1 Installation
+Please follow the installation guide.
+http://sigmalink.vitechnology.com/deliver/download/analyse/1.6.1/installnote
+Installation process can be used to upgrade any SPI Pi Machine.
+1.1.1 Sigma Analysis workflow (Client Server)
+Analysis Server
+Sigmalink Server
+Sigmalink Clients Analysis Pi licenses
+Analysis Module Line configuration
+SPI Pi Machine
+Sigma DBQuery Pi
+Analysis functionalities are provided by Analysis Server and DBQuery installation on each SPI Pi
+Machine.
+A valid “Analysis Pi”, “Advanced Analysis Pi”, “Analysis K” and “Advanced Analysis K” licenses are
+required to get access to analysis module from Sigmalink clients.
+Page 5
+===== PAGE 6 =====
+2 Administration
+===== PAGE 7 =====
+Sigma Analysis V1.6.5 User manual
+2.1 Quick presentation
+Sigmalink is a client server application. The server part must be installed on a dedicated machine.
+Clients communicate with server using HTTP protocol through a simple internet browser.
+Any data provided by SPI Pi use the HTTP communication, no shared folder is exposed from the Pi
+Machine.
+Sigma Analysis Architecture
+Sigma DBQuery Pi
+PI DB
+Sigmalink Server
+Sigmalink Clients
+Analysis Module
+Analysis Server
+File
+System
+K DB
+Please refer to Sigmalink user guide to get more information about Sigmalink
+presentation, license management and user interface.
+Please refer to DBQuery client user guide to get more information about Pi DBQuery direct
+connection.
+Page 7
+===== PAGE 8 =====
+Sigma Analysis V1.6.5 User manual
+2.2 Check version
+To check the version of the analysis server installation, you need to connect to
+http://<analyse_server>:8082/analyse/version
+eg: http://sigmalink_server:8082/analyse/version
+The resulting page should contain the following information:
+DBQuery: 1.6.4
+To check the version of the dbquery Pi installation, you need to know the SPI Pi machine hostname,
+and then connect to http://<spi_pi_machine_hostname>:8080/ dbquery /version
+eg: http://spi1:8080/dbquery/version
+The resulting page should contain the following information:
+DBQuery: 1.6.4 - OctopusRemoteAccess: 1.1.10 - Database: 1.74
+Page 8
+===== PAGE 9 =====
+3 Presentation
+Here is a global presentation of the Anaylsis screen architecture
+===== PAGE 10 =====
+Sigma Analysis V1.6.5 User manual
+3.1 Introduction
+3.1.1 Requirements
+Traceability system PI or K:
+Into this version of Sigmalink analysis module, we use only the data available onto the SPI or AOI
+machine. By consequence, the graphs displayed are depending of the customer's strategy applied onto
+the machine.
+The historic depends of :
+• the measures done by the machine
+• the numbers of panels inspected
+• the data cleaning
+Only available machine by machine
+No aggregate of data
+3.1.2 Installation
+Sigmalink server needs to access to the PI machines and to the K database and shared forlders. Please
+use installation guide for full information.
+You must install only one Sigmalink Server (including data import and offline review modules).
+Page 10
+===== PAGE 11 =====
+Sigma Analysis V1.6.5 User manual
+3.2 Vocabulary
+FPY First Pass Yield: the number of units successfully produced in a process step, i.e., without
+defects, divided by the total number of units entering that process.
+TPY / FTY First Time Yield: is a calculation used to determine when the total number of acceptable
+product leaves the process when rework/scrap are counted, but only if the rework performed
+corrects the defect(s).
+DPMO Defects per million of opportunity.
+This indicator used to bench a process.
+This indicator can be computed at any step of a SMT line or for the full process.
+On Pi, it is calculated as the number of defect divided by the number of stencil aperture of the
+panel multiply by 1 million.
+JEDEC JEDEC is an acronym for the Joint Electronic Devices Engineering Council. It is an international
+body of semiconductor manufacturers that set integrated circuit (IC) standards. JEDEC was
+originally created in 1960 to cover the standardization of discrete semiconductor devices and
+later expanded in 1970 to include integrated circuits. JEDEC does its work through its 50
+committees/subcommittees that are overseen by the JEDEC Board of Directors. Member
+companies in JEDEC include both manufacturers and users of semiconductor components as
+well as others who are allied to the field.
+For Vi TECHNOLOGY, JEDEC is a unique identifier for component outline (no functional
+properties just geometric properties). A JEDEC can linked to many Part number.
+Part Number Part Number: unique identifier in our customer information system.
+This reference can be inherited from an ERP.
+Page 11
+===== PAGE 12 =====
+Sigma Analysis V1.6.5 User manual
+3.3 Screen Layout
+This screen different parts:
+On Top (from left to right:
+• Header navigation bar
+• Header box (info and equipment selector)
+• Logo (link to about box)
+• Home button (back to home)
+In the Center the main view with split widget for tables and charts
+At the bottom:
+• A footer box to display contextual information
+Page 12
+===== PAGE 13 =====
+Sigma Analysis V1.6.5 User manual
+3.4 Common actions GUI
+3.4.1 Equipment Selector
+A click on the ‘arrow‘ button open a drop down to select the equipment on which the analysis is
+displayed.
+The equipment selector is different on Line Performance. The dual lane lines are split into two pseudo
+lines.
+3.4.2 Export/Print
+The charts can be exported into PNG/JPEG/PDF or SVG
+image.
+Export Table: Tables always have a download button to get
+the content in csv format.
+Page 13
+===== PAGE 14 =====
+Sigma Analysis V1.6.5 User manual
+3.4.3 Zoom
+Several levels of zoom are available:
+Full screen graph : only double click onto the
+chart/graph that you want to expand
+Zoom into a graph/chart :
+Define the zoom area using the left
+mouse button.
+Click on the first item, hold the button
+down and move the mouse in the 2nd
+point to define a square / rectangle.
+3.4.4 Select curves shown in the graphs
+By default all the curves are
+represented on the graph.
+To change this, just click on the
+name of the curve in the
+legend. It disappears in the
+graph.
+To add it, simply click again on
+it.
+3.4.5 Navigation
+Elements of charts and tables are interactive to ease the navigation between different modules of
+Analysis.
+3.4.5.1 Navigation in Live module
+Each panel of panel result chart leads to Panel module.
+Each panel of History list leads to panel module.
+Page 14
+===== PAGE 15 =====
+Sigma Analysis V1.6.5 User manual
+3.4.5.2 Navigation in Line Performance
+Each program name of Summary and Log table leads to Product module.
+Each program of top 5 programs with defect chart leads to Product module.
+Defect per type chart data has a one level drill down to display top 5 programs that leads to Product
+module.
+3.4.5.3 Navigation in Product
+Each id code of Panels table leads to Panel module.
+3.4.5.4 Data drill down
+Some charts in Product Module interactively give the ability to drill down into data by selecting
+elements to explore.
+The different criteria to select are:
+- The component (topology)
+- The defect nature
+- The moment when it happens
+Items of charts are interactive and header of charts will be updated with the previous selected
+elements.
+The moment is always the last element to select. Element on this charts are interactive and leads you
+to the selected time range in the panel Module.
+Page 15
+===== PAGE 16 =====
+4 Modules
+===== PAGE 17 =====
+Sigma Analysis V1.6.5 User manual
+4.1 Live Module
+This module is dedicated specifically to the line operator. The information is simple, with little history.
+The objective is to enable reactivity on the line based on these indicators.
+4.1.1 SPI Equipment Live
+SPI Live Screen contains:
+• FPY gauge chart by subpanel and by panel
+• Stencil offset scatter chart
+• Yields and DPMO graph on the 2.5 last hours
+• Volume per panel graph
+• Top defect by Type trend chart for Good operator
+• Top defect by Type trend chart for NoGood / NoGood operator
+Page 17
+===== PAGE 18 =====
+Sigma Analysis V1.6.5 User manual
+4.1.2 AOI Equipment Live
+AOI Live Screen contains:
+• FPY gauge chart by subpanel and by panel
+• Yields and DPMO graph on the 2.5 last hours
+• Top defect by Type trend chart for Good operator
+• Top defect by Type trend chart for NoGood / NoGood operator
+• Top defect by Jedec trend chart for Good operator
+• Top defect by Jedec trend chart for NoGood / NoGood operator
+4.1.3 Live Header
+Is displayed into the header box:
+the name of the current program
+the batch/lot name
+Page 18
+===== PAGE 19 =====
+Sigma Analysis V1.6.5 User manual
+4.1.4 FPY Chart
+First pass yield in percent of the current
+production (program, batch). The chart is
+bounded between 0% and 100%.
+Two values represent the FPY per panel and
+per subpanel
+4.1.5 Stencil offset chart
+The chart is a two dimensional chart centered on 0,0. Units in the
+two axis are micrometers. The scale both axis must be equal
+(aspect ratio 1:1)
+For each panel of the production, the stencil offset is displayed
+as a dot in the chart:
+Dot color:
+green color for the "back" squeegee direction panel
+blue color for the "forth"
+Dot opacity change with age of the panel:
+latest is 100%
+oldest is 40%
+4.1.6 Volume per panel
+This chart represents a curve of average paste volume of each
+panel. panel are time ordered on the X axis
+For each point of the curve,
+a upper bar will represent the quantile 75
+a lower bar will represent the quantile 25
+Page 19
+===== PAGE 20 =====
+Sigma Analysis V1.6.5 User manual
+4.1.7 Production history widget
+This widget displays a list of the last 10 panels inspected.
+Each panel item displays the following information:
+time stamp (hour:minute:second) of the beginning of the inspection
+cycle time
+the average Height
+the ID code ( if detected of generated )
+error count
+warning count
+squeegee direction
+has been reviewed icon
+4.1.8 Yields Chart
+This chart represents the following data for the last 2.5 hours :
+Before review
+After review
+DPMO
+4.1.9 TOP Defects trend by JEDEC with defects Trend
+This chart displays the 5 defect types with the most amount of
+defect on the last 8 hours. One chart is displayed for each type,
+displaying the evolution of defect per million of opportunity. The
+sampling period is 15 mins.
+DPMO :
+Number of defect total of each sample period divided by
+the number of component tested in the period
+This chart exists for different defect status: Good Operator,
+NoGood/NoGood Operator
+Page 20
+===== PAGE 21 =====
+Sigma Analysis V1.6.5 User manual
+4.1.10 TOP Defects trend by TYPE with defects Trend
+This chart displays the 5 defect types with the most amount of
+defect on the last 8 hours. One chart is displayed for each type,
+displaying the evolution of defect per million of opportunity. The
+sampling period is 15 mins.
+DPMO :
+Number of defect total of each sample period divided by
+the number of component tested in the period
+This chart exists for different defect status: Good Operator,
+NoGood/NoGood Operator
+4.1.11 TOP 10 JEDEC with defects Chart
+This chart displays the 10 jedec with the most amount of defect
+on the last 10 panel. Jedec number in horizontal axis
+Percentage of error :
+Jedec % defect = number of defect on the jedec on every
+history panel / Number on total defect on every history
+panel
+4.1.12 Inspection result Chart
+This chart is a bar graph. In X axis the last 10 panel, from oldest
+to newest. Each bar can have 5 different values according to
+panel status:
+PASS
+KO OPERATOR
+KO
+OK OPERATOR
+OK
+A line graph per panel represents the amount of warning
+4.1.13 Layout customization
+Live chart layout can be customized by editing an xml file
+conf/statistics/analyse_layout.xml
+« layout » section contains the list of layout for each module:
+“live” module
+In this version only live module is available
+Page 21
+===== PAGE 22 =====
+Sigma Analysis V1.6.5 User manual
+Each module section contains a section for each type of equipment
+• ALL (when multiple equipment are selected, not used yet)
+• K
+• PI
+Each equipment section contains a ‘graphs’ section with the attribute “layout”
+Two grid layouts are available:
+• 3H_3H (first row, 3 horizontal (3H), second row, 3 horizontal)
+• 2H_2H (first row, 2 horizontal (2H), second row, 2 horizontal)
+The graphs section contains the list of “graph” item to fill the layout assign row by row from the left to
+the right (eg 3H_3H, row1, cell 1, cell2, cell3, then row 2, cell 1, cell 2 cell 3)
+Graph item have a “name” attribute can be one of the following:
+For K:
+• K_fpyGauge
+• K_liveFPYDPMO
+• K_liveInspResult
+• K_livePareto
+For PI:
+• PI_fpyGauge
+• PI_liveFPYDPMO
+• PI_liveInspResult
+• PI_livePareto
+• PI_liveStencil
+• PI_liveVolume
+For Both
+• topDefect
+Some Graphs needs parameters in a subsection of the graph item. Parameter item has attributes ‘key’
+and ‘value’:
+Key “category” can have different values:
+• jedec
+• partnum
+• topo
+• defecttype
+Key “status” can have different values:
+• ko
+• okop
+Content of conf/statistics/analyse_layout.xml
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<layouts>
+<live>
+<ALL>
+<graphs layout="layout1">
+<graph name="toto">
+<parameters>
+Page 22
+===== PAGE 23 =====
+Sigma Analysis V1.6.5 User manual
+<parameter key="key" value="value" />
+</parameters>
+</graph>
+</graphs>
+</ALL>
+<K>
+<graphs layout="3H_3H">
+<graph name="K_fpyGauge" />
+<graph name="topDefect">
+<parameters>
+<parameter key="category" value="defecttype" />
+<parameter key="status" value="okop" />
+</parameters>
+</graph>
+<graph name="topDefect">
+<parameters>
+<parameter key="category" value="jedec" />
+<parameter key="status" value="okop" />
+</parameters>
+</graph>
+<graph name="K_liveFPYDPMO" />
+<graph name="topDefect">
+<parameters>
+<parameter key="category" value="defecttype" />
+<parameter key="status" value="ko" />
+</parameters>
+</graph>
+<graph name="topDefect">
+<parameters>
+<parameter key="category" value="jedec" />
+<parameter key="status" value="ko" />
+</parameters>
+</graph>
+</graphs>
+</K>
+<PI>
+<graphs layout="3H_3H">
+<graph name="PI_fpyGauge" />
+<graph name="PI_liveStencil" />
+<graph name="topDefect">
+<parameters>
+<parameter key="category" value="defecttype" />
+<parameter key="status" value="okop" />
+</parameters>
+</graph>
+<graph name="PI_liveFPYDPMO" />
+<graph name="PI_liveVolume" />
+<graph name="topDefect">
+<parameters>
+<parameter key="category" value="defecttype" />
+<parameter key="status" value="ko" />
+</parameters>
+</graph>
+</graphs>
+</PI>
+</live>
+</layouts>
+Page 23
+===== PAGE 24 =====
+Sigma Analysis V1.6.5 User manual
+4.2 Line performance Module
+This module gives more visibility to the process engineer to oversee its production line.
+Line Performance page summarize the indicators of all equipment of one line.
+Line Performance screen, SPI tab on
+Line Performance screen, AOI tab on
+Page 24
+===== PAGE 25 =====
+Sigma Analysis V1.6.5 User manual
+4.2.1 Line Performance Filters
+Period
+Line Performance data are bounded into a period.
+• The period can be defined using preset.
+• The preset provides the following presets:
+• In custom the date min and date max can be edited:
+• A filter button applies the period
+Status
+Line performance pareto charts can be filtered by status:
+For AOI:
+• Good operator
+• Repaired
+• Not Good Operator
+• Not Good
+For SPI
+• Good operator
+• Acceptable
+• Warning
+• Not Good Operator
+• Not Good
+4.2.2 Combined Yields
+According to the list of equipment of the line, it will display in a vertical layout, one yield chart for each
+equipment.
+4.2.3 SigmaLine Correlated Defects chart
+Page 25
+===== PAGE 26 =====
+Sigma Analysis V1.6.5 User manual
+4.2.4 Panel Status
+Pie Chart with values given in percent:
+Good Panel count
+Bad Panel count
+Passed Panel count
+OK Operator Panel count
+4.2.5 Line Performance Time
+A Pie Chart with values given in seconds and in percent :
+inspection time
+conveying time (load, unload)
+smema (waiting for panel to get upstream or to send
+downstream)
+review (waiting for operator decision)
+4.2.6 Defect per Type SPI
+Horizontal bar chart ordering the amount of defects by nature.
+Defect nature in horizontal axis. Percentage of occurrence in
+vertical axis
+defect count by nature % = number of defect of nature N /
+number of total defects
+Bars are verticals and sorted from the lowest to biggest (left to
+right)
+If glue deposits have been inspected, two series with two
+columns may appear in each category to distinguish paste and
+glue.
+4.2.7 Defect per Type AOI
+Horizontal bar chart ordering the amount of defects by nature. Defect nature in horizontal axis.
+Percentage of occurrence in vertical axis
+Page 26
+===== PAGE 27 =====
+Sigma Analysis V1.6.5 User manual
+defect count by nature % = number of defect of nature N / number of total defects
+Bars are verticals and sorted from the lowest to biggest (left to right)
+If glue deposits have been inspected, two series with two columns may appear in each category to
+distinguish paste and glue.
+4.2.8 Subpanel Status
+Pie Chart with values given in percent:
+Good subPanel count
+Bad subPanel count
+Passed subPanel count
+OK Operator subPanel count
+4.2.9 Top 5 Programs
+A vertical bar graph with the 5 programs with the
+biggest amount of defect. Program name in vertical
+axis. Defect count in horizontal axis.
+Bars are horizontal (because program name are
+wide)
+Variants of the same program are on separated
+bars.
+4.2.10 TOP 10 JEDEC with defects Chart
+This chart displays the 10 jedec with the most amount defect on
+the last 10 panel. Jedec number in horizontal axis
+Percentage of error :
+Jedec % defect = number of defect on the jedec on every
+history panel / Number on total defect on every history
+panel
+4.2.11 Dashboard Table
+Program count
+Panel count
+Page 27
+===== PAGE 28 =====
+Sigma Analysis V1.6.5 User manual
+Good, good operator, warning, pass, bad, bad operator, skip
+Subpanel count
+Good, good operator, warning, pass, bad, bad operator, skip
+4.2.12 Summary Table
+A table sorted by time of the programs inspected in the period. Columns :
+Program name (unique)
+Production count (total number of started inspection for this program)
+Batch count (total number of different batches for this program)
+Good Panel count
+Warning Panel count
+Bad Panel count
+Passed Panel count
+Skipped Panel count
+OK Operator Panel count
+KO Operator Panel count
+Total
+4.2.13 Log Table
+A table of time sorted productions in the filtered program/batch/period :
+Program
+Batch name
+Lot name
+Variant
+Panel count (of one production)
+Start time (day month hour/min/sec)
+End time (day month hour/min/sec)
+Solder Paste
+Stencil
+Duration (in days or day/hour/min or hour/min/s or min/sec or sec)
+Page 28
+===== PAGE 29 =====
+Sigma Analysis V1.6.5 User manual
+4.3 Product Module
+This module is dedicated to the process and allows engineers to make a special focus at a product.
+SPI Product Module
+AOI Product Module
+Filtering is performed on click on the button of the widget top bar.
+Filtered is on:
+single selection of program (required to get a result -> alert)
+Page 29
+===== PAGE 30 =====
+Sigma Analysis V1.6.5 User manual
+single selection of Batch
+period preset
+period minimum date
+period maximum date
+defect status
+correlated defect category (used by drill down from line correlated defect charts)
+For Program, a search box is available at the right of the label.
+4.3.1 Panel Status
+Pie Chart with values given in percent:
+Good Panel count
+Bad Panel count
+Passed Panel count
+OK Operator Panel count
+4.3.2 Defects per type SPI
+A horizontal bar chart giving:
+• Defect types ordered by frequency in the current
+filtered production in horizontal axis
+• Percentage of defect of each type on the total
+amount of defects, in vertical axis
+If glue deposits have been inspected, two series with
+two columns may appear in each category to
+distinguish paste and glue.
+4.3.3 Defect per Type AOI
+Horizontal bar chart ordering the amount of defects by nature. Defect nature in horizontal axis.
+Percentage of occurrence in vertical axis
+defect count by nature % = number of defect of nature N / number of total defects
+Bars are verticals and sorted from the lowest to biggest (left to right)
+Page 30
+===== PAGE 31 =====
+Sigma Analysis V1.6.5 User manual
+If glue deposits have been inspected, two series with two columns may appear in each category to
+distinguish paste and glue.
+4.3.4 Defects per group
+An horizontal bar chart giving:
+• Tolerance group ordered by amount of defect into
+current filtered production in horizontal axis
+• Percentage of defect of each group on the total
+amount of defects in vertical axis
+4.3.5 Subpanel Status
+Pie Chart with values given in percent:
+Good subPanel count
+Bad subPanel count
+Passed subPanel count
+OK Operator subPanel count
+4.3.6 Top 10 Components in error
+displays the 10 components with the
+biggest amount of defect on the last 10
+panel
+Jedec name in horizontal axis
+Percentage of error :
+Component % defect = number of
+defect on the component (topo) on
+every history panel / Number on
+total defect on every history panel
+4.3.7 TOP 10 JEDEC with defects Chart
+This chart displays the 10 jedec with the biggest amount of defect
+on the last 10 panel. Jedec number in horizontal axis
+Percentage of error :
+Jedec % defect = number of defect on the jedec on every
+history panel / Number on total defect on every history
+panel
+Page 31
+===== PAGE 32 =====
+Sigma Analysis V1.6.5 User manual
+4.3.8 Dashboard Table
+This widget is always visible, and it gives information on the selected productions
+Program count
+Panel count
+Good, good operator, warning, pass, bad, bad operator, skip
+Subpanel count
+Good, good operator, warning, pass, bad, bad operator, skip
+4.3.9 Panels Table
+A table of time sorted productions in the filtered program/batch/period :
+SPI:
+Inspection date
+ID Code
+Side (AOI)
+Lot (AOI)
+Status
+Errors (count)
+Warnings (count)
+Duration (in seconds)
+Review duration (in seconds)
+SMEMA duration (in seconds)
+Operator
+Review Status
+Review operator
+Squeegee direction
+Batch
+Lot
+Iteration error Type
+Variant
+Page 32
+===== PAGE 33 =====
+Sigma Analysis V1.6.5 User manual
+AOI:
+Inspection date
+ID Code
+Side
+Lot
+Status
+Reviewed
+Valid cards
+Tested objects
+Errors (count)
+Duration in seconds
+Operator
+Review operator
+4.3.10 Log Table
+A table of time sorted productions in the filtered program/batch/period :
+Program
+Product
+Batch name (SPI)
+Lot name
+Variant (SPI)
+Panel count (of one production)
+Start time (day month hour/min/sec)
+End time (day month hour/min/sec)
+Solder Paste (SPI)
+Stencil (SPI)
+Duration (in days or day/hour/min or hour/min/s or min/sec or sec)
+4.3.11 Version Table
+A table of time sorted program version in the filtered program/batch/period :
+Version number
+User
+Date
+Status
+Comment
+Page 33
+===== PAGE 34 =====
+Sigma Analysis V1.6.5 User manual
+4.3.12 Measures Table
+A table of time sorted panels in the filtered program/batch/period :
+IdCode
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Pin #
+Pad #
+Type (paste, glue, foreign)
+Group name (tolerance group)
+Status (OK/KO)
+Offset X um
+Offset Y um
+Shape 2d %
+Shape 3D %
+Area %
+Volume %
+Height %
+Inspection Date
+Batch name
+4.3.13 Errors Table
+A table of errors/warning in time sorted panels in the filtered program/batch/period :
+IdCode
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Pin #
+Pad #
+Type (paste, glue, foreign)
+Nature (defect nature)
+Value
+Value %
+Tolerance min
+Tolerance max
+Page 34
+===== PAGE 35 =====
+Sigma Analysis V1.6.5 User manual
+Status
+Review status
+Type
+Scope
+Batch
+Side
+Variant
+4.3.14 Warning Table
+A table of errors/warning in time sorted panels in the filtered program/batch/period :
+IdCode
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Pin #
+Pad #
+Type (paste, glue, foreign)
+Nature (defect nature)
+Value
+Value %
+Tolerance min
+Tolerance max
+Status
+Review status
+Type
+Scope
+Batch
+Page 35
+===== PAGE 36 =====
+Sigma Analysis V1.6.5 User manual
+4.4 Panel Module
+This module is dedicated to the process and allows engineers to make a special focus at a panel.
+4.4.1 Panel Filters:
+Filtering is performed on clicking on the button
+of the widget top bar
+Filtering is on:
+single selection of Panel or subPanel Idcode
+(required)
+To help selecting a idcode, the idcode list can be
+filtered on different criteria
+single selection of line
+single selection of program
+Period preset
+- period minimum date
+- period maximum date
+Panel Status
+List of batches is for the selected program
+For Idcode, Line and Program, a search box is
+available at the right of the label.
+Equipment relation is decorated using the
+following graphic code:
+AOI Pre-reflow
+SPI
+AOI Post-reflow
+Elements related to several equipment at the
+same time are decorated with combined graphic codes :
+SPI and AOI post-reflow
+SPI, AOI pre-reflow and post-reflow
+AOI pre-reflow and AOI post-reflow
+SPI and AOI pre-reflow
+Those decorations concern
+- Program name
+- Line content
+- Panel idcodes
+Page 36
+===== PAGE 37 =====
+Sigma Analysis V1.6.5 User manual
+4.4.1.1 SPI Program specific filters
+If the selected program is SPI some other filters
+appear:
+- Variants (single selection)
+- Batched (single selection)
+- Squeegee direction (single selection)
+Panel Status contains ‘Warning’ and ‘Acceptable’
+4.4.1.2 AOI Program specific filters
+If the selected program is AOI (pre-reflow of post-
+reflow) some other filters appear:
+- Lots
+- OCR
+Page 37
+===== PAGE 38 =====
+Sigma Analysis V1.6.5 User manual
+4.4.2 Images tab
+The image tab contains
+- correlated defects table with filters
+- correlated images
+- localization widget
+4.4.2.1 Correlated defects table
+Each line of this table is a unique defect of a particular part of a component :
+- Body
+- Bridge
+- Pin (lead)
+For each of these defects, every equipment displays a column with information related to it :
+- the defect type or nature
+- the inspection or review status
+4.4.2.2 Defects table filters
+Content of the table can be filtered using various criteria:
+- Subpanel index
+- Topology, reference designator
+- Jedec, package name
+- Part number
+- Inspection and review status
+Page 38
+===== PAGE 39 =====
+Sigma Analysis V1.6.5 User manual
+4.4.2.3 Correlated images
+The selection of a line the defect table trigger the display of the defect images for each equipment.
+According to the information of correlation like pin number, the image viewers will automatically
+center their view to the defect location.
+4.4.2.4 Localization widget
+Display the current position of the defect, in the context of the subpanel layout into the panel.
+4.4.2.5 Product Footer:
+The footer cartouche of product and panel views contains:
+Customer : <customer name of program>
+Product : <product name of program>
+Width : <width of panel in program> (along X)
+Height : <height of panel in program> (along Y)
+Side : <side of program> (Top, Bottom, N/A)
+4.4.2.6 Glue deposits
+Glue deposit defects are not completely supported. Those whose component reference designator are
+defined will be localized correctly into the panel. If no component information have been provided for
+a glue deposit, no correlation of localization will be possible.
+Page 39
+===== PAGE 40 =====
+Sigma Analysis V1.6.5 User manual
+4.4.3 SPI Tab
+SPI tab contains all the panel information related to Solder paste inspection step. There are the
+following screens :
+- Summary
+- Charts
+- Errors
+- Warnings
+- Measures
+- History
+4.4.3.1 Summary
+Summary page provides
+- a Panel /Subpanel Status banner
+- 3 block counters for Errors, Warnings and Cycle time
+- a CAD view with controls on defect nature to highlight
+Display volume measure as scaled color on deposits
+Display height measure as scaled color on deposits
+Display area measure as scaled color on deposits
+Display offset arrow and defect error in red on deposits
+Display defect error in red on deposits
+Page 40
+===== PAGE 41 =====
+Sigma Analysis V1.6.5 User manual
+4.4.3.2 Status Banner
+This banner has a background color according to panel status
+- OK = Green
+- WARNING = Orange
+- KO = Red
+A status icon is displayed into the banner
+- OK = green check
+- WARNING = Orange Warning triangle sign
+- KO = red cross
+Information on the panel are displayed:
+- Date
+- Program name (with variant)
+- Panel Status : OK / KO
+- Review Status : OK_OPERATOR / KO_OPERATOR ( "-" if no review done)
+- Squeegee direction:
+- Batch
+- Lot
+- Review Operator : <username> ( "-" if no review done)
+Panel Summary Indicators:
+- Number of error in the panel
+- Number of warning in the panel
+- Cycle time of the panel
+4.4.3.3 Cad view - Item Display
+Zoom level is bounded into
+- a full CAD display as zoom min
+- 5 micron per pixel in zoom max
+if no "Nature" as been selected, deposit are displayed with respective status color :
+- error = red
+- warning = orange
+- not tested, skipped = grey
+- good = purple
+If one of the following nature is selected:
+- Volume
+- Height
+- Area
+- Offset
+each pad has the color from a color scale according to its measure
+if Offset nature is selected:
+- an arrow giving the direction of the offset.
+- the length of the arrow is proportional to the nominal offset
+4.4.3.4 Cad view - Item Measure Color Scale:
+Volume, Area :
+Page 41
+===== PAGE 42 =====
+Sigma Analysis V1.6.5 User manual
+lowest = blue
+100% = white
+highest = red
+(lowest = 100 - hightest)
+4.4.3.5 Cad view - Item Measure Offset Arrow:
+An offset arrow have a length between 0 and 50 pixels
+if the most important offset is over 100 µm, the maximum length of 50 pixels corresponds to this most
+important offset
+if the most important offset is below 100 µm, the maximum length of 50 pixels corresponds to 100 µm
+4.4.3.6 Charts
+5 horizontal bar chart
+Volume
+Area
+Height
+X offset
+Y offset
+1 "dot in target" chart
+Pad Position X and Y
+one graph for the all deposit
+one graph for each tolerance group
+if the selected idcode is related to a subpanel, only deposit in the subpanel will be represented into
+the tolerance groups.
+Page 42
+===== PAGE 43 =====
+Sigma Analysis V1.6.5 User manual
+4.4.3.7 Errors/Warning Tab
+A table of errors/warnings in time sorted panels in the filtered program/batch/period
+IdCode
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Pin #
+Pad #
+Nature (defect nature)
+Value
+Value %
+Tolerance min
+Tolerance max
+Status
+Review status
+Type
+Scope
+Batch
+Page 43
+===== PAGE 44 =====
+Sigma Analysis V1.6.5 User manual
+4.4.3.8 Measures Tab
+A table of time sorted panels in the filtered program/batch/period :
+IdCode
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Pin #
+Pad #
+Group name (tolerance group)
+Status (OK/KO)
+Offset X (um or %)
+Offset Y (um or %)
+Shape 2d %
+Shape 3D %
+Area %
+Volume %
+Height %
+Inspection Date
+Batch name
+4.4.3.9 History Tab
+Inspection date
+Iteration number
+Status
+Squeegee direction
+Duration
+Errors
+Warnings
+Error type
+% avg volume
+Review status
+Review Operator
+Review Date
+Batch
+Page 44
+===== PAGE 45 =====
+Sigma Analysis V1.6.5 User manual
+Lot
+4.4.4 AOI Tab
+SPI tab contains all the panel information related to Solder paste inspection step. There are the
+following screens :
+- Summary
+- Charts
+- Errors
+- Measures
+- History
+4.4.4.1 Summary
+Display theta measure as scaled color on deposits
+Display offset arrow and defect error in red on deposits
+Display defect error in red on deposits
+4.4.4.2 Status Banner:
+This banner has a background color according to panel status
+- OK = Green
+- KO = Red
+A status icon is displayed into the banner
+- OK = green check
+- KO = red cross
+Page 45
+===== PAGE 46 =====
+Sigma Analysis V1.6.5 User manual
+Information on the panel is displayed:
+- Date
+- Program name
+- Panel Status : OK / KO
+- Review Status : OK_OPERATOR / KO_OPERATOR ( "-" if no review done)
+- Squeegee direction:
+- Batch
+- Lot
+- Review Operator : <username> ( "-" if no review done)
+Panel Summary Indicators:
+- Number of error in the panel
+- Number of warning in the panel
+- Cycle time of the panel
+Panel Summary Defects CAD :
+CAD display of deposit with status color :
+- error = red
+- not tested, skipped = grey
+- good = green
+Zoom level is bounded into
+a full CAD display as zoom min
+5 micron per pixel in zoom max
+4.4.4.3 Charts Tab
+3 horizontal bar chart
+Angle
+X offset
+Y offset
+Page 46
+===== PAGE 47 =====
+Sigma Analysis V1.6.5 User manual
+1 "dot in target" chart (scatter graph)
+Component offset in X and Y
+one chart entry for the whole panel
+one chart entry for each board
+4.4.4.4 Panel CAD Item Display :
+Display the CAD aperture:
+if no "Nature" as been defined, all the pad are the same color (purple)
+If one of the following natures is selected:
+Offset
+Angle
+each pad has the color from a color scale according to its measure
+if Offset nature is selected
+an arrow giving the direction of the offset.
+the length of the arrow is proportional to the nominal offset
+A selection into the CAD updates the 2d image with component defect picture
+4.4.4.5 Item Measure Color Scale:
+Angle
+0 = white
+3° or max = red
+4.4.4.6 Item Measure Offset Arrow:
+an offset arrow must have a length between 0 and 50 pixels
+if the most important offset is over 100 µm, the maximum length of 50 pixels correspond to this most
+important offset
+if the most important offset is below 100 µm, the maximum length of 50 pixels correspond to 100 µm
+4.4.4.7 Errors/Warning Tab
+A table of errors/warning in time sorted panels in the filtered program/batch/period
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Nature (defect nature)
+Lead Pin #
+Tail Pin #
+Value
+Page 47
+===== PAGE 48 =====
+Sigma Analysis V1.6.5 User manual
+Value %
+Tolerance min
+Tolerance max
+Status
+Review status
+Type (I don't know have to see the request)
+Scope
+Batch
+4.4.4.8 Measures Tab
+A table of time sorted panels in the filtered program/batch/period :
+IdCode
+Subpanel IdCode
+Subpanel Index
+JEDEC
+Part. (part number)
+Ref. (topo)
+Status (OK/KO)
+Offset X um
+Offset Y um
+Theta
+Inspection Date
+Lot name
+Page 48
+===== PAGE 49 =====
+Sigma Analysis V1.6.5 User manual
+4.5 CP/CPK Module (SPI Only)
+4.5.1 Panel Filters:
+Filtering is performed on clicking on the button of the widget top bar
+Filtering is on:
+single selection of program (no empty selection)
+single selection of Group (no empty selection)
+single selection of Profile version
+single selection of Variants
+single selection of Batch
+For each, a search box is available at the right of the label.
+Also filter on any of elements in coma separate lists fields for:
+subpanel, JEDEC, Part Number and Topo
+4.5.2 Cp/Cpk Radar View
+Pie Chart with values given in percent:
+Good Panel count
+Bad Panel count
+Passed Panel count
+OK Operator Panel count
+Page 49
+===== PAGE 50 =====
+Sigma Analysis V1.6.5 User manual
+4.5.3 Cp/Cpk Histograms Status
+The histogram of measurement for a specific nature on the
+given group ( filtered selection ).
+The sampling period is of 2%, and 2 pixels for the X offset
+and Y offset
+Vertical bar represents the real measurements.
+A curve represents the theoretic Gauss distribution that
+match the same mean value and the same standard
+deviation as the measurements.
+In the tolerance group:
+if advanced defect definition is active for the
+nature to display
+2 red vertical lines display the left and right
+bounds, error thresholds advanced defect
+definitions of group
+An histogram is displayed for each nature :
+Height
+Volume
+Area
+Offset X
+Offset Y
+Offset X and Y histogram can be generated with value in percent, to fit into the
+corresponding tolerances bound. In this case the normal law corresponding to histogram
+won’t be relevant
+4.5.4 Cp/Cpk panels table
+Table time sorted of panel for the filter criteria:
+Panel IdCode
+Sub Panel Id
+JEDEC
+Part. Number
+Ref
+Pin #
+Pad #
+Offset X
+Offset Y
+Height
+Height %
+Page 50
+===== PAGE 51 =====
+Sigma Analysis V1.6.5 User manual
+Area %
+Volume %
+Page 51
+===== PAGE 52 =====
+Sigma Analysis V1.6.5 User manual
+4.5.5 Cp/Cpk result table
+One table per nature giving the following values :
+Volume in %
+Area in %
+Height in %
+Offset X in µm
+Offset Y in µm
+Each table gives the values of:
+Min (lowest measure)
+Max (highest measure)
+Average (avg measure)
+Standard deviation
+Cp
+Cpk
+Page 52
+===== PAGE 53 =====
+Vi Technology® is a registered trademark of Vi Technology®.
+All products and brands, named in this document, are trademarks of their respective owners. Specifications are subject to change without
+notice. @2013 Vi TECHNOLOGY
+Europe Asia / Pacific The Americas
+Tel. : + 33 (0)4 76 33 59 78 Tel. : + 65 6747 6550 Tel. : + 1 978 372 1230
+===== PAGE 54 =====
+Sigma Analysis V1.6.5 User manual
+Fax : + 33 (0)4 76 75 05 19 Fax : + 65 6747 6558 Fax : + 1 978 372 1767
+E-mail: info@vitechnology.com - Internet: www.vitechnology.com
+Page 54

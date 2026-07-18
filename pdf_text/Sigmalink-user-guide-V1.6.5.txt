@@ -1,0 +1,3639 @@
+
+===== PAGE 1 =====
+Sigmalink V1.6.5
+User manual
+===== PAGE 2 =====
+Sigmalink V1.6.5 User manual
+Contents
+1 Introduction ...............................................................................................................................7
+1.1 Installation ..........................................................................................................................8
+1.1.1 Sigmalink Architecture: Client – server ......................................................................................................... 8
+1.2 Requirements ......................................................................................................................9
+1.2.1 Server side .................................................................................................................................................. 9
+1.2.2 Client side ................................................................................................................................................... 9
+2 Administration ......................................................................................................................... 10
+2.1 Quick presentation ............................................................................................................ 11
+2.1.1 Sigmalink Architecture: Communication ..................................................................................................... 11
+2.2 Manage license.................................................................................................................. 12
+2.3 Start server ........................................................................................................................ 13
+2.4 Parameters ........................................................................................................................ 15
+2.5 Vision64/3D Integration .................................................................................................... 16
+2.6 First login........................................................................................................................... 17
+2.7 Stop server ........................................................................................................................ 18
+2.8 Check version .................................................................................................................... 19
+2.9 Logs and dumps ................................................................................................................. 22
+2.10 Backup server .................................................................................................................... 23
+3 Use Sigmalink ........................................................................................................................... 24
+3.1 Connect to a Sigmalink server ............................................................................................ 25
+3.1.1 Requirements ............................................................................................................................................ 25
+3.1.2 Login ......................................................................................................................................................... 26
+3.1.3 Logout ....................................................................................................................................................... 27
+3.1.4 Session duration ........................................................................................................................................ 27
+3.1.5 Create a dump ........................................................................................................................................... 28
+3.2 Understand our interface .................................................................................................. 29
+3.2.1 Home Page ................................................................................................................................................ 29
+3.2.2 Modules .................................................................................................................................................... 29
+3.2.3 Widgets ..................................................................................................................................................... 30
+4 Module: Configure................................................................................................................ 35
+4.1 Configure user ................................................................................................................. 36
+4.1.1 User roles modules access ......................................................................................................................... 36
+4.2 Configure parameters ..................................................................................................... 37
+4.3 Configure Global parameter .............................................................................................. 38
+4.3.1 General ..................................................................................................................................................... 38
+Page 2
+===== PAGE 3 =====
+Sigmalink V1.6.5 User manual
+4.3.2 DBQuery K ................................................................................................................................................. 39
+4.3.3 DBQuery Pi ................................................................................................................................................ 39
+4.3.4 Feedforward.............................................................................................................................................. 41
+5 Module : Data import ........................................................................................................... 42
+5.1 Vocabulary ....................................................................................................................... 43
+5.2 Supported data ................................................................................................................ 46
+5.3 Process ............................................................................................................................ 47
+5.4 Create a new project ...................................................................................................... 49
+5.5 Update an existing project.............................................................................................. 50
+5.6 Import an existing project ............................................................................................... 51
+5.7 Loading project ................................................................................................................ 52
+5.8 Understand data import .................................................................................................. 53
+5.8.1 Screen layout ............................................................................................................................................ 53
+5.8.2 Data import wizard .................................................................................................................................... 53
+5.8.3 Tab validation ............................................................................................................................................ 54
+5.8.4 CAD Editor ................................................................................................................................................. 55
+5.8.5 Contextual information .............................................................................................................................. 56
+5.9 Create PCB’s image ....................................................................................................... 57
+5.9.1 PCB image matrix ...................................................................................................................................... 58
+5.9.2 PCB image recorder ................................................................................................................................... 59
+5.9.3 Scan with PI ............................................................................................................................................... 60
+5.9.4 Import image manually .............................................................................................................................. 61
+5.10 Describe my panel .......................................................................................................... 62
+5.10.1 Referential and unit ................................................................................................................................... 63
+5.10.2 Geometric referential ................................................................................................................................ 64
+5.10.3 Referential origin ....................................................................................................................................... 65
+5.10.1 Carrier ....................................................................................................................................................... 65
+5.10.2 Actions ...................................................................................................................................................... 67
+5.10.3 Validation rules ......................................................................................................................................... 74
+5.11 Import a PCB Image ...................................................................................................... 75
+5.11.1 Validation rules ......................................................................................................................................... 78
+5.12 Describe my subpanel pattern ....................................................................................... 79
+5.12.1 Actions: ..................................................................................................................................................... 79
+5.12.2 Validation rules ......................................................................................................................................... 81
+5.13 Describe panel layouts ................................................................................................... 83
+5.13.1 Actions ...................................................................................................................................................... 85
+5.13.2 Validation rules ......................................................................................................................................... 86
+5.14 Import data ...................................................................................................................... 88
+Page 3
+===== PAGE 4 =====
+Sigmalink V1.6.5 User manual
+5.14.1 Actions ...................................................................................................................................................... 89
+5.14.2 Import Component CSV File .................................................................................................................. 91
+5.14.3 Import Gerber File ................................................................................................................................. 108
+5.14.4 Import and association files between VIS and Solder Paste Gerber ................................................. 118
+5.14.5 Import Glue Deposit CSV ..................................................................................................................... 118
+5.14.6 Glue Layer alignment ............................................................................................................................... 120
+5.14.7 Import CAD file JPSys json file .................................................................................................................. 120
+5.15 Edit fiducials .................................................................................................................. 121
+5.16 Move data ...................................................................................................................... 124
+5.16.1 Different move options ............................................................................................................................ 124
+5.16.2 Offsets: ................................................................................................................................................... 125
+5.16.3 Updating manually the offset: .................................................................................................................. 128
+5.16.4 Moving best practice ............................................................................................................................... 129
+5.17 Link component and its PADs ...................................................................................... 131
+5.17.1 Actions .................................................................................................................................................... 131
+5.17.2 Graphical tools ........................................................................................................................................ 132
+5.17.3 Link pads to component with interaction pop-up ..................................................................................... 132
+5.17.4 Fast link pads to components without interaction .................................................................................... 135
+5.17.5 Load footprint from catalog ..................................................................................................................... 136
+5.17.6 Different ways to display graphical view ................................................................................................... 137
+5.17.7 Problems during propagation................................................................................................................... 138
+5.17.8 Delete footprint....................................................................................................................................... 139
+5.17.9 Default pin labelling ................................................................................................................................. 140
+5.17.10 Create Component .................................................................................................................................. 142
+5.18 Rotate Component .......................................................................................................... 144
+5.19 Exclude or Include component of feedforward ................................................................ 145
+5.20 Search component/pads and selection ............................................................................ 146
+5.21 Program Variants .......................................................................................................... 148
+5.21.1 Variant Manager ..................................................................................................................................... 148
+In Data Import , you have to select the component file in the data file to display the option Manage Variants in the
+graphical tools, the pop up manage variants will apprear. ...................................................................................... 148
+Page 4
+===== PAGE 5 =====
+Sigmalink V1.6.5 User manual
+148
+5.21.2 Optional component product ................................................................................................................... 148
+5.21.3 Variadic component product.................................................................................................................... 149
+5.21.4 Import variants ........................................................................................................................................ 150
+5.21.5 Assign Variant to components.................................................................................................................. 152
+5.22 Export data .................................................................................................................... 153
+5.22.1 Export VIS File ...................................................................................................................................... 155
+5.22.2 Export PAD File .................................................................................................................................... 158
+5.22.3 Export Project File................................................................................................................................. 159
+5.22.4 Export reference images ...................................................................................................................... 161
+5.22.5 Publish program .................................................................................................................................... 162
+6 Module: Review ..................................................................................................................... 163
+6.1 Introduction .................................................................................................................... 164
+6.1.1 Requirements .......................................................................................................................................... 164
+6.1.2 Installation .............................................................................................................................................. 164
+6.2 Configuration .................................................................................................................. 166
+6.2.1 GUI Configuration for the Review module ................................................................................................ 166
+6.2.2 Describe your production lines................................................................................................................. 166
+6.2.3 Global Review configuration .................................................................................................................... 171
+6.2.4 Describe general configuration ................................................................................................................ 171
+6.2.5 Global review configuration ..................................................................................................................... 172
+6.2.6 Describe actions ...................................................................................................................................... 175
+6.2.7 Describe defects ...................................................................................................................................... 176
+6.2.8 Describe comments ................................................................................................................................. 176
+6.2.9 Describe messages .................................................................................................................................. 177
+6.2.10 Describe OIS export ................................................................................................................................. 178
+6.3 Understand review module ............................................................................................. 179
+6.3.1 Concepts ................................................................................................................................................. 179
+6.3.2 Widgets ................................................................................................................................................... 180
+Page 5
+===== PAGE 6 =====
+Sigmalink V1.6.5 User manual
+6.3.3 Actions .................................................................................................................................................... 190
+6.4 Offline review .................................................................................................................. 195
+6.4.1 Start up ................................................................................................................................................... 195
+6.4.2 Configuration .......................................................................................................................................... 197
+6.5 Inline review .................................................................................................................... 199
+6.5.1 Start-up ................................................................................................................................................... 199
+6.5.2 Configuration .......................................................................................................................................... 199
+6.5.3 Review both side of product “bi-prod” ..................................................................................................... 200
+7 Module: Analysis .................................................................................................................... 201
+8 Appendix ................................................................................................................................ 202
+8.1 Defect Status List ............................................................................................................. 203
+Page 6
+===== PAGE 7 =====
+Sigmalink V1.6.5 User manual
+1 Introduction
+This document explains how to use Sigmalink to import CAD data and convert it into inspection data
+and how to proceed to an inspection result review.
+This document is split in five parts.
+Administration: to describe maintenance tasks
+Global overview of the interface: to understand our interface
+Configuration module: to describe functional configuration
+Data import module: to describe Data import
+Review module: to describe Review
+The data import chapter is split in two parts. The first describe the interface. The second provides a
+process to follow.
+This document is completed by videos you can find:
+http://sigmalink.vitechnology.com/deliver/help .
+Don’t hesitate to ask your own account to VIT support team
+support.inspection@vitechnology.com .
+Page 7
+===== PAGE 8 =====
+Sigmalink V1.6.5 User manual
+1.1 Installation
+Please follow the installation guide.
+http://sigmalink.vitechnology.com/deliver/download/1.6.5/installnote
+Installation process can be used to install the server part or the client part (on the server or on another
+machine). In this case, a portable version of Google Chrome is installed.
+1.1.1 Sigmalink Architecture: Client – server
+Sigma
+Client
+HTTP HTTP
+Start_server.bat is on this
+machine
+Sigma
+Client
+Client requirements:
+- Java JRE
+- Sigmalink installation
+Client requirements:
+- Web browser
+- Java JRE
+- Certificate
+Client can be an inspection machine, but server mustn’t. If you can’t install a dedicated
+server, use the offline programming station as server.
+Page 8
+===== PAGE 9 =====
+Sigmalink V1.6.5 User manual
+1.2 Requirements
+1.2.1 Server side
+Computer configuration
+OS Windows 7 minimum
+or Windows Server 2008 R2
+Memory available 8 Go of RAM (16 Go recommended)
+HDD 10Go
+1.2.2 Client side
+Computer configuration
+OS Windows 7 minimum
+Memory available 8 Go of RAM (16 Go recommended)
+Web browser Sigma Client (base on Google Chrome)
+Screen resolution 1600x900px
+Graphical card GPU with at least 256Mo of dedicated Memory (1Go
+for better performances)
+Page 9
+===== PAGE 10 =====
+2 Administration
+===== PAGE 11 =====
+Sigmalink V1.6.5 User manual
+2.1 Quick presentation
+Sigmalink is a client server application. The server part must be installed on a dedicated machine.
+Clients communicate with server using HTTP protocol through a simple internet browser.
+KSeries and PI machines communicate with the Sigmalink machine by the same way, but for
+performance reason, you can share directory between inspection machines and Sigmalink.
+All data are stored on the server, client only uses server data.
+2.1.1 Sigmalink Architecture: Communication
+Sigma
+Client
+HTTP HTTP
+Sigma
+Client
+Filesystem
+File system can be used to share:
+PCB scan (cf. §5.9)
+Published Sigmalink program (cf. §0)
+Directories can be configured using start-up parameters (cf. §2.4).
+For performance reasons, it’s better to install Sigmalink on 64bits Operating System. In this
+case, Sigmalink server will be able to assign more memory and then provide better
+performances (PCB stitching,…)
+Inline review is a little bit particular: it can be accessed only from local computer. But globally
+follow the same architecture.
+Page 11
+===== PAGE 12 =====
+Sigmalink V1.6.5 User manual
+2.2 Manage license
+Your Sigmalink server needs a license to start. This license is delivered by VIT support. If you don’t have
+the license file or if you want a trial license, please contact your reseller or the VIT support team.
+The licence file must be named exactly “sigmalink.licence”.
+The license is only installed on the server. Client doesn’t require a license.
+The license provides access to modules. For each module you have a maximum of simultaneous users
+connected. If too many clients try to connect an error message is displayed. Contact your reseller if
+you want to buy more token. There is no limit of declared users.
+By default, you have access to “Configuration” and “Data import” modules. All other modules are
+optional (cf. 2.8 to check your license).
+Your license is specific to one server only. You must provide the MAC Address of your server. If you
+don’t know how to retrieve your MAC Address, simply start your server (cf §2.3). An error message will
+be displayed and a file named “server.def” will be generated. Then send this file to your reseller or to
+VIT support team.
+If you change your license file, you must restart your server to take in account this update.
+Page 12
+===== PAGE 13 =====
+Sigmalink V1.6.5 User manual
+2.3 Start server
+Sigmalink server can be started in two ways:
+In command line
+By a windows service
+Command line:
+The first way is the best one at first installation and while you don’t have the final license.
+Go to installation directory and double click on the file named start_server.bat.
+You can find a shortcut in the windows menu : VIT Sigmalink > Sigmalink Web Server
+In this mode, start-up logs are displayed.
+Sigmalink tries automatically to assign the maximum available RAM memory to the server.
+If you want to limit the memory assigned to Sigmalink or if you have the error message
+“Could not reserve enough space for object heap”, edit start_server.bat and update the
+lines
+SET MAX_HEAP_SIZE=8192 on 64bits server
+SET MAX_HEAP_SIZE_32=1536 on 32bits server
+With Mo values.
+E.g. SET MAX_HEAP_SIZE=1024, set memory to 1Go of RAM on 64bits OS.
+Windows scheduled task:
+The second way is to install Sigmalink Server as a windows scheduled task.
+Sigmalink server uses at least, 1Go of memory. Install it as a service only if the machine is
+dedicated to Sigmalink only or if you’re sure to always have enough memory available.
+Go to installation directory and sub directory “tools” (Default is c:\VIT_Sigmalink\tools). Then double
+click on the script called “install_http_scheduled_task.bat”.
+On Windows 7, you must be administrator to install Sigmalink server as a scheduled task.
+To avoid the security confirmation popup, you can launch this script as administrator.
+If this operation succeeds, you will find a new windows scheduled task:
+Page 13
+===== PAGE 14 =====
+Sigmalink V1.6.5 User manual
+Page 14
+===== PAGE 15 =====
+Sigmalink V1.6.5 User manual
+2.4 Parameters
+A few technical parameters are available. All these parameters are all described in the file
+C:\VIT_SigmaLink\conf\parameters.properties:
+parameters.properties
+image_storage_path data/pcbi Absolute path or relative path to the Sigmalink
+installation.
+This folder must be shared on the network to allow PCB
+Image Recorder storing images inside.
+Path separator must be / and not \.
+publish_folder_path data/publish Absolute path or relative path to the Sigmalink
+installation.
+This folder can be shared on the network to allow sharing
+of VIS and PAD files.
+Path separator must be / and not \.
+Log.level ERROR or INFO Used to change the log level of the application.
+or WARN or
+DEBUG
+server.port 8080 The server port. Useful if another web server is installed
+on the same machine (e.g. VieWeb).
+server.shutdown.port 8005 Port used by the web server to manage shutdown. Useful
+if another web server is installed on the same machine.
+(e.g. VieWeb).
+The server must be restarted if parameters have been changed.
+Page 15
+===== PAGE 16 =====
+Sigmalink V1.6.5 User manual
+2.5 Vision64/3D Integration
+For natural integration of Vision64 and Vision3D with Sigmalink:
+PCB Image Recorder
+image_storage_path (cf. §2.4) must be the same value as defined in PCB Image Recorder as “Image
+recording path”.
+In this example, Z: is a network sharing on the drive c:\ of the Sigmalink server.
+Page 16
+===== PAGE 17 =====
+Sigmalink V1.6.5 User manual
+2.6 First login
+Start a web browser and enter the URL for Sigmalink: http://server_name:8080/sigmalink.
+Replace “server_name”, by the name or the IP of the server machine (where Sigmalink is installed). If
+client is on the same machine than the server, you can use http://localhost:8080/sigmalink.
+8080 is the default port. If you have changed this value (cf. §4.2), update the URL.
+If you have installed the client using the installation wizard, you can find a shortcut in the windows
+menu: VIT Sigmalink > Sigmalink Client.
+By default, only one user account is available:
+Login admin
+Password admin
+Page 17
+===== PAGE 18 =====
+Sigmalink V1.6.5 User manual
+2.7 Stop server
+Stopping server depends of the way you have started it:
+If you have started the server using DOS script, simply close the DOS windows or use Ctrl + C.
+If you have started the as a scheduled task, use standard Windows tools to stop the task.
+Page 18
+===== PAGE 19 =====
+Sigmalink V1.6.5 User manual
+2.8 Check version
+To check the version and the installation, login to Sigmalink (cf. §2.3 and cf. §2.6).
+Choose your language and log in.
+In this case, the license give you access to “Configuration, “Review” and “Data import” modules (cf. §2.2)
+Click on the VITechnology logo on the top left.
+About window display the version number
+You can use this screen to check functional logs. You can find security information or functional errors.
+Page 19
+===== PAGE 20 =====
+Sigmalink V1.6.5 User manual
+You can retrieve a list of dumps (cf. §2.9), or create a dump if something is wrong. Click on a dump to
+download it.
+You can find system information.
+This screen is very important to ensure, your client installation meet minimal requirements.
+Page 20
+===== PAGE 21 =====
+Sigmalink V1.6.5 User manual
+The last two tabs are useful to check the version of the product and the license:
+Page 21
+===== PAGE 22 =====
+Sigmalink V1.6.5 User manual
+2.9 Logs and dumps
+Sigmalink server creates two kinds of technical information to help support in case of problem:
+Log files: automatically created by the application and the http server. Files are created in
+C:\VIT_Sigmalink\logs.
+Dump files: each time a problem is detected by the Sigmalink, a dump file is created. This file
+contains last technical logs, last functional logs, and some contextual information. Dumps are
+created in c:\VIT_Sigmalink\data\dumps.
+You can change the log level (cf: §2.4)
+Page 22
+===== PAGE 23 =====
+Sigmalink V1.6.5 User manual
+2.10 Backup server
+Sigmalink don’t provide tools to backup your data.
+All user data are stored in the directory c:\VIT_Sigmalink\data. Then this is the minimal set of data to
+save during a backup.
+Page 23
+===== PAGE 24 =====
+3 Use Sigmalink
+===== PAGE 25 =====
+Sigmalink V1.6.5 User manual
+3.1 Connect to a Sigmalink server
+3.1.1 Requirements
+To use Sigmalink you must connect to the Sigmalink server first. Then start the Sigmalink client (cf.
+§1.1).
+Sigmalink client:
+If you have installed the Sigmalink client, use the Windows menu entry called VIT Sigmalink > Sigmalink
+client.
+If you have not installed the Sigmalink client, it’s better to test your installation before continuing.
+Page 25
+===== PAGE 26 =====
+Sigmalink V1.6.5 User manual
+If Sigmalink server is not started, you’ll have this kind of window. Check URL and contact your
+administrator to ensure the server is started.
+3.1.2 Login
+To ensure a good traceability, Sigmalink required an account per user. This account is specific to
+Sigmalink and is not the same one than your windows login. Your administrator must provide you your
+account.
+If you’re an advanced user, please cf. §4.1, to create an account.
+Before to login, you must choose your language. Sigmalink is provided in German, French, English,
+Spanish and Chinese. Spanish and Chinese version are incomplete (not all label has been translated).
+Page 26
+===== PAGE 27 =====
+Sigmalink V1.6.5 User manual
+3.1.3 Logout
+Logout is very important to release license token. Due to license, some modules can have limited
+concurrent accesses. When you logout, the token is released then another user can use it to connect.
+If you close the Sigmalink client or your web browser without logout, the token is not released. Your
+token will be released only after expiration (1 hour).
+The logout button is available at bottom right of the screen. A confirmation message asks you to check
+if all your data have been saved before to logout.
+3.1.4 Session duration
+You’re connected to the Sigmalink server by a session. Session is automatically closed if no interaction
+with the server (e.g. save, load,...) has been done during 30 minutes.
+When your session has expired, system asks you to login again.
+Enter your password (login is kept in memory) and click “Login”.
+The action you’ve asked is aborted. After identification, you’ll have to re do your action.
+Data you’re using (like program) are stored locally in the client memory, and then even if
+your session expired, nothing can be lost.
+Page 27
+===== PAGE 28 =====
+Sigmalink V1.6.5 User manual
+3.1.5 Create a dump
+If you notice a strange behaviour or a problem, you can create a dump file. This file will be very helpful
+to the VIT support team to provide you quick solution.
+Click the VI Technology logo on the top right of the screen.
+Then select the tab “Dump”.
+And click on the button “Create dump”. Save the dump on your hard disk and send it to VI Technology
+support team.
+Page 28
+===== PAGE 29 =====
+Sigmalink V1.6.5 User manual
+3.2 Understand our interface
+3.2.1 Home Page
+3.2.2 Modules
+Sigmalink is modular software. According to your license you can have access to different modules.
+A module is linked to a business activity. On the home screen you have to choose the module you want
+to use. If enough license token are available (cf. §2.2) you’ll be able to access to the module.
+Page 29
+===== PAGE 30 =====
+Sigmalink V1.6.5 User manual
+3.2.3 Widgets
+Sigmalink uses common widgets. These widgets help you to be more efficient.
+Toolbar blocks
+Toolbars have been designed to provide you all tools and information. But to focus your attention on
+more important information toolbar block has two modes: standard and advanced.
+When an arrow is drawn on the header of the toolbar block, then some advanced features or actions
+are available. Click on the header or on the arrow to display the advanced mode.
+Formula
+The “+ -“ informs that you're in a formula field.
+A tooltip reminds the original formula and the unit used.
+Operator Description Example Result
+Arithmetic operator
++ Addition 40+5 45
+- Subtraction 40-5 35
+* Multiplication 40*5 200
+/ Divide 40/5 8
+( ) You can combine operator and use parenthesis to (40-5) * 2 70
+define operation order.
+Unit conversion
+mm cm µm Convert the value into the “standard” unit. In data 4500µm 4.5
+dm m in inch import module, this unit is defined in the panel tab.
+0.45cm 4.5
+inches ‘’ ft
+foot feet yd 4.5'' 114.3
+yard yards
+4.5''+0.7mm 115
+thou mil mils
+“.” and “,” can be used as decimal separator.
+Page 30
+===== PAGE 31 =====
+Sigmalink V1.6.5 User manual
+In case of bad formula, the border becomes red and the last good value is kept as field value.
+A tooltip, reminds allowed operator
+and unit
+The tooltip with the real formula is not saved, then if you reload your project or if you do
+some operation, the formula can be lost (not the result, only the formula detail).
+Coordinates
+The “x/y” informs that you’re in a coordinate field.
+Coordinates must be described in the panel unit.
+The tooltip display the coordinates and the unit.
+Valid syntax
+(-233.87;10.354) (-233.87;10.354)
+-233.87;10.354 (-233.87;10.354) Parentheses are optional
+(-233,87;10,354) (-233.87;10.354) Comma can be used as decimal separator
+(-233.846784;10.369) (-233.847;10.369) Data are rounded according to the unit
+precision (3 decimals for mm).
+(500/2;300/3) (250;100) Formula can be used
+25cm;15in (250;381) Unit conversion is available
+If you click on the orange button a graphical tool is activated, then you will be able to click to a graphical
+view to enter the coordinate.
+When this tool is activated, you can zoom (mouse wheel or + - key) and move the view (using direction
+key).
+If you press escape the tool is deactivated and the field value is not updated.
+Page 31
+===== PAGE 32 =====
+Sigmalink V1.6.5 User manual
+Accordion
+Data can be grouped using an accordion. The title describes the objects and between parenthesis the
+number of objects.
+The arrow (like for toolbar) describes if the accordion is open or not.
+Page 32
+===== PAGE 33 =====
+Sigmalink V1.6.5 User manual
+Screen layout
+With this kind of view, you’re able to resize the screen. Drag the space between the two panels to
+reallocate the size of each part. Generally, one of the parts is the main. This part has a minimal size
+(mainly 50% of the screen) (illustration 1).
+If you click on the black separator, the secondary part is hidden (illustration 2). Click again and the part
+will be displayed.
+Illustration 1 Illustration 2
+Master detail
+When a main panel is displayed and a secondary panel with a list exists, the two panels are linked.
+Thus, if you select an item in the main panel, the corresponding item in the secondary panel is
+automatically selected. Conversely, if you select a line in the secondary panel, corresponding item in
+the main panel is automatically selected.
+In the list, the selected line is highlighted in orange and in graphical view, the selected item is
+surrounded by a red circle.
+Page 33
+===== PAGE 34 =====
+Sigmalink V1.6.5 User manual
+Undo
+Current version of Sigmalink don’t implement the undo feature.
+Follow the common advice: “Save early, save often”. Save your project before making complex action.
+If you want to cancel, then simply reload your project (Press F5).
+The embedded browser implements some “local” undo. E.g. if you start to update a field
+and you click on Ctrl+Z, the initial value of the field replaces the current one.
+Page 34
+===== PAGE 35 =====
+4 Module: Configure
+Configuration module required a specific role called “Configurator”. If this module is not available on
+the main page, you’ll probably not have enough privileges.
+===== PAGE 36 =====
+Sigmalink V1.6.5 User manual
+4.1 Configure user
+User account are very important to manage traceability and data coherence (lock are managed by
+user).
+A user is defined as a login, a first name, a last name and a password. The password can be empty.
+For each user, you’ve to define roles. Each role gives access to a module. Roles available in this screen
+are depending of your license.
+To find a user you can use the “filter” field. Simply enter a part of the login and press enter. The users
+list will be filtered. To cancel the filter, clear the field and press enter.
+User has to logout to allow system to take in account his new privileges.
+4.1.1 User roles modules access
+User role Accessible modules
+Programmer Data Import
+Reviewer Review
+Configuration manager Configuration
+Review manager Review advanced features
+Analyzer Analysis (Live, Cp/Cpk)
+Advanced Analyzer Analysis (Line Performance, Product, Panel)
+Page 36
+===== PAGE 37 =====
+Sigmalink V1.6.5 User manual
+4.2 Configure parameters
+In the current release, all parameters are updatable only during installation. This screen only allows
+checking the configuration. Some parameters at the bottom are editable, no server reboot is needed
+Page 37
+===== PAGE 38 =====
+Sigmalink V1.6.5 User manual
+4.3 Configure Global parameter
+4.3.1 General
+Sigma Connect server
+Enable sigma connect feature. This requires the installation of Sigma connect server.
+Please refer to Sigma Connect installation guide and user guide.
+Analysis Server
+Host name or ip address, and port of the analysis server.
+Panel Side Mapping
+Because AOI Side name can be configured, Sigmalink need to know what is this configuration.
+The aim is to match the SPI panel side with the AOI panel side, and retrieve the right panel instance
+using id-code and side.
+This is used to perform :
+- combined SPI AOI image synchronized review.
+- Panel result with identical side identifier across equipments
+Page 38
+===== PAGE 39 =====
+Sigmalink V1.6.5 User manual
+4.3.2 DBQuery K
+Defect order
+Define the order of the defect as expected into all the analysis charts. It is used to classify components
+by their defects without having duplicates.
+The defect types are Missing, Polarity, solder Joint, Solder Bridge, OCV, Delta X, Delta Y, Delta Theta,
+Connector, Others
+4.3.3 DBQuery Pi
+Defect order
+Define the order of the defect as expected into all the analysis charts. It is used to classify components
+by their defects without having duplicates.
+The defect types are Bridge, Missing, Co-planarity, Volume, Height, Area, Position, Shape, Others,
+Stencil
+Page 39
+===== PAGE 40 =====
+Sigmalink V1.6.5 User manual
+Page 40
+===== PAGE 41 =====
+Sigmalink V1.6.5 User manual
+4.3.4 Feedforward
+This tab is only available when a valid license for feedforward is registered.
+Inspection and review Status Filter
+AOI will inject SPI defects depending on their inspection and review status.
+The AOI can then include:
+• SPI warnings
+• Passed SPI defects
+• Ok Operator SPI defects
+Disabling the three option will lead to no SPI defect injected in the AOI
+Notifications
+Decide to pop up any error on AOI during the SPI injection process by selecting the option:
+Notify errors on AOI
+Component filter
+Filtering can be performed on component, using their part number or jedec.
+Jedec and part number are added to excludes and includes list depending on existing entries.
+When Jedec and part number fields are not empty, a test string inform you if the described component
+is excluded or not.
+Page 41
+===== PAGE 42 =====
+5 Module : Data import
+The aim of this module is to transform data into inspection data usable by inspection machines.
+The main job is to define all the products included on the PCB with its position, rotation...
+This module provides tools to describe PCB and generate inspection information for SPI (Solder paste
+inspection) and CI (component inspection).
+===== PAGE 43 =====
+Sigmalink V1.6.5 User manual
+5.1 Vocabulary
+This is 1 panel containing 16 subpanels.
+The 2 red rectangles define the 2 subpanels patterns (a top and a bottom) of this panel. A subpanel
+pattern describes an outline and a set of components. regardless the applied rotation the pattern stays
+the same, but if we apply a mirror we get a different pattern.
+The way the subpanel patterns are arranged will be called subpanels layout.
+Examples:
+Only one subpanel pattern
+Page 43
+===== PAGE 44 =====
+Sigmalink V1.6.5 User manual
+Only one subpanel pattern
+Two subpanel patterns
+Two subpanel patterns
+Two subpanel patterns (mirror)
+Page 44
+===== PAGE 45 =====
+Sigmalink V1.6.5 User manual
+Programmer must define how the subpanel patterns are arranged on the panel. The simplest way is to
+define an Array of identical subpanel patterns which have the same rotation.
+One array: 2 columns and 1 row
+Four arrays: 2 columns and 2 rows each
+A B
+A: subpanel pattern “bottom”, rotation 0°
+D: subpanel pattern “bottom”, rotation 180°
+B: subpanel pattern “top”, rotation 0°
+C D
+C: subpanel pattern “top”, rotation 180°
+A
+Two arrays: 2 columns and 1 row
+A: subpanel pattern “top”, rotation 0°
+B: subpanel pattern “top”, rotation 180°
+B
+B
+Two arrays: 2 columns and 1 row
+A: subpanel pattern “top”, rotation 0°
+B: subpanel pattern “top”, rotation 180°
+A
+You’ll have to create a project to describe your product. Your project will have to be exported or
+published to be available for a specific inspection machine.
+Only data in subpanels will be exported. Data outside subpanel are ignored during export.
+Page 45
+===== PAGE 46 =====
+Sigmalink V1.6.5 User manual
+5.2 Supported data
+Sigmalink support 3 kinds of input data:
+Images: Accurate picture of a PCB, to help visualize and localize data.
+CAD XY: to describe the component position
+Gerber file: to describe stencil apertures
+According to VIT product you have, some data will be required or not.
+Required data
+PI Kseries σLink σLink
+Data analysis module Review module
+Images Optional Optional Optional Required
+CAD XY Optional Required Required Required
+Gerber Required Optional Required Required
+Sigmalink supports 2 kinds of output data:
+- PROJECT file: to import into Vision software for CI (if no errors), also used to be reimported
+in sigmalink
+- PAD file: to import into PI inspection machine
+Page 46
+===== PAGE 47 =====
+Sigmalink V1.6.5 User manual
+5.3 Process
+Defining a process to convert SMT data into Inspection data is not so simple because according to data
+you have, the way to follow is not the same. σLink offer a default process (like a wizard), but the
+programmer can easily change the order of the operation according to available data or his experience.
+The simplified process is:
+act Overview
+Process actions
+Init
+Describe a product Define:
+Describe a product
+name of the program,
+panel size
+subpanel pattern count and size
+Import data
+Import data Convert input data into object to inspect
+Register data Linked imported data to the whole panel or to a
+Register data
+[While data subpanel pattern
+available]
+Transform data into panel referential (translation
+and/or rotation)
+Edit imported data
+Edit imported data Remove unnecessary data
+Transform imported data into fiducials
+Panelize
+Panelize Describe layout
+Align imported data (if multi sources)
+Complete data
+Complete data Link pads with components
+Define Fiducials, skip, id code, stencil step
+Export Edit fiducial shape
+Export Generate the inspection data according to the
+inspection machine
+ActivityFinal Publish an official version
+The process will be achieved when:
+A panel has been described
+At least one subpanel pattern has been defined
+A layout describes the way to arrange a subpanel pattern into a list of subpanels
+Components and/or PADs description have been imported and assigned to a subpanel pattern
+Fiducials have been defined
+To help programmers, a validation engine exists and gives live status of each point.
+Some descriptions are optional. Validation engine gives also status for optional description.
+According to data you have, programming can be very accurate or not, complex to do or not.
+Component inspection : VIS file
+Page 47
+===== PAGE 48 =====
+Sigmalink V1.6.5 User manual
+Available data Accuracy Complexity
+Drawing Good theoretical accuracy
+CAD XY at subpanel scope Not always easy to read drawing and
+to retrieve interesting data.
+Gerber Very good accuracy: position
+extracted from real world (stencil
+CAD XY at subpanel scope
+aperture)
+Not always easy to draw subpanel
+without image
+CAD XY at panel scope Very good accuracy: position
+extracted from real world (P&P)
+Can be complex to draw subpanel
+without image
+Image Very good accuracy, and image
+CAD XY at panel scope
+helps to draw subpanels
+Gerber Very good accuracy, and image
+helps to draw subpanels
+Image
+CAD XY at subpanel scope
+Image Small accuracy if no data to link
+CAD XY at subpanel scope
+subpanel to full panel
+Solder paste inspection : PAD file
+Available data Accuracy Complexity
+Gerber All data available.
+Image
+CAD XY
+Gerber Difficulty to draw subpanels
+CAD XY at subpanel scope
+Gerber No components information then
+accuracy will be good, but data will
+Image
+be missed for analyze
+Gerber No components information then
+accuracy will be good, but data will
+be missed for analyze
+Difficulty to draw subpanels
+NB: Gerber at subpanel scope is not well supported in current version of Sigmalink.
+NB2: Accuracy is depending also of fiducials definition. To have good accuracy, fiducials must be
+extracted from Gerber or defined in the same scope than components.
+Page 48
+===== PAGE 49 =====
+Sigmalink V1.6.5 User manual
+5.4 Create a new project
+Click on “Data import module” to open the project popup.
+To describe a project, you must enter a customer, a product,
+a project name and a side. By default, the name of the
+project is the concatenation of the customer, the product
+and the side.
+The button “Create” becomes active when all information
+are provided.
+If you wait when you enter customer or product name,
+system will provide you the list of existing customer product
+starting with letters you’ve entered.
+Use arrow keys or mouse to select corresponding
+proposition.
+When all data are provided, press “enter” key or click on
+“Create” button, to create the project.
+In case of error, “Create” button is disabled, the outline of
+the field in error is highlighted (in red) and you can’t create
+project until you’ve fixed the problem.
+Rules:
+Project name must be unique (case insensitive)
+Customer, product and name can’t contain following
+characters \ / ? : * " > < |.
+Page 49
+===== PAGE 50 =====
+Sigmalink V1.6.5 User manual
+5.5 Update an existing project
+Click on “Data import module” to open the project popup and click on tab « Update ».
+List shows the last 60 updated projects.
+Each line is composed by the project name, the login of the user
+who made the last change, and the date of the last change.
+You can use the first field to filter the list. List shows all projects
+containing the filter value. List is updated in live.
+The list is always limited to 60 last updated corresponding to the
+filter.
+E.g.
+2013-11: to select project done in November 2013
+thomasd: to select project done by the user thomasd.
+Page 50
+===== PAGE 51 =====
+Sigmalink V1.6.5 User manual
+5.6 Import an existing project
+Click on “Data import module” to open the project popup and click on tab « Import ».
+Import feature allows you to import a project made by another user in another Sigmalink server.
+Only one Sigmalink server must be installed by company, then if you want to edit project of
+another user of your organization use “Update an existing project” (cf. §5.5).
+Drop a .project file into the zone or use the button “Choose
+a file...” to browse your file system and choose a .project file.
+System automatically opens the project in edit mode.
+Project import can handle various formats:
+- PAD file, programming input file of SPI. This PAD file has the same format as the exported
+Sigma Data Import.
+- JPSys file, json format Micronic Jet printing program files
+- .Vis files
+- .Project
+JPSys format does not provide “Customer” and “Product” meta data, user will have to
+provide this information to be able to export the project at the end.
+Page 51
+===== PAGE 52 =====
+Sigmalink V1.6.5 User manual
+5.7 Loading project
+System must load components and data. This operation may take a while. Please wait until the size X
+and size Y fields have a value (0 for a new project).
+Once editor is loaded, all actions will be done locally.
+Editor uses a technology called Applet JavaFX. Due to security restrictions some warning
+messages can appear. Follow the installation guide to avoid these messages.
+Page 52
+===== PAGE 53 =====
+Sigmalink V1.6.5 User manual
+5.8 Understand data import
+5.8.1 Screen layout
+Title: you know which Home: to go back to
+projrct you’re working module selection screen.
+on.
+About: click on logo to
+get system informations
+Toolbar: to set
+informations and launch
+tools
+Main view: main part of
+the screen, to display
+current objects
+Detail view: to displays
+complementary data (eg.
+subpanel list)
+Logout: disconnect or
+change user
+Action bar: main actions
+User: current user, tool
+applied to the whole
+tip gives the role of the
+project (save, delete,
+user.
+load, export)
+Contextual information: description of the selected object
+5.8.2 Data import wizard
+The tool is versatile, and the process flow depends on data information amount. Sigmalink offers a
+default process (like a wizard) but the programmer can easily change the order of the operation.
+Each tab is a step to complete to be allowed to export data.
+Use arrow button in the toolbar to go from a step to the previous or the next one. You can also activate
+tab directly.
+Page 53
+===== PAGE 54 =====
+Sigmalink V1.6.5 User manual
+5.8.3 Tab validation
+Each tab has a validation status. Error messages are displayed at the bottom of the screen (contextual
+information zone) and a tooltip is available on each tab.
+You can hide message by clicking on icons.
+Icon Description
+Step is correct
+Step is completed but some optional data are missing, or some data will be
+automatically ignored during export.
+Step incorrect. Export will not be allowed if you don’t fix mistakes.
+The validation is done in live. If not, you can click on the icon to redo the validation of the tab.
+Even if there’re validation errors, the project can be saved. Only one exception: the project
+name must be unique.
+Page 54
+===== PAGE 55 =====
+Sigmalink V1.6.5 User manual
+5.8.4 CAD Editor
+Contextual menu: right
+click to open. Menu
+content change
+according to current View mode: each tab
+selection. uses a specific view
+mode. Data displayed
+and available actions are
+different.
+Arrows: show the
+coordinates referential
+Actions:
+- Move: drag the view or use arrow keys
+- Zoom in: mouse wheel or +
+- Zoom out: mouse wheel or -
+- Selection: click on an item. Use Ctrl to add another object to selection
+Shortcuts
+Esc Unselect elements / Hide menu / Unselect current tool
+Suppr To ignore an imported data or delete a created object
+Shift + drag Zoom to a specific zone
+Ctrl + drag Select items in a zone
+Ctrl + click To add an item to the current selection (Ctrl + click on an already selected item
+deselect it)
+A Adjust zoom to maximize CAD size
+L Standard Link: link component and its PADs. Open popup of assignation,
+numbering and propagation rules.
+F Fast Link: link component and its PADs without propagation popup (if more than
+2 pads, standard link mandatory and will show automatically)
++ / - To zoom in or zoom out (zoom is centered on the view).
+Mouse wheel To zoom in or zoom out (zoom is centered on the mouse cursor).
+Arrow keys To move CAD
+Some actions are also available from toolbar. These actions are common to all tabs.
+The option “Always adjust” can be checked (default) or unchecked. If this option is checked, each time
+an object is added, an object is moved… the system automatically auto adjusts the view after action.
+For example, if you want to move an object several times, and to be very accurate, uncheck this option
+to ensure the system will not change focus after each move.
+Page 55
+===== PAGE 56 =====
+Sigmalink V1.6.5 User manual
+5.8.5 Contextual information
+“Contextual information” zone displays information about the current selection:
+If only one item was selected, the details of the item will be displayed
+If two items were selected, the distance between the 2 objects will be displayed
+Else the number of selected items will be displayed
+If there’s not enough space to display data a tooltip displays the full information.
+A tooltip is also available for fiducial, pad and component. Select the object and wait 1 second without
+moving your mouse.
+Page 56
+===== PAGE 57 =====
+Sigmalink V1.6.5 User manual
+5.9 Create PCB’s image
+PCB’s Image can be extracted from:
+PCB Image Matrix (Vision2009 to Vision 22.00.xx)
+PCB image Recoder (Vision20 from version 30.00.00.00)
+PI (All versions)
+Another accurate system
+To be automatically available in Sigmalink, PCB images must be saved in the directory described during
+installation (Parameter image_storage_path cf. §4.2).
+If the defined path is c:\pcbi, each image must be defined in a
+subdirectory. The name of the sub directory (e.g. 05M003) will be
+used to retrieve the image in Sigmalink.
+Images must be directly saved into the sub directory and can’t be
+saved into a “sub” sub directory.
+Image list is cached. Each time Sigmalink list images, a file called cache.xml is updated and
+saved in the root directory. Don’t delete this file, if you want good performance.
+Page 57
+===== PAGE 58 =====
+Sigmalink V1.6.5 User manual
+5.9.1 PCB image matrix
+Full documentation is available in Vision user guide. You can retrieve wizard here
+http://sigmalink.vitechnology.com/deliver/help/topic/pcbimagematrix
+PCB image matrix allows to scan black & white image of your PCB. The image is not absolutely accurate
+due to some software limitations. Use this image to register data only if you have fiducials at subpanel
+scope. This software has been replaced by PCB image recorder.
+A1. Close Vision software then launch PCBImageMatrix.exe (in c:\vit by default).
+A2. Set the conveyor width then click on button set.
+A3. Click on “load panel”. Follow instructions. VMC field must display
+“InReference”
+A4. Click on “Configure Scan Zone”
+A5. Use “Axis motion” to define the first corner of the PCB (lower
+right).
+A6. Click on “Set zero machine”.
+A7. Click on “Go to panel top left corner”.
+A8. Use “Axis motion” to define second corner.
+A9. Click on “Set X dimension”
+A10. Click on “Set Y dimension”
+A11. Select lights by selecting light in left list then click on “>>” button.
+A12. Click on “OK” to close the popup.
+A13. Click on “Save Scan Zone file”. Choose the shared directory where
+Sigmalink can find the images (e.g.
+c:\VIT_Sigmalink\data\pcbi\MY_PCB_NAME) and save the
+corresponding ini file.
+A14. Click on “Start Image Scan”
+A15. Click on “Load Panel” to unload the panel.
+Page 58
+===== PAGE 59 =====
+Sigmalink V1.6.5 User manual
+5.9.2 PCB image recorder
+Full documentation is available in Vision user guide. You can retrieve wizard here
+http://sigmalink.vitechnology.com/deliver/help/topic/pcbimagerecorder .
+Vision20 software must have been well parameterized (cf: §4.2).
+A1. Start Vision software then use menu Process > PCB Recording.
+A2. Set the conveyor width then click on “Load panel”. Then follow
+instructions.
+A3. Click on “Next”.
+A4. Click on “Next”, if automatic angle detection has retrieved PCB
+angle.
+A5. Give a name to your scan and check images you want to retrieve.
+“Panel overview” is enough for Sigmalink and to import image in the
+defect viewer. 2 other options are required only if you want to program
+your TST offline.
+A6. Click on “Next”
+A7. Wait during the acquisition.
+A8. Wait during image stitching. This operation is asynchronous, if you
+want you can click on “Ok”: the system will continue to stitch the image.
+A9. Unload your panel and click on “Finish”.
+Page 59
+===== PAGE 60 =====
+Sigmalink V1.6.5 User manual
+5.9.3 Scan with PI
+Maintenance module of PI allows you to scan a PCB.
+A1. Go to maintenance
+A2.Open 3D image sub module
+A3. Enter the panel size
+A4. Click on next button and wait during preview
+creation.
+A5. Click on the “Export image” button. Zone
+selection has no effect.
+A6. Save the image.
+Page 60
+===== PAGE 61 =====
+Sigmalink V1.6.5 User manual
+5.9.4 Import image manually
+If you have an accurate system allowing you to scan PCB, you can import those images in Sigmalink.
+A1. Create a subdirectory with the name of your PCB.
+A2. Copy your image in this directory
+A3. Rename the file like this: Preview_2013-10-16-15.31.18_H386.0mm_W218.0mm_45um.jpg
+Part of the name Description
+Preview Prefix.
+Optional.
+_2013-10-16-15.31.18_ Date of scan. Format is YYYY-MM-HH-H24.MI.SS_.
+Informative, not yet used in Sigmalink.
+Optional.
+_H386.0mm Real panel size X prefixed by _H and followed by mm.
+Image can be smaller or bigger than this dimension. This dimension will
+be used only if panel size is not described in Sigmalink.
+Suffix describes the dimension unit. Only millimeters are allowed.
+_W218.0mm Same thing for size Y.
+_45um Image resolution per pixel. Image must have the same resolution in X
+and Y. Resolution can be a floating number (e.g. 21.45).
+Suffix describes the resolution unit: mm, cm, dm, m, dm, in, ft, yd, mil,
+thou and um are allowed. Unit is required.
+.jpg File format. Only JPG is supported.
+Case sensitive.
+Valid examples:
+Preview_2013-10-16-15.31.18_H386.0mm_W218.0mm_45um.jpg
+Preview_H386.0mm_W218.0mm_45um.jpg
+2013-10-16-15.31.18_H386.0mm_W218.0mm_45um.jpg
+_H386.0mm_W218.0mm_45um.jpg
+_H386000um_W218.0mm_45um.jpg
+_H386000um_W218.0mm_0.045mm.jpg
+Invalid examples:
+Preview_2013-10-16-15.31.18_H386.0_W218.0_45um.jpg : no unit
+Preview_H386,000um_W218.0mm_45um.jpg : thousand separator not supported
+Preview_H386000 um_W218.0mm_45um.jpg : white space not allowed
+H386.0mm_W218.0mm_45um.jpg : size must be prefixed by “_”
+Preview_2013-10-16-15.31.18_H386.0mm_W218.0mm_45um.JPEG: not supported extension
+Preview_2013-10-16-15.31.18_H386.0mm_W218.0mm_45um.JPG: extension must be in
+lower case
+Page 61
+===== PAGE 62 =====
+Sigmalink V1.6.5 User manual
+5.10 Describe my panel
+In standard mode, only two fields must be populated: the panel size (defined by size X and size Y). All
+other fields and tool must be used only in advanced mode.
+Advanced mode toolbar:
+The first part displays the project informations: customer, product, side and project name. Same
+validation rules are applied as when creating the project.
+A panel is the inspection unit. It’s defined by a bounding box (a rectangle) and an outline.
+Size Y
+Size X
+Even if we recommend defining the program in the same direction than the inspection, you
+can define size like you prefer (according to your drawing…). You’ll be able to rotate the
+program to match the inspection direction during export.
+Stencil height can be specified. This field is optional and have no add value if you create program for K
+series machine. Data are defined in the CAD unit.
+Page 62
+===== PAGE 63 =====
+Sigmalink V1.6.5 User manual
+5.10.1 Referential and unit
+Panel defines the unit and the geometric referential.
+When you change unit or referential, all data are automatically converted.
+Unit and referential have no impact on data, only on display. Even if you define your panel
+in inches, you’ll be able to export the data in millimeters.
+Polygon panel outline can be used only with lower left referential and panel origin at (0:0)
+Page 63
+===== PAGE 64 =====
+Sigmalink V1.6.5 User manual
+5.10.2 Geometric referential
+Sigmalink manage coordinates. For this, you must define an origin (where the 0 is) and the X and Y axis
+direction. To simplify, Sigmalink propose 4 configurations.
+Lower left Lower Right
+(default)
+Top Right Top Left
+This feature’s main aim is to allow you to work in your preferred referential (Lower Left is the more
+common), and to help you to enter some coordinates.
+In the following example, fiducials are defined in the panel by the drawing. If you change the
+referential, the coordinates are simpler.
+Page 64
+===== PAGE 65 =====
+Sigmalink V1.6.5 User manual
+5.10.3 Referential origin
+By default, the origin is one of the panel’s corner. In advanced mode you can change the position of
+the origin.
+You can either enter coordinates of the center in the “origin” field or use the “Origin position” tool.
+By default, all data are converted, and then no data moves: only axis are moving.
+This feature is reserved to advanced mode. E.g: if you know that all your data are defined with all X
+negative.
+5.10.1 Carrier
+Carrier description comes with its size and the position of the panel inside it.
+Carrier width and height define the external size of the carrier.
+The carrier offset is defined with the panel coordinate as origin.
+Carrier
+Panel
+Page 65
+===== PAGE 66 =====
+Sigmalink V1.6.5 User manual
+Carrier linked to image:
+If carrier is linked to image, the offset won’t be available on carrier section, any panel in carrier position
+adjustment must be performed into Image tab to change the image position (this will move the carrier
+with it).
+Page 66
+===== PAGE 67 =====
+Sigmalink V1.6.5 User manual
+5.10.2 Actions
+Action Description
+Allows to create a fiducial.
+Fiducial will be added to the list in the detail view.
+A graphical tool allows to place the fiducial by clicking in the panel. Use
+mouse wheel to zoom in the cursor position.
+In the CAD editor, fiducials are defined as yellow object. Default fiducial
+shape is a circle.
+In the detail view, you’ll be able to update manually the coordinates of the
+fiducial, edit or delete it..
+Allows to create an id code zone: a place where inspection system will look
+for an id code.
+Id code will be added to the list in the detail view.
+A graphical tool allows to place the id code by clicking in the panel. Use
+mouse wheel to zoom in the cursor position.
+In the CAD editor, id codes are defined as orange rectangles.
+In the detail view, you’ll be able to update manually the coordinates of the
+idcode, edit or delete it.
+Optionally, you can define the id code type and read orientation.
+Page 67
+===== PAGE 68 =====
+Sigmalink V1.6.5 User manual
+Allows to create a skip zone: a place where inspection system will look for a
+skip.
+Skip will be added to the list in the detail view.
+A graphical tool allows to place the skip by clicking in the
+panel.. Use mouse wheel to zoom in the cursor position.
+In the CAD editor, skips are defined as green squares.
+In the detail view, you’ll be able to update manually the
+coordinates of the skip, edit or delete it.
+You’ll have to define the target scope of the skip : the whole panel or a
+specific subpanel.
+Skip size can be edited using the button.
+The size of the skip mark must be between 2mm and 15mm, height and
+width, to be exported in a pad file.
+Allows to create zone for PI machine. Zone can be used to define zone with
+particular stencil height or zone to ignore (to improve automatic
+programming).
+This feature is only useful for PI machine.
+Zone tool has same behavior as the tool for drawing the outlines of the panel
+or subpanel.
+You must edit the shape to add / remove points.
+Page 68
+===== PAGE 69 =====
+Sigmalink V1.6.5 User manual
+This feature is only available if the outline of the panel is not defined as
+polygon instead of rectangle.
+The tool allows to activate outline drawing. This feature is very important
+for PI system to ensure a good stop of the panel in the inspection machine,
+if the border on the stop side is not linear.
+When you enable this tool, square handles appear. Simply drag the square.
+Click on a segment to add points and double click on a squareto remove it.
+Press “Esc” key to cancel the tool.
+Outlines are only used for display, they are not inspected, so, for
+performance reasons, it’s better to limit the number of outline points and
+to remove the unnecessary ones.
+You can also edit coordinate in the detail view.
+Page 69
+===== PAGE 70 =====
+Sigmalink V1.6.5 User manual
+Keep in mind, that outlines are not inspected, you don’t have to be very
+accurate.
+Outline must be included into the bounding box. At least one point of the
+outline must be on each border of the bounding box.
+Measures the distance between two points.
+Click the first time to start measuring, click the second time to get the
+distance and offset in the contextual information area.
+This is useful for making measurements on image.
+Keep in mind if you select two components you have the accurate distance
+displayed in contextual information zone, so no need to use the tool
+Measure.
+Page 70
+===== PAGE 71 =====
+Sigmalink V1.6.5 User manual
+This tool allows renaming subpanels which will be done cross all existing
+layouts.
+This tool has no action, if no subpanel pattern and layout have been defined.
+Auto-naming override previous and custom naming. This action has no
+impact on data.
+Examples:
+1 2 3 4
+5 6 7 8
+9 10 11 12
+13 14 15 16
+1 2 3 4
+8 7 6 5
+9 10 11 12
+16 15 14 13
+4 3 2 1
+8 7 6 5
+12 11 10 9
+16 15 14 13
+Page 71
+===== PAGE 72 =====
+Sigmalink V1.6.5 User manual
+16 9 5 4
+15 10 6 3
+14 11 7 2
+13 12 8 1
+This tool allows to draw a subpanel outline on an image or on a Gerber.
+Click on each outline points to draw. Press “Esc” to abort operation. When
+your job is done click on “Enter” key.
+System automatically creates a subpanel pattern and a layout at this place.
+System active tab subpanel pattern.
+Draw subpanel is also available in “Data Import” tab tools to
+produce auto panelized layout using “panel” targeted data. (cf
+§5.14.3 Import Gerber File)
+If your panel contains only one product, this tool creates automatically a
+subpanel pattern with the size of the panel and layout with this subpanel
+pattern.
+This tool is available only if no subpanel pattern and no layout have been
+yet defined.
+Switch to add or not a carrier to the program. The carrier information will
+become available in a subsection of panel tab tool bar. (see 5.10.1)
+Page 72
+===== PAGE 73 =====
+Sigmalink V1.6.5 User manual
+Page 73
+===== PAGE 74 =====
+Sigmalink V1.6.5 User manual
+5.10.3 Validation rules
+Validation
+Severity Cause
+Size X is equals to 0
+Size Y is equals to 0
+Name of the project is invalid (contains unauthorized characters)
+A project with the same name already exists
+Less than 2 fiducials have been defined for the panel or less than 2 fiducials have been
+defined in all subpanel pattern
+Two fiducials, two skips or two id codes have the same name
+Fiducial, skip or id code is not included into the panel outline
+A stencil zone has a height equals to 0 or superior to 10 millimeters
+Zone overlapping
+A pad is not fully included into a stencil zone (only at export SPI)
+Carrier is enabled and panel is not fully included into carrier
+A stencil height is not zero and inferior to 50 µm or superior to 1 millimeter
+A stencil zone height is inferior to 50 µm or superior to 1 millimeter
+A zone (stencil or ignore) is not fully included into panel outline
+Page 74
+===== PAGE 75 =====
+Sigmalink V1.6.5 User manual
+5.11 Import a PCB Image
+The second step is to import an image of the product that will be inspected. Relying only on this image
+is not the most precise way to work, but it helps to make sure of not making mistakes during the
+importation (bad data rotation, up / down confusion, bad product. ..)
+Click on button , to add an image (if an image has been already imported, then the new imported
+image will replace it).
+The popup allows searching for a PCB in the shared directory (cf. 4.2). The image name corresponds to
+folder name. Images are sorted from the most recently created to the oldest.
+it is possible to use a filter: the system searches for all the images whose name contains the entered
+value. The search result is updated in live: no need to press a key to update the list. To remove the
+filter, clear the field.
+Select a name in the list to see a preview of the image then select a light.
+Image can be generated manually by clicking on the “generate” button.
+Page 75
+===== PAGE 76 =====
+Sigmalink V1.6.5 User manual
+Light list contains all the images with different light levels
+available in the folder.
+The “All” item is available to generate the images of all the
+lights at the same time.
+Acquisition Lights
+Software Head Available lights Recommended light
+PCB Image Matrix Non iLite L0, L1, L2, L3, L4, L5 (*) L5
+PCB Image Matrix iLite L0, L1, L2, L3, L4, L5 (*) L5
+PCB Image Recorder Non iLite L0, L1, L2, L3, L4, L5 (*) L5
+PCB Image Recorder iLite Display, L0, L1, L2, L3, L4, L5 (*) Display
+PCB Image Recorder Spectro Display, L0, L1, L2, L3, L4, L5 (*) Display
+PI _H _H
+Manual file _H _H
+(*) Depending of lights used during scan and lights calibration
+Actions:
+If the image preview cant be displayed (stitching error...), you can ask the
+system to regenerate the image. This action can take few minutes according
+to the image size.
+With this action you can remove the image from the server.
+Be careful, this action can’t be undone.
+Project keeps in it a low resolution image for fast display, but use
+the image stored on the server to display good resolution image.
+Then if a project uses an image, it’s recommended to keep image
+on server. Delete only duplicate images or bad format image.
+Button allows you to close the popup and to cancel the import.
+Once the light selected, click on the button to use the image.
+If you havent defined panel size before loading the image, system will automatically use the
+image size to define the panel size. Check the value of the panel is correct before continuing.
+Page 76
+===== PAGE 77 =====
+Sigmalink V1.6.5 User manual
+Actions:
+By default, Image is centered on the panel. You can change the offset X
+and Y of the image.
+Those fields are automatically updated if you use “Drag image” tool.
+This field allows to fix angle offset of the image.
+Click on the button , to activate the graphical tool to set the angle.
+Find a horizontal or a vertical line on the PCB, move the mouse cursor on
+the beginning of the line, use the mouse wheel to zoom then click to start
+the angle detection.
+When zoomed enough, move cursor until the end of the line then click
+to stop the angle detection.
+System automatically computes the corresponding
+angle.
+PCB Image Recorder has PCB angle detection, in this case this
+tool has no interest and mustn’t be used.
+The delete button remove the image from the project. There’s no impact
+on the server storage: image can be selected/used in other projects.
+If image is not well centered, use this tool to drag the image.
+Page 77
+===== PAGE 78 =====
+Sigmalink V1.6.5 User manual
+KO OK
+2 fields Offset X and Offset Y are automatically updated with
+corresponding value.
+NB: in this example, I’ve used the fiducial position to know where to
+move the image.
+Keep in mind, the image is not inspected: it’s just a guide. You
+don’t have to be very accurate.
+Use these tools if image have not been scaned in the same orientation
+you have chosen to create your program.
+5.11.1 Validation rules
+Image is not required, then if no image have been imported, tab is green.
+Validation
+Severity Cause
+N/A
+If high resolution image can’t be downloaded. 2 cases: a network error or the project
+uses a deleted image.
+Page 78
+===== PAGE 79 =====
+Sigmalink V1.6.5 User manual
+5.12 Describe my subpanel pattern
+This is a key point of the program. It defines the inspection unit for traceability.
+Click on the button , to add a new subpanel pattern.
+Like for the panel, the only required data are the subpanel size (size X, size Y).
+5.12.1 Actions:
+List of subpanel patterns. Select an item on the list, to see specific
+data.
+List displays the subpanel pattern’s name.
+There is no limit number of subpanel patterns.
+Displays the name of the subpanel pattern.
+The subpanel size. Geometric referential is the same than the
+panel.
+We recommend defining subpanel according to data.
+Subpanel pattern can be easily rotated inside the layout.
+As for the panel, subpanel pattern is defined as a bounding box (a
+rectangle) and an outline (a polygon included into the bounding
+box).
+The rectangle is the bounding box. The center of this bounding box
+is used to place and to rotate the subpanel pattern.
+Page 79
+===== PAGE 80 =====
+Sigmalink V1.6.5 User manual
+The dark gray corresponds to the outline, the real shape.
+Components and PADs must be included in the outline.
+Those tools have the same behavior as described in the panel (cf.
+§5.10).
+Objects are created in the subpanel pattern and will be
+“duplicated” for each subpanel created from the current subpanel
+pattern.
+Skip zone does not contain target attribute as in Panel, each skip
+mark is linked to its own subpanel.
+Same tool as for panel (Cf. §5.10)
+These tools allow moving the background image. To be enabled,
+an image must have been imported (cf. 5.11).
+Page 80
+===== PAGE 81 =====
+Sigmalink V1.6.5 User manual
+KO
+OK
+This feature is disabled, when subpanel pattern has been included
+into a layout. In this case, image is corresponding to a subpanel
+(arbitrary choice).
+Keep in mind the image is not inspected: it’s just a guide.
+You don’t have to be very accurate.
+Allows to delete a subpanel pattern. A confirmation is asked if the
+subpanel pattern is currently used into a layout.
+Allows duplicating a subpanel pattern. Default name is generated,
+and all other data are copied (size and background position).
+This information is for advanced mode. It allows importing
+different subpanel pattern data from one file.
+(Cf. 5.14 Import n-subpanel).
+5.12.2 Validation rules
+Validation
+Severity Cause
+No subpanel pattern defined
+Two subpanel patterns have the same name
+One subpanel pattern has a zero size
+A fiducial associated to a subpanel pattern is invalid (name uniqueness, position
+and shape).
+more than one skip are defined for the subpanel pattern
+more than one idcode are defined for the subpanel pattern
+An object (fiducial, id code or skip) is not fully included in the outline of the
+subpanel pattern.
+Page 81
+===== PAGE 82 =====
+Sigmalink V1.6.5 User manual
+Component is in the panel but outside subpanel
+Imported component is outside panel
+Page 82
+===== PAGE 83 =====
+Sigmalink V1.6.5 User manual
+5.13 Describe panel layouts
+Layout step is the strategic step. You’ve to define how to arrange subpanel patterns (templates) to
+describe the panel (product).
+Click on the button to add a new layout.
+In current version, layouts are either steps or arrays. An array is defined by columns count, rows
+counts, and the item to “draw” in each cell: the subpanel pattern and the rotation to apply to this
+subpanel pattern.
+Second
+corner
+Row
+Edge
+clearance Y
+First Column
+corner Edge
+clearance X
+The position of the layout is defined by the first corner. The first corner is depending of the geometric
+referential: always the the nearest corner to the referential origin. Its displayed with a white circle.
+The space between two consecutive cells can be defined in two ways:
+Using the edge clearance: then you must use a “Step” layout
+Using the second corner: then you must use an “Array” layout
+Page 83
+===== PAGE 84 =====
+Sigmalink V1.6.5 User manual
+You can switch from a type to the other without risk.
+A layout “generates” subpanels. The list of corresponding subpanels is displayed in the detail view.
+The first column describes the number of the subpanel as defined by the auto numbering (cf. §5.10).
+You can override the default value or use the auto numbering in the tab “Panel”.
+You can update generated subpanels by switching subpanel pattern and subpanel pattern rotation.
+System uses the center of the subpanel pattern bounding box to apply the rotation.
+We recommend changing subpanel pattern only by a subpanel pattern with the same size.
+System displays the name of the subpanel pattern for each subpanel. The text is adapted according to
+the subpanel pattern rotation.
+Page 84
+===== PAGE 85 =====
+Sigmalink V1.6.5 User manual
+You can also use multi selection (CTRL+click) and contextual menu to change pattern and
+angle.
+You can also realign subpanel updating offsets X and Y.
+It’s an advanced mode, use this feature only if you’re really sure. This can produce bad
+subpanel assignation.
+Subpanel overlapping is tolerated as far as no cad element center is inside more than one
+subpanels. (cf Validation rules on next page)
+If you change the columns count, row count or subpanel pattern, all custom modifications
+will be lost.
+5.13.1 Actions
+Allows to delete a layout.
+Allows to duplicate a layout. Default name is generated, and all
+other data are copied.
+Name of the layout. Must be unique.
+We recommend to rename each layout for readability.
+Page 85
+===== PAGE 86 =====
+Sigmalink V1.6.5 User manual
+Layout type. Default is step.
+You can switch from one type to the other, no data will change.
+For the Array type layouts , you must define the coordinates of two
+opposite corners. You can enter coordinates manually or using the
+graphical tool (cf. §0).
+If the second corner is too close or too far from the first corner to
+place rows and columns, system automatically change coordinates
+of the second corner.
+For the Step type layouts, you must define the coordinates of the
+first corner and spaces between subpanel. You can enter
+coordinates manually or using the graphical tool (cf. §0).
+Edge clearance can be negative value but can’t be more than the
+pattern size. Edge clearance is defined in the unit of the panel.
+This list box contains the subpanel pattern names. You must select
+the one that will be used in the layout.
+Keep in mind, you can override this value subpanel by subpanel.
+Rotation applied on subpanel pattern to create subpanels. You
+must select the default one that will be used in the layout.
+Keep in mind, you can override this value subpanel by subpanel.
+Number of columns and rows.
+Positive and not null integer.
+5.13.2 Validation rules
+Validation
+Severity Cause
+No layout has been defined
+A layout has no subpanel pattern
+A layout has row or column count equals to zero
+Two subpanels have the same number
+A subpanel has one of its component outside the panel outline
+A reference designator is not unique in a subpanel
+A subpanel is outside the panel outline but all its components are included into the
+subpanel outline
+Page 86
+===== PAGE 87 =====
+Sigmalink V1.6.5 User manual
+Two layouts have the same name
+A cad element center is inside more than 1 subpanel at the same time
+Page 87
+===== PAGE 88 =====
+Sigmalink V1.6.5 User manual
+5.14 Import data
+Import data consists in importing components and/or pads description and recording data in the same
+referential.
+Import is always done in two steps:
+File parsing: you’ll have to provide parsing rules to allow the data import.
+Data transformation: to transform data into the panel unit and referential.
+Screen is split in three parts:
+Toolbar: contains parsing rules and transformation rules
+Data table: contains the data as it was imported from the file
+CAD Editor: display imported data in graphical mode.
+While the header of the table is red, some error must be fixed. Data are not imported.
+Error File well parsed
+When file will be correctly parsed, the CAD editor will display the imported data.
+Page 88
+===== PAGE 89 =====
+Sigmalink V1.6.5 User manual
+5.14.1 Actions
+Allows to delete an imported file. All imported data in the
+deleted file. will be removed.
+A confirmation is asked to the user.
+Allows to duplicate a file. All parsing and transformation
+rules are copied.
+Lists all imported files. Click on file’s name to display
+corresponding data.
+Click on button , to import a new file.
+Drag a file to import into the dashed zone or use the “Choose file...” button.
+Sigmalink allow to import several data:
+- Component (Centre coordinates)
+- PADs (stencil aperture).
+- Copper pads
+- Glue dots
+- CAD file (contrains multiple types)
+CSV is the only supported format for components.
+Gerber 274x is the only supported format for PADs.
+JPsys json contains data for multiple layers:
+- copper pad
+- paste deposit
+- glue deposit
+- components
+Page 89
+===== PAGE 90 =====
+Sigmalink V1.6.5 User manual
+For CSV file, you can select a profile to load parsing rules
+(cf. 0).
+If component definitions you import aren’t well aligned
+with your Vision20 library, you’re now able to provide a CSV
+file to fix angle.
+Angle can be applied by JEDEC or Part number.
+System automatically selects import type and type according to the file extension. You can
+change it if unrecognized extension or in case of mistake.
+Page 90
+===== PAGE 91 =====
+Sigmalink V1.6.5 User manual
+5.14.2 Import Component CSV File
+First step, is to define how the system will read the file
+Parsing rules
+Separator describes how two columns are separated in the file.
+System proposes common separators: tabulation, semi colon (;), comma (,),
+dot (.), pipe (|) and space.
+You can also use “Custom” to define your separator (like #). In this case you’ll
+have to fill the field “Custom”. This field is limited to only one character.
+“Space and tab.” can be used if space and tabulation are used together as
+separator.
+Last option is “fixed size”. This option must be use if each column has always
+the same size for all lines (columns can have different size). In this case, system
+tries to automatically detect columns size. The field custom will present the
+list of column size separated by a semi colon.
+Once separator is well defined, you must assign each column to a variable.
+This field describes the content of each column.
+X: X coordinate of component center
+Y: Y coordinate of component center
+A: Angle of the component
+T: Reference designator of the component
+P: Part number of the component
+J: JEDEC or package identifier
+I: ignored column (not imported)
+K: Key to distinguish subpanel
+M: Missing component
+S: Enable statistics for this component
+E: Must be inspected or not
+This field is linked to column headers. When you update the field,
+corresponding combo box is automatically updated, and if you change value
+in a combo box, the field is updated too.
+Describe lines to ignore.
+Syntax is:
+Page 91
+===== PAGE 92 =====
+Sigmalink V1.6.5 User manual
+5: ignore line 5
+5,8: ignore line 5 and line 8
+5-8: ignore lines between 5 and 8, means lines 5, 6, 7 and 8
+This field is linked to the data table.
+If you click a first time on a line number, the line will be ignored, and the field
+is updated. If you enter a line number in the field “Ignore”, the corresponding
+line in the table will be crossed.
+Define fiducials.
+Same syntax as “Ignore”.
+This field is linked with to the data table: click two time on a line number, the
+line is considered as fiducial and the field is updated. The same, if you enter a
+line number in the field “Fiducial”, the corresponding line in the table will be
+displayed in bold.
+You can use this tool to ignore lines corresponding to a particular pattern, or
+to transform lines into fiducials.
+Note: ignored lines can’t be transformed into fiducial. If you want to do that,
+you’ll have to cancel ignored lines then use data filter.
+Page 92
+===== PAGE 93 =====
+Sigmalink V1.6.5 User manual
+Summarize all malformed lines.
+You can decide to ignore all those lines.
+This tool can be used to add custom angle into “Import angle” list.
+Page 93
+===== PAGE 94 =====
+Sigmalink V1.6.5 User manual
+System automatically ignore empty lines
+When table header is red, there’re some parsing errors, you must change parsing rules then.
+Data table:
+System displays file content per block of 20 lines. You can use the navigator in the bottom of the table.
+Page 94
+===== PAGE 95 =====
+Sigmalink V1.6.5 User manual
+Each click on a line number changes the line status:
+Click on a normal line (component), ignores the line
+Click on an ignored line, transforms the component to fiducial
+Click on a fiducial, returns the object to its original shape (component)
+A tooltip on the line number, explain the action if you click.
+The source tab, displays the content of the imported file.
+If the file is parsed, when you select a line in the table, the corresponding component is highlighted in
+the CAD Editor.
+CAD Editor:
+Actions to ignore or to transform into fiducial are also reachable from the contextual menu.
+To ignore the selected object (components, pad…) , you can also use the key “Del”.
+Page 95
+===== PAGE 96 =====
+Sigmalink V1.6.5 User manual
+If you select a component in the CAD editor, system automatically displays the good page in the data
+table and select the corresponding line.
+Page 96
+===== PAGE 97 =====
+Sigmalink V1.6.5 User manual
+Import rules:
+C104;PART 1;323;46.7;13.21;90 Dot and comma can be used as decimal separator.
+R802;PART 2;105;57.11;37,5;180
+"Z200";PART 4;201;25;19.09;-90 Enclosing quotes and apostrophe are ignored.
+'R203';PART 5;102;19;20.45;90
+R502; PART 7 C o l u m n s are trimmed to remove unnecessary white spaces.
+;102;29.95;22.9;180
+C101;PART 3;103;29.2;1 000.9;0 White space as thousands separator is supported.
+C104;PART 1;323;46.7;13.21µm;90 X and Y can be imported with unit. In the current version the
+unit is ignored (no conversion) but the file can be imported.
+You’ll have to change the unit in « parameters » toolbar, to
+change the unit.
+C101;PART 3;103;29.2;1.9E3;0 Scientific notation is supported.
+R203;PART 5;102;19;20.45;90 System detect if two components have the same coordinates.
+Line number becomes yellow.
+R401;PART 6;103;19;20.45;90
+C101;PART 3;103;29.2;1,000.09;0 Comma as thousands separator is not supported.
+To be valid, format must declare one and only one column X,
+Y, Angle (A), Reference Designator (T) and part number (P).
+If columns are duplicated or missing, outline of format field
+become red.
+A tooltip summarize code and required columns.
+Page 97
+===== PAGE 98 =====
+Sigmalink V1.6.5 User manual
+-44.54;112.38; 0.0;; FID1 To be imported a fiducial must respect same columns than
+components. Reference designator will be used. Content of
+-49.14;11.37;0.0;; FID2
+columns part number and JEDEC are ignored, but columns
+-20.44;28.59;90;PART1;C1000 JEDEC1 must exist.
+-20.44;34.56;90;PART2;C1000 JEDEC2
+R203;PART 5;102;19;20.45;90 Angle must be described in degree.
+R401;PART 6;103;19;20.45;135 There’s no way to convert angle.
+Profiles :
+Parsing rules can be saved as a “Profile”.
+When you click on “Save”, system will ask for a profile
+name. If a profile with the same name exists, then the
+latest one is updated.
+You can load profile during data import or after file is
+imported, by clicking on “Load” button. System asks
+to select the profile then apply it to the current file.
+Page 98
+===== PAGE 99 =====
+Sigmalink V1.6.5 User manual
+The second step is to describe how to convert data into the panel origin and referential.
+Transformation rules:
+Data target defines if the imported data correspond to:
+“Panel”: the whole panel,
+“1 subpanel”: data of one subpanel pattern. These data will be
+duplicated in each subpanel as defined in the layouts.
+“n subpanel”: file contains data for more than one subpanel. A
+column “Key” must be defined in the file and each subpanel
+pattern must define the field “Key”.
+X and Y offset can be applied to all imported object. Offset can be a float
+of positive or negative value. Separators used can be “.” or “,”. The unit
+used is the same as the panel unit, defined in the panel tab and not the
+unit of the imported data.
+No offset applied Offset X and Y applied
+Offsets can be automatically set by move feature with option
+“Import Offset” (cf. 5.16).
+Page 99
+===== PAGE 100 =====
+Sigmalink V1.6.5 User manual
+The Rotation direction field defines the component rotation in the
+imported data: “Counter clockwise” or “Clockwise”. As all data in the
+domain model must be saved as clockwise, the “rotation dir” is used to
+correct the imported data.
+The component angle display can be activated by a right click on the
+component, then select layers then Component angle.
+The modification of the component rotation direction changes the
+component angle:
+Clockwise Counter Clockwise
+If some PADs have been linked to a component (cf. 5.17) and you don’t
+select the right rotation direction, the component will not match with
+the pattern:
+In the Kseries TST Wizard you will no more have the
+possibility to modify the rotation direction of your
+component: you have to do that before exporting the vis or
+project file.
+Page 100
+===== PAGE 101 =====
+Sigmalink V1.6.5 User manual
+The unit of the imported data must be defined. The system
+automatically converts the coordinates of the imported objects from
+this unit to the unit defined in the panel tab.
+If the unit in SigmaLink doesn’t correspond to the unit of the imported
+data, the scale between the referential and the data is not correct, you
+have to select the right unit:
+Imported data are in µm, and SigmaLink unit field is mm
+Imported data are in µm, and SigmaLink unit field is µm
+If you have data using a unit at one-tenth of µm (0. 1µm)
+please use the unit factor tool.
+Page 101
+===== PAGE 102 =====
+Sigmalink V1.6.5 User manual
+The x and y coordinates of imported object can be multiplied by 10 exp
+"Unit factor". You must open the parameters tab to see this field.
+For instance, if your imported data use a small unit, such as one-tenth
+of µm (0.1µm) you can use the unit factor to multiply the coordinate:
+No unit factor used
+Unit factor is set to 1 (x101)
+E.g.
+Value in CAD file Value wanted Unit factor to use Formula
+200 2000 1 200 = 200 * 101
+4000 40 -2 40 = 4000 / 100 = 4000 * 10-2
+There is no Unit Factor for angle
+Page 102
+===== PAGE 103 =====
+Sigmalink V1.6.5 User manual
+The offset angle defines the angle to add to all imported component
+before the rotation correction (applied to save data in clockwise, see
+“Rotation dir”).
+0° 45°
+The Angle offset is impacted by the rotation direction:
+45° with counter Clockwise 45° with Clockwise
+The Angle offset has to be used carefulyl, please use it only if
+you are sure you are using it correctly.
+An angle can be selected to apply a rotation to all imported objects. The
+center of the rotation is the data origin before offset. You can select one
+of the following angles: “0°;90°;180°;270°”.
+Without import angle With import angle of 90°
+Page 103
+===== PAGE 104 =====
+Sigmalink V1.6.5 User manual
+The origin and the orientation of imported objects can be selected.
+Orientation defines which corner of the bounding box must be used as
+origin and the axis orientation. Four configurations are available: “Lower
+Left”, “Lower Right”, “Upper left”, “Upper Right”.
+The system automatically converts the coordinate into the referential
+defined into the panel tab.
+If you want to change the position of your components to have
+symmetry in mirror image, you have to use the orientation tool.
+For instance, if you want to have symmetry on X axis: change orientation
+from “Lower Left” “Upper Left” or from “Lower Right” to “Upper Right”:
+Orientation: “Lower Left”
+Orientation: “Upper Left”
+If you want to have symmetry on Y axis: change orientation from “Lower
+Left” to “Lower Right” or from “Upper Right” to “Upper Left”.
+If you modify the orientation from Lower Left to Lower Right
+, the distance between the 0 of the import and the 0 of the CAD
+correspond to the offset:
+Page 104
+===== PAGE 105 =====
+Sigmalink V1.6.5 User manual
+Orientation Lower Left
+Orientation Lower Right
+Using the check box, you can choose if the referential origin must be the
+center of the bounding box. The bounding box depends of the "Data
+target" selected.
+You must open the parameters tab to see this field.
+You can set offset to center the referential on the panel or to align
+referential with a corner in the panel. Five configurations are provided.
+If you select one of them, the origin field is updated. This is a "one shot"
+action, if the panel size change, the origin is not updated. This tool
+updates the offset fields.
+In case data target is “n subpanels”, the “origin position”
+button will be hidden in the parameters tools
+Option corresponds to the default import.
+Page 105
+===== PAGE 106 =====
+Sigmalink V1.6.5 User manual
+This tool can be used to add custom angle into “Import angle” list.
+Define if all available data must be displayed or only data imported in
+the selected file.
+Page 106
+===== PAGE 107 =====
+Sigmalink V1.6.5 User manual
+Angle must be described in degree. There is no way, in current version, to convert angle
+from or to another unit.
+Page 107
+===== PAGE 108 =====
+Sigmalink V1.6.5 User manual
+5.14.3 Import Gerber File
+Sigmalink allows the import of a Gerber 274x format.
+This is used for several layers:
+- stencil apertures
+- copper pad
+- glue deposit
+Parsing rules
+Parsing rules are automatics due to normalized language. You can just ignore some elements or
+describe some as fiducials.
+Describe lines to ignore.
+Syntax is:
+5: ignore line 5
+5,8: ignore line 5 and line 8
+5-8: ignore lines between 5 and 8, then ignore lines 5, 6, 7 and 8
+This field is linked to the table.
+If you click once on a line number, the line is ignored, and the field is
+updated. If you enter a line number in the field “Ignore”, the corresponding
+line in the table will be crossed.
+Same syntax as “Ignore” to define fiducials.
+This field is linked to the table.
+If you click twice on a line number, the line is considered as fiducial and the
+field is updated. If you enter a line number in the field “Fiducial”, the
+corresponding line in the table will be display in bold.
+Page 108
+===== PAGE 109 =====
+Sigmalink V1.6.5 User manual
+Data table:
+System displays the file content per block of 20 lines. You can use the navigator in the bottom of the
+table.
+Each click on a line number changes the line status:
+Click on a normal line (active element), ignores the line
+Click on an ignored line, transforms the corresponding object into fiducial
+Click on a fiducial line, transforms the line to active element
+A tooltip on the line number, explain the action if you click.
+Like for CSV file, table and CAD Editor are linked.
+Page 109
+===== PAGE 110 =====
+Sigmalink V1.6.5 User manual
+CAD Editor:
+Actions to ignore or to convert as fiducial are also accessible from the contextual menu.
+To ignore the selected components, you can also use the key “Del”.
+If you select a component in the CAD editor, system automatically displays the good page in the data
+table and select the corresponding line.
+To improve performances, elements are displayed as an image block when no zoom, then
+you’re not able to select a PAD with just a “click”. When you zoom enough, elements become
+real individual objects and can be selected by simple click. Selection by zone (Ctrl + drag)
+always works regardless of the zoom level
+Page 110
+===== PAGE 111 =====
+Sigmalink V1.6.5 User manual
+Mainly, panel fiducials have the same shape. You can use contextual menu to retrieve all elements
+with the same shape (called pattern).
+The system selects the corresponding lines in the table and the contextual information zone displays
+the number of selected elements. Then you just have to use contextual menu to transform all selected
+elements to fiducials.
+Mainly, Gerber files contain data to describe the product and outlines. To improve Sigmalink
+performance, we recommend that you ignore those data. To simplify, you can select valid PADs, use
+the reverse selection and ignore.
+A Gerber file with unnecessary data. Select valid PADs: selected PADs are red.
+Selection is inverted: text is red now. Press “Del” key to ignore unnecessary data
+Page 111
+===== PAGE 112 =====
+Sigmalink V1.6.5 User manual
+Transformation rules:
+Defines if pads must be imported into the panel or in the subpanel pattern.
+X and Y offset can be applied to all imported object. Offset can be a float positive
+or a negative value. Separators used can be “.” or “,”. The unit used is the same as
+the panel unit, defined in the panel tab and not the unit of the imported data.
+No offset applied
+Offset X and Y applied
+Page 112
+===== PAGE 113 =====
+Sigmalink V1.6.5 User manual
+The unit of the imported data must be defined. The system automatically converts
+the coordinates of the imported objects from this unit to the defined unit in the
+panel tab.
+The Gerber file should provide the right unit, so please be careful,
+change the unit only if you are sure that the imported unit is not the
+right one.
+The x and y coordinates of the imported object can be multiplied by a power of 10
+"Unit factor". You have to open the parameters tab to have access to this field.
+The Gerber file should provide the right unit, so please be careful,
+change the unit factor only if you are sure it is needed.
+An angle can be selected to apply a rotation to all imported objects. The center of
+rotation is the data origin before offset. You can select one of the following angles:
+“0°;90°;180°;270°”
+The origin and the orientation of imported objects can be selected. Orientation
+defines which corner of the bounding box must be used as origin and the axis
+orientation. Four configurations are available: “Lower Left”, “Lower Right”, “Upper
+left”, “Upper Right”.
+The system automatically converts the coordinate into the referential defined into
+the panel tab.
+If you want to change the position of your elements to have symmetry in mirror
+image, you have to use the orientation tool.
+For instance, if you want to have symmetry on X axis: change orientation from
+“Lower Left” “Upper Left” or from “Lower Right” to “Upper Right”:
+Orientation: “Lower Left” Orientation: «Upper Left”
+If you want to have symmetry on Y axis: change orientation from “Lower Left” to
+“Lower Right” or from “Upper Right” to “Upper Left”.
+If you modify the orientation from Lower Left to Lower Right , the
+distance between the 0 of the import and the 0 of the CAD correspond to the
+offset:
+Page 113
+===== PAGE 114 =====
+Sigmalink V1.6.5 User manual
+Orientation Lower Right
+Orientation Lower Left
+using the check box, you can choose if the referential origin must be the center of
+the bounding box. The bounding box depends of the "Data target" selected.
+To have access to this field, you must open the parameters tab.
+You can add an offset to the referential center on the panel or align referential
+with a corner of the panel. Five configurations are provided. If you select one of
+them, the origin field is updated. This is a "one shot" action, if the panel size
+changes, the origin is not updated.
+Option corresponds to the default import.
+Page 114
+===== PAGE 115 =====
+Sigmalink V1.6.5 User manual
+Actions and tools
+Define if all available data must be displayed or only imported data from the
+selected file.
+Page 115
+===== PAGE 116 =====
+Sigmalink V1.6.5 User manual
+This tool is only available when a data file contains shaped item (from gerber or
+CAD file) and has a Data target “Panel” :
+Once you draw your subpanel ( as decribed in §5.10.2 Actions ), pressing Enter will
+start a computing process. When the process is over, the Autopanelization result
+is displayed.
+On this popup, user can check the results to save or cancel everything (even the
+first subpanel draw). User can also unselect and reselect subpanels (switching
+between “filled green” and “outlined green”) only the “filled green” and the
+“oulined solid white” will be saved.
+To get the best result of autopanelization:
+- be sure to convert any pad to fiducial as it should be, before drawing
+the subpanel.
+- do not include panel fiducials in your subpanel polygone
+Page 116
+===== PAGE 117 =====
+Sigmalink V1.6.5 User manual
+If the process failed to find any other subpanel that the one you draw, you will
+have the following message:
+Potential errors occurs if you draw a subpanel over shapes that does not come
+from panel targeted file:
+Page 117
+===== PAGE 118 =====
+Sigmalink V1.6.5 User manual
+5.14.4 Import and association files between VIS and Solder Paste Gerber
+The objective of this function: Sigmalink can import VIS and Gerber file and merge them. Several
+requirements need to be realized.
+Requirements
+VIS and Gerber file need to have the same filename: <filename>.VIS, <filename>.gbr
+Put you Gerber file into the directory: C:\VIT_Sigmalink\work\gerber
+Drag and drop your VIS file into this area.
+This action can take a long time (several seconds or minutes).
+You have a frame onto the screen “Please wait”.
+At the end, you can see the VIS imported and merge with the Gerber file (if exists).
+If they aren’t well aligned, use the tab “Subpanel Layout”.
+Click on one component and select “Move” into the contextual menu list to realign Gerber and VIS file.
+5.14.5 Import Glue Deposit CSV
+The import of glue deposit csv file is not so different from Component CSV file.
+Only the column variable differs:
+This field describes the content of each column.
+X: X coordinate of glue deposit center
+Y: Y coordinate of glue deposit center
+F: Family name based on dispenser
+T: Reference designator of the component
+P: Part number of the component
+J: JEDEC or package identifier
+I: ignored column (not imported)
+K: Key to distinguish subpanel
+Page 118
+===== PAGE 119 =====
+Sigmalink V1.6.5 User manual
+The three fields required to perform glue deposit import are: X, Y and Family.
+Working on a Glue Deposit CSV layer will be quite similar to Component CSV layer.
+Toolbar functions will be the same for “Import” tab and “Browse object” tab, except for pad association
+to component which is not applicable for glue deposits.
+Default Glue Deposit Sizes
+Glue deposits defined by center and dispenser do not provide explicit diameter size. We call this
+dispenser information “family”. A size must be defined for each family.
+Glue deposit sizes are assigned automatically at parsing using the family parameter.
+If glue deposits with the same family name already exist into the project, the new imported deposit
+will get the same size.
+Otherwise an internal configuration file is parsed to find stored family with its corresponding size.
+If nothing match, a default value is set. This default value is defined in an internal configuration file.
+(see below)
+Change Glue Deposit Size
+Glue deposit size can be changed using contextual menu on a selected glue deposit: “set size”.
+The new size can be stored in system configuration for future project by selecting “use for future
+projects”
+Glue Deposit Configuration file
+The glue deposit configuration file is located into the server installation folder:
+<installation path>/conf/data_import/glue_deposits.xml
+There is no need to edit this file directly because family size can be stored in this file using the edit size
+function and selecting “use for future project”.
+Page 119
+===== PAGE 120 =====
+Sigmalink V1.6.5 User manual
+Full Example
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<gluedeposits>
+<default_diameter>2000</default_diameter>
+<families>
+<!-- Add or change family diameters according to your glue dots family
+name value is in micron -->
+<family_diameter name="S">1800</family_diameter>
+<family_diameter name="M">2500</family_diameter>
+<family_diameter name="L">3000</family_diameter>
+</families>
+</gluedeposits>
+5.14.6 Glue Layer alignment
+The only way to align the glue deposit data into your panel is by using fiducial.
+Use fiducials declared on different layers like aperture or component. Select them both and align one
+layer to the other using contextual menu.
+5.14.7 Import CAD file JPSys json file
+The best way to import JPSys json file, using project import (see § Import existing project )
+Alternatively data from JPSys json file can be imported into an existing project using Data Import tab
+page.
+Click on the button to
+import a new file.
+In the “Choose file” dialog,
+browse for the JPSys file or drop
+it in the area.
+Select import type as “CAD file”
+Select Type as “JSON”
+This method will create a file entry in the data import for each data layer.
+This method won’t import panel definition, subpanel definition of layout, only raw data.
+Still the data will be linked together to ease the manipulation. Thus, moving one layer of the file will
+move the others on the same way.
+Page 120
+===== PAGE 121 =====
+Sigmalink V1.6.5 User manual
+5.15 Edit fiducials
+For PAD file generation only. This action has no value in case of component inspection.
+Sigmalink allows modifying the size and shape of a fiducial. PI system requires having the real fiducial
+definition.
+Edit feature can be accessed from the table or directly from the contextual menu when a fiducial is
+selected.
+The following popup describes geometric definition of the fiducial.
+Define the global shape of the fiducial.
+Use “custom” only for unsupported shape. Anyway, ensure
+fiducial is symmetrical.
+Page 121
+===== PAGE 122 =====
+Sigmalink V1.6.5 User manual
+You must define the accuracy of the fiducial. This
+information is important for a good accuracy of PI system.
+“Unknown”, if you have no information about the
+fiducial size
+“Approximate”, if you’d like to draw fiducial on the
+image
+“Known”, if you know the real size of the fiducial
+In “Approximate” mode, you can draw the fiducial.
+Shape stay aligned on the fiducial. Handles appear to allow
+you modifying the shape size.
+Be careful, image used in Sigmalink is low
+resolution, then this action can’t be very
+accurate.
+In “Approximate” and « Known » mode you can edit shape properties.
+All properties must be defined in panel unit (cf. 5.10). You can also use formula (cf. 0).
+Circle diameter.
+The four handles change the diameter.
+Circle
+Width is the size between two opposite corners.
+The four handles change the width.
+Diamond
+Rectangle
+Width is the size X and Height is the size X.
+Top and bottom handles allow updating height.
+Left and right handles allow updating width.
+Page 122
+===== PAGE 123 =====
+Sigmalink V1.6.5 User manual
+Cross
+Size X and size Y of the square.
+Square
+Oblong
+Width is the size X and Height is the size X.
+Top and bottom handles allow updating height.
+Left and right handles allow updating width.
+Diameter of the circle is the smallest dimension.
+In current version, “Unknown” fiducials aren’t exported in PAD file.
+Fiducial shapes are not exported into VIS file. You must use AVision library to define
+fiducial shape.
+Page 123
+===== PAGE 124 =====
+Sigmalink V1.6.5 User manual
+5.16 Move data
+“Moving data” feature allows using imported data or image to apply offset.
+To use it you must select one or more object and use the contextual menu.
+5.16.1 Different move options
+Feature Selected object Offset computation
+Move… One component or Distance between selected object
+and the mouse click.
+One fiducial or
+One skip or one ID code
+Center component on pads One component and many Distance between the selected
+pads from the same component and the center of the
+Gerber file bounding box including all selected
+PADs.
+Offset will be applied to the
+component and not to the pads.
+Center pads on component One component and many Distance between the selected
+pads from the same component and the center of the
+Gerber file bounding box including all selected
+PADs.
+Offset will be applied to the pads and
+not to the component.
+Center a fiducial on another A fiducial imported from Distance between selected.
+any layer and a fiducial
+Offset will be applied to the data
+imported from a different
+from the first layer.
+layer. Layers are:
+Component, Pad, Glue.
+Page 124
+===== PAGE 125 =====
+Sigmalink V1.6.5 User manual
+To align two data set from the same layer “Pad”, it is possible to convert the second fiducial
+into a pad and to align the fiducial from one data set to the pad (pseudo fiducial) of the
+second data set.
+Once you have chosen the move option, you must select which offset must be updated.
+5.16.2 Offsets:
+Offset will be added to import offset defined in the “Data import”
+tab, and then all objects imported will be updated.
+The scoped files impacted by this offset can be chosen by the
+user:
+- This file only
+- All “same type” in “same scope”
+- All files in “same scope”
+types: stencil aperture, component, glue deposit
+scopes : panel, subpanel pattern
+Page 125
+===== PAGE 126 =====
+Sigmalink V1.6.5 User manual
+Offset will be added to subpanel offset of the selected object.
+In this case, subpanel will not be aligned in the layout. Use this
+feature only if you’re sure.
+If selected object is not included into a subpanel, this action will
+have no effect.
+Offset will be applied to layout first corner. Second corner of the
+layout will stay at the same position except if not possible (if only
+one line)
+If selected object is not included into a subpanel, this action will
+have no effect.
+Offset will be applied to layout second corner. First corner of the
+layout will stay at the same position except if not possible (if only
+one line)
+If the corresponding layout is type of step, system will
+automatically compute edge clearance to have the same effect
+than moving second corner.
+If selected object is not included into a subpanel, this action will
+have no effect.
+Page 126
+===== PAGE 127 =====
+Sigmalink V1.6.5 User manual
+Offset will be applied to first and second corner.
+Page 127
+===== PAGE 128 =====
+Sigmalink V1.6.5 User manual
+If selected object has been manually added, coordinates of this
+object is updated.
+If selected object has been imported, the file imported is updated.
+In this case, system will ask you a confirmation because this action
+can’t be reverted.
+Use this option only if the imported file is wrong.
+Moving data can be done in all tabs, but in “Data import” tab only “Import offset” and
+“Point” are available, to avoid mistakes.
+5.16.3 Updating manually the offset:
+If you want, you can update the computed offest. Four option are available:
+“Target X”: X position of the selected object after move
+“Target Y” : Y position of the selected object after move
+“Offset X” : X offset to apply to the selected object. Sign of the offset is depending to the
+geometric referential defined in the panel tab.
+“Offset Y” : Y offset to apply to the selected object. Sign of the offset is depending to the
+geometric referential defined in the panel tab.
+Each time you modify a target field, the corresponding offset field is updated. Each time you modify
+an offset field, the corresponding target field is updated.
+Target and offset are defined in the unit of the panel. You can use formula.
+Page 128
+===== PAGE 129 =====
+Sigmalink V1.6.5 User manual
+5.16.4 Moving best practice
+To cleanly define offset, you must procceed in this order to define offset:
+Define import offset to move data correctly into each subpanel
+Move fiducial with
+option « Import
+offset ».
+Define first corner, moving data of the subpanel closest to the first corner
+Move fiducial of the
+first subpanel with
+option « Layout >
+First corner».
+Page 129
+===== PAGE 130 =====
+Sigmalink V1.6.5 User manual
+Define second corner, moving data of the subpanel closest to the second corner.
+Move fiducial of the
+4th subpanel with
+option « Layout >
+Second corner».
+Keep in mind, if you have local fiducial (in each subpanel), the subpanel position
+doesn’t have to be very accurate. If you only have global fiducial (in panel scope),
+moving data can produce offset error during inspection.
+Page 130
+===== PAGE 131 =====
+Sigmalink V1.6.5 User manual
+5.17 Link component and its PADs
+Browse object tab allows the search for components or pads in order to link them.
+Linking component and its PADs can be done in three different ways:
+-Standard Link pads to component or keyboard shortcut [L]: option with interaction pop-up
+-Fast link pads to components or keyboard shortcut [F]: option without interaction pop-up
+(only if maximum two pads are selected, else, the standard link is applied).
+-Load footprint from catalog (if catalog is already present)
+Screen is split in three parts:
+Toolbar: contains Actions and Graphical tools
+Data table: contains list of component and list of PADs with search tool
+CAD Editor: displays data (Components and PADs) in graphical mode.
+5.17.1 Actions
+Tool to select PADs and component in the graphical view in order
+to link them together
+Link pads to component (selected in the graphical view). For more
+details, see §6.17.1 and §6.17.2
+Link pads to component regarding known footprint already
+present in catalog. For more details, see §6.17.3
+To check if no conflict exists: in no conflict is found, pop up OK
+appears
+Page 131
+===== PAGE 132 =====
+Sigmalink V1.6.5 User manual
+5.17.2 Graphical tools
+When this option is activated, component and PAD linked
+are hidden. User can activate or deactivate this option.
+When this option is enabled, component and PAD linked are
+displayed in green. User can enable or disable this option.
+Delete all pads / components associations. User is asked for
+confirmation. This feature is only for advanced cases. Use
+only in case of big mistake.
+5.17.3 Link pads to component with interaction pop-up
+Overview:
+1 - PADs and component 2 – Selection of PADs 3 - PADs and
+not linked and component with component selected
+object selection tool to be linked
+4 – Link PADs to component via 5 – PADs and component
+contextual menu linked
+Page 132
+===== PAGE 133 =====
+Sigmalink V1.6.5 User manual
+To link PADs and component, you should use Object selection tool
+which is a rectangular you create by click and drag of your mouse cursor to surround PADs and
+component. All objects included in that rectangle are selected. Once the selection is done, the
+contextual menu "Link pad to component [L]" or “Fast link pads to component [F]” are available. Note
+that, the toolbar button is always available.
+Object selection tool
+Select “Link pad to component [L]" in contextual menu or press shortcut [L] key or click on “Link pads
+to component” button in “Actions” toolbar.
+If Link pads to component [L] and Fast Link pads to component [F] are not available
+in contextual menu -> check your object selection. You should have at least one
+component and one pad selected in red in your graphical view
+Link can be created if only one component and at least one PAD have been selected. If this condition
+is not valid a warning message is displayed with this condition.
+Page 133
+===== PAGE 134 =====
+Sigmalink V1.6.5 User manual
+If link condition is respected, the system shows a propagation window
+In this propagation window, you must first select the component type in the pin numbering field.
+Then you’ll be able to select the first pin and numbering direction.
+This way, we can respect the IPC pin numbering for any type of component, without changing the
+component angle which may defer from IPC but match with the BIB definition in K series programing.
+(see “Rotate Component” chapter)
+The propagation windows also allow you to select the propagation criteria. You can choose
+propagation to all components with:
+Same part number
+Same JEDEC
+Same reference designator
+By default, if selected component has a JEDEC, JEDEC criteria is selected, else part number is selected.
+System will look for all components corresponding to propagation criteria and propagate footprint.
+The footprint is defined by the rectangular bounding box of selected PADs. For each component, it is
+used to match PADs center. If the whole footprint can match the PADs, the component is linked to
+those PADs.
+Footprints are stored in catalog for further use (see §6.17.3).
+Page 134
+===== PAGE 135 =====
+Sigmalink V1.6.5 User manual
+User can't cancel propagation operation!
+If component selected is a BGA, do not forget to tick option “Pin numbering for BGA” to
+have correct pin labelling for this kind of components. System does not recognize
+automatically BGA. For more details on PIN labelling see §6.17.7
+If the propagation wasn’t correctly done, the system displays the results in “Associate pad to
+component” pop-up. The report shows:
+Target: Number of components selected by the system regarding the propagation criteria
+defined
+Done: Number of components linked to PADs successfully regarding propagation criteria
+defined
+Overridden: Number of footprints overridden (only if “override existing links” have been
+selected in propagation windows else 0)
+Not overridden
+Not assigned: Number of components not assigned
+Total remaining component not associated to pad
+Example of results with errors during propagation.
+In case of errors during propagation click on the line “Not assigned” and the system will display the
+unassigned components one by one in the graphical view.
+5.17.4 Fast link pads to components without interaction
+User can choose a fast link. In this case, no popup is displayed to the user: system automatically
+propagates. If a JEDEC is defined: propagation to all same JEDEC, else propagation to all same Part
+number.
+If no error, the summary of the operation is displayed in the slide box.
+If some component has not been successfully propagated the result popup is displayed.
+This feature is accessible with the shortcut key "F", only if one component and at least one PAD is
+selected. If more than two pads are selected, the standard association dialog box (L) is displayed.
+Page 135
+===== PAGE 136 =====
+Sigmalink V1.6.5 User manual
+5.17.5 Load footprint from catalog
+Each time you link PADs to component, the footprint result is stored in a catalog.
+Load footprint from catalog is the fastest way to link PADs to component.
+Page 136
+===== PAGE 137 =====
+Sigmalink V1.6.5 User manual
+5.17.6 Different ways to display graphical view
+To help you link the PADs to component and follow the progress of links and propagation, you can
+choose different ways to display or not the linked components in the graphical view.
+Case 1: In graphical tools, “Hide Pads & components associated” and “Color Pads & components
+associated” are both deselected:
+Even if some PADs are linked to components, you don’t see the links in the graphical view. All
+components and PADs are displayed in the same way.
+Components in orange and PADs in purple.
+Case 2: In graphical tools, “Hide Pads & components associated” is deselected and “Color Pads &
+components associated” is selected:
+All linked PADs and components are displayed in green, you can easily recognise the remaining not
+linked components and PADs.
+Page 137
+===== PAGE 138 =====
+Sigmalink V1.6.5 User manual
+Case 3: In graphical tools, “Hide Pads & components associated” is selected:
+All linked components and PADs are hidden, in the graphical view only PADs and components not
+linked remain visible. Useful to follow advancement and to select many unlinked PADs or components
+together.
+5.17.7 Problems during propagation
+Problems with rotation direction
+If CSV file (for components) has not been imported with the correct rotation direction (CLOCKWISE or
+COUNTER_CLOCKWISE), some problems will be encountered during link phase for asymmetric
+components.
+In this case, system detects the issue and the following pop-up error will be displayed.
+Page 138
+===== PAGE 139 =====
+Sigmalink V1.6.5 User manual
+To correct the problem, go back in Data import, select your CAD XY file imported and change Rotation
+direction in parameters to counterclockwise or clockwise. For more details on CAD XY rotation (cf. 0).
+Components already linked with some PADs
+If you try to link PADs to component already associated to other PADs, the following warning pop-up
+will be displayed:
+If you answer “Yes”, the existing link will be overridden. If you answer “No”, propagation will be
+stopped, you will have to select other component and PADs to continue.
+5.17.8 Delete footprint
+You can delete link by clicking on a component and select “Delete associated footprint” in contextual
+menu.
+Delete associated footprint
+Page 139
+===== PAGE 140 =====
+Sigmalink V1.6.5 User manual
+5.17.9 Default pin labelling
+System automatically assigns number for each Pin. The numbering depends of the component type
+and orientation .
+Pin labelling for component type: Flat chip/MELF
+Some component with polarity like diodes can use different labeling with pin name “Anode” and
+“Cathode”, for this component, the pin 1 will get the name “A” and the pin 2 will get the name “C”.
+To use Diode labeling, select “Diode” in “pin numbering” parameter (see Erreur ! Source du renvoi
+introuvable.).
+Pin labelling for component type: SO / TSOP
+Pin labelling for component type: SOT / DPAK
+1
+3
+2
+Page 140
+===== PAGE 141 =====
+Sigmalink V1.6.5 User manual
+Pin labelling for component type: QFP /PLCC
+Some QFP have their polarity marks on the center of the top side, and the pin numbering begins from
+this polarity mark. To apply the correct pin numbering, select “pin 1 on top center” in “pin numbering”
+parameter in “Associate pad to component” dialog (see Erreur ! Source du renvoi introuvable.).
+Pin labelling for component BGA
+Pin labelling for BGA regarding position:
+composite structure P001-000294 - Def... composite structure P001-000294 - Def...
+To have a good BGA numbering, select “BGA” in “pin numbering” parameter (see Erreur ! Source du
+renvoi introuvable.).
+Page 141
+===== PAGE 142 =====
+Sigmalink V1.6.5 User manual
+System does not recognize automatically BGA component. By default, if you don’t
+identify BGA component you will have the following numbering:
+BAD numbering for BGA GOOD numbering for BGA
+Validation rules for Browse Object tab:
+Validation
+Severity Cause
+N/A
+at least one component is not linked with PADs
+at least one PADs is not linked with a component
+Only components have been imported -> always OK
+Only PADs have been imported -> always OK
+5.17.10 Create Component
+When there is no component over effective apertures, it is possible to
+create a missing component.
+Select all pads related to the missing component, right click and select
+“Create component”.
+A “create component” pop up appears, and the new component will be
+added to an existing file, it must be defined with:
+part number (existing or new)
+ref. designator (must be unique)
+The angle of the component must also be defined and can be changed
+later by applying a rotation.
+Page 142
+===== PAGE 143 =====
+Sigmalink V1.6.5 User manual
+Create component Dialog
+If no existing component file in the CAD, component can’t be created
+Page 143
+===== PAGE 144 =====
+Sigmalink V1.6.5 User manual
+5.18 Rotate Component
+To get a perfect full pin name traceability over the whole process,
+the angle of the component must stay the same during the entire
+creation of program on K series.
+The problem may appear when the TST is created and tested over
+BIB registered component footprints.
+If the angle of the component in its board context, does not match
+with the BIB entry it will be linked to, the angle of the component
+must be fixed.
+Right click on the selected component, and choose Rotate…
+New Angle must be filled
+Save rotation:
+• Into the project only
+• Into the angle correction file
+(create one if it wasn’t already done)
+Page 144
+===== PAGE 145 =====
+Sigmalink V1.6.5 User manual
+5.19 Exclude or Include component of feedforward
+As described in the Sigmalink global configuration, component can be excluded of the feedforward by
+their partnumber or jedec.
+Exclude component from feedforward: those components won’t be injected into the AOI
+even if they were detected faulty in the SPI.
+This action of exclusion can be performed from the Data Import, by selecting a component, open the
+contextual menu (right-click), in “feedforward”, then exclude or include depending on the present
+status of the selected component.
+Page 145
+===== PAGE 146 =====
+Sigmalink V1.6.5 User manual
+5.20 Search component/pads and selection
+The search tool allows to find specific components or pads in the list. Enter a value, an operator and
+criteria.
+Possible operators :
+Equals
+Contains
+Possible criteria:
+All
+Topology
+Part number
+JEDEC
+By default, (if the filter value is empty) the tab displays the whole components list.
+The list depends of the filter applied; If the selected criteria is not ALL, system propose a suggestion.
+If no component has been imported, an error message is displayed "No component in this
+project." List and search criteria are hidden in this case.
+If no PADs have been imported, an error message is displayed "No pad in this project." List
+and search criteria are hidden in this case.
+If a component and pad files have been imported, user can select an element in the table list. When a
+component is selected the system centers the CAD view on this component and applies a zoom in,
+same thing for pads.
+Page 146
+===== PAGE 147 =====
+Sigmalink V1.6.5 User manual
+If the component is not linked to PAD, the CAD viewer display 5mm around the center of the
+component.
+If the component is linked to PADs, the CAD viewer displays the PADs of the component.
+Select a line to display pad or
+component
+Page 147
+===== PAGE 148 =====
+Sigmalink V1.6.5 User manual
+5.21 Program Variants
+Product can be produced from the same bare PCB board, with a different set of mounted components.
+All product variants of the same PCB can go through the same stencil printing process, then it can be
+inspected by the same SPI program.
+But for traceability reasons, each product inspection results need to be saved under its final product
+name.
+The feature “variant” allows to create various program, and associate component to each variant.
+5.21.1 Variant Manager
+In Data Import , you have to select the component file in the data file to display the option Manage
+Variants in the graphical tools, the pop up manage variants will appear.
+5.21.2 Optional component product
+Let’s considerate two products from the same PCB (a car audio system for example). One has a
+powered output for amplifier, the other one has not.
+The first product has a set of components for amplified output, the second product has not those
+components.
+Ref des Amplified output No amplified output
+R1 mounted mounted
+R2 mounted mounted
+R3 variant: AmpOut (mounted) not mounted
+C1 mounted mounted
+C2 variant: AmpOut (mounted) not mounted
+U1 mounted mounted
+U2 variant: AmpOut (mounted) not mounted
+To realize such configuration, a variant “AmpOut” must be assigned to each component specific to
+Amplified output. And a variant name “NoAmpOut” must be given to the unassigned component. Both
+variants must be published.
+Page 148
+===== PAGE 149 =====
+Sigmalink V1.6.5 User manual
+As a result, the program will contain two Variants:
+- AmpOut
+- NoAmpOut
+The unassigned components (variant NoAmpOut in the previous example) has,
+by default, the program name that can be renamed.
+5.21.3 Variadic component product
+Now let’s have two products with all component mounted, but not with the same type of equipment
+(an audio player for example) one has 8Gb of flash memory and the other has 16Gb of flash memory)
+We will define two variants called:
+- Player8
+- Player16
+Components will have the same ref designator, but the part number will be different.
+Ref des Part Number Player 8 Player 16
+R1 R0603_100k mounted mounted
+R2 R0201_47k mounted mounted
+R3 R0201_330 mounted mounted
+C1 C0402_10uF mounted mounted
+C2 C0603_100uF mounted mounted
+U1 FMEM_8 variant: Player8 not mounted
+(mounted)
+U1 FMEM_16 not mounted variant: Player16
+(mounted)
+In this case, the unassigned name field contains the program name, and the “publish unassigned
+variant” is not checked, because there is no product without flash memory at all.
+The population of unassigned component is not a product variant.
+Page 149
+===== PAGE 150 =====
+Sigmalink V1.6.5 User manual
+5.21.4 Import variants
+Variants can be declared in the imported component description file. They are described in a dedicated
+column.
+Column Variant has a key value for the format field: “V”.
+The concept of variant assigns the component attribute mounted or not mounted. This comes in
+contradiction with the format field missing. (letter M)
+The column variant of the imported file will contain the list of variants for each component. The list is
+separated by coma.
+Page 150
+===== PAGE 151 =====
+Sigmalink V1.6.5 User manual
+Page 151
+===== PAGE 152 =====
+Sigmalink V1.6.5 User manual
+5.21.5 Assign Variant to components
+On a selection of component, the contextual menu (right click) has a feature to set variant.
+If the selection is heterogeneous, the status icon in the contextual menu indicate this multiple status
+with an orange dot.
+A click on a heterogeneous variant will set the variant to the current selection
+Reminder: A set of components can be associated to more than one variant.
+Page 152
+===== PAGE 153 =====
+Sigmalink V1.6.5 User manual
+5.22 Export data
+The Export data is the final step of the iCAD creation. Click on the button , to export your project.
+This button is always available even if the project isn’t valid.
+First, save your project before exporting it. If some modifications are not saved the following popup is
+displayed. You must close the popup before saving and exporting again.
+Four types of export are proposed: “KSeries” for “VIS” files, “PI” for “PAD” files, “Reference images”
+and “PROJECT”.
+The VIS files export is deactivated by default and doesn’t appear in the export list. It needs
+a specific configuration to be activated.
+To activate this option, you have to:
+• Modify the parameters.properties file in C:\VIT_Sigmalink\conf directory by adding this line:
+is.export.vis.allowed=true
+• Restart the server and the client.
+Export format: default list Export Format: KSeries option activated
+Each format has its own constraints, then system applies specific validation rules.
+When you change the export format, the system checks specific validation rules:
+If, at least, a tab is in warning, the system displays the list of warnings. You must confirm before
+exporting.
+Page 153
+===== PAGE 154 =====
+Sigmalink V1.6.5 User manual
+If, at least, a tab isn't valid, the system displays the list of errors. You can't export till all errors
+are fixed (except for project export).
+The “OK” button, that launches the export, is not available while the format is not correctly set.
+Case of errors, cant export Case no errors, or only warnings:
+Export is allowed
+The system generates a file according to the selected format, parameters, and then asks to save it.
+Page 154
+===== PAGE 155 =====
+Sigmalink V1.6.5 User manual
+5.22.1 Export VIS File
+Option available only if VIS file export was allowed (parameter activated during SigmaLink
+configurationas it was shown before).
+It’s recommended to use .project for KSeries machines.
+Two different VIS file formats are available. The first is for Vision20, the second one is for Vision3D. In
+case of doubt, use Vision20 format: this format is supported also by Vision3D.
+In addition to the .project (which is recommended), VIS file is also a format used by KSeries to describe
+a PCB: panel, subpanels, fiducials and components. VIS files are used to create a .TST file by KSeries.
+Validation
+Severity Cause
+No component has been imported
+Less than 2 fiducials are available per panel or per subpanel
+N/A
+Parameters:
+A rotation can be applied to the whole program.
+Four possibilities are available: 0°, 90°, 180° or 270°.
+Rotation is counterclockwise.
+90°
+The file name generated is suffixed by the rotation angle
+(except if angle is 0).
+Page 155
+===== PAGE 156 =====
+Sigmalink V1.6.5 User manual
+The panel mode corresponds to the panel conveyor way in
+the inspection machine.
+Select “Left to right” or “Right to left”.
+KSeries use mainly 2 fiducials. You can choose if you would
+like to use panel fiducial or subpanel fiducial.
+Panel fiducial is recommended for better performance,
+subpanel fiducial is better for accuracy. “Panel” is set by
+default.
+If you ask to export as panel fiducial the system selects the
+2 most distant fiducials, even if one of them is under a
+subpanel (fiducials used are rounded in green):
+If you ask to export as panel fiducial whereas no (or not
+enough) panel fiducial has been defined, the system uses
+the two most distant subpanel fiducials (fiducials used are
+rounded in green):
+If all subpanels don’t have at least 2 fiducials, system don’t
+propose to export as subpanel fiducials.
+Choose unit used for the VIS file.
+Page 156
+===== PAGE 157 =====
+Sigmalink V1.6.5 User manual
+Side name This information is optional and is used in the supervisor
+KSeries to “tag” results.
+Side number
+Fields are initialized according to side field defined during
+project creation.
+A check box is available if you want to suffix the reference
+designator by the subpanel number.
+If a component has a reference designator R01 and is
+placed in two subpanels, VIS file will contain R01_1 and
+R01_2.
+This option can be useful for repairing station to quickly
+retrieve the subpanel containing the component in error.
+If you use this option, data correlation module
+can have some difficulties to match component
+with same reference designator. Before using
+this option ensure your statistical software is
+able to manage this data format.
+Any component not included into a subpanel will be ignored
+Page 157
+===== PAGE 158 =====
+Sigmalink V1.6.5 User manual
+5.22.2 Export PAD File
+A PAD file is a format used by Pi to create a program. PAD files contain all patterns description.
+Validation
+Severity Cause
+No PADs has been imported
+Less than 2 fiducials not flagged "Unknown" have been defined in the project (by
+panel or by subpanel)
+Panel is too big for PI machine (size x > 350 mm or size y > 21 inches)
+Two sub-panels are overlapping
+An id code overlaps another id code
+A skip mark overlaps another skip mark
+A stencil zone overlaps another stencil zone
+Two id code have the same name
+A fiducial or a component is close at least 3mm of outline
+PADs are outside a subpanel or panel.
+Panel stencil height is not defined
+Stencil zone height <50µm or >1mm
+Skip or id-code with no width/height (never edited).
+Skip or id-code have been defined without type
+Parameters:
+A rotation can be applied to the whole program.
+Four possibilities are available: 0°, 90°, 180° or 270°.
+Rotation is counterclockwise.
+90°
+The file name generated is suffixed by the rotation angle
+(except if angle is 0).
+Page 158
+===== PAGE 159 =====
+Sigmalink V1.6.5 User manual
+Define PCB color.
+Define silk color.
+Pad file contains description of:
+- Panel
+- Subpanels
+- Fiducials
+- Stencil aperture
+- Component centroid (if a pad file was imported during the CAD creation)
+- ID Code zone (if an idcode was created)
+- Foreign material zone (if this zone was created)
+- Multistep stencil height zone (if this zone was created)
+- Inspection Ignored zone (if this zone was created)
+Any PAD not included into a subpanel wont be exported.
+5.22.3 Export Project File
+For KSeries, its recommended to use .project
+A project contains everything you have imported in your program (imported files, background
+image....) and can be exported even if some tabs are in error.
+Just like the .vis export, his export function also applies the same validations rules to check:
+• the number of fiducials
+• the position of the sub panels
+• the association of components
+If no error have been found, or only warnings are detected, the Publish button will appear in the next
+iCAD Export pop up which means you can use this .project to create your tst file for KSeries.
+Case no error:
+Page 159
+===== PAGE 160 =====
+Sigmalink V1.6.5 User manual
+Case of warnings:
+Else, in case of error, “Publish” button will be hidden, exporting the .project still can be possible, but
+this .project will be only used as a draft to be reinjected again in SigmaLink Data Import (not
+recommended to be used for KSeries, it will generate problems)
+Case error detected:
+Page 160
+===== PAGE 161 =====
+Sigmalink V1.6.5 User manual
+A rotation can be applied to the whole program. Four possibilities are available: 0°, 90°, 180°, 270°.The
+file name generated will be suffixed by the rotation angle (except if angle is 0).
+Parameters:
+A rotation can be applied to the whole program.
+Four possibilities are available: 0°, 90°, 180° or 270°.
+Rotation is counter clockwise.
+90°
+The file name generated is suffixed by the rotation angle
+(except if angle is 0).
+This format must be used if you want to communicate a project
+to support or to another Sigmalink server. An exported project
+can be imported again in Sigmalink (cf. 5.6).
+5.22.4 Export reference images
+If you create your iCAD by referring to an image from a pcbi with component, you’ll be able to initialize
+a reference image library usable in Sigma Review (cf. §0).
+This feature requires a PCB image with component and a Gerber file. Components and
+PADs must be linked.
+Images are generated in C:\VIT_Sigmalink\data\images_ref.
+Page 161
+===== PAGE 162 =====
+Sigmalink V1.6.5 User manual
+5.22.5 Publish program
+The Publication can be done for all exported file types (except for Projects if errors were detected). If
+you click on “Publish” the system exports the corresponding file (VIS, PAD, Project or iCAD) in the
+directory defined during settings (cf. 4.2).
+System exports in the same directory a copy of the whole project, the exported file corresponding to
+the selected format (VIS, PAD, Project or iCAD) in the 4 rotations angles.
+Future version will allow you to manage version number.
+Page 162
+===== PAGE 163 =====
+6 Module: Review
+The aim of this module is to provide a tool to review bad panel after inspection.
+The main job is to define check is defects are acceptable or not, and to change defect type if required.
+This module provides sub modules:
+Inline review: review just after an inspection machine. Operator must take quickly the decision
+to let the panel on the production line or to scrap or repair it. This module can interact with a
+dedicated conveyor
+Offline review: with this sub module, operator can review all inspected panels using id code
+to retrieve it.
+===== PAGE 164 =====
+Sigmalink V1.6.5 User manual
+6.1 Introduction
+6.1.1 Requirements
+Full features if VIS files have been created by Sigmalink Data Import.
+Automatic reference images creation
+Localization on PCB image or CAD
+Traceability system to share result between PI and Kseries
+6.1.2 Installation
+Sigma Review can be used in different context:
+- Embedded Review
+- Inline Review
+- Dual lane inline review
+- Offline Review
+For each of this context, a different installation and configuration will be required.
+Embedded Review
+The Embedded Review is not commonly used because it blocks the inspection process of next panel,
+and this could be problematic in post reflow.
+It requires an Inline Review installation, onto the K machine computer, where Vision software is
+running. The client can be launch on this same computer, on a separated screen, or on another
+computer, beside the machine.
+Inline Review
+The Inline Review is used for single lane K machine, with a downstream single stacker conveyor (VIT
+Vi200, Vi220). The Inline Review is connected to the conveyor through an IO board.
+It requires an Inline Review installation, onto the computer connected to the conveyor with an IO
+board. The client can be launch on this same computer.
+Dual-lane Inline Review
+The Dual-lane Inline Review is used for dual lane K machine, with double downstream single stacker
+conveyor (VIT Vi24x). The Sigma Review is connected to the conveyor through an IO board.
+It requires a Sigmalink Server installation. The clients must be launched onto each computer connected
+to each conveyor lane with an IO board.
+Offline Review
+The offline review can be used for any kind of CI equipment.
+It requires a Sigmalink Server installation. The client can be launch from anywhere.
+Inline and offline review must be installed separately on different machines. The same
+installer is used with different options. Please use installation guide for full information.
+Please check §2 of this manual for administration guide and §3 for common behavior like
+first connection.
+Page 164
+===== PAGE 165 =====
+Sigmalink V1.6.5 User manual
+Printing
+The three inline review, are able to print panel bar codes using a supported Zebra™ printer.
+Page 165
+===== PAGE 166 =====
+Sigmalink V1.6.5 User manual
+6.2 Configuration
+To be able to use review modules, you must:
+Ask a license with corresponding review module (§2.2).
+Create account with good privileges (§4.1).
+Describe your production lines
+Describe screen layout
+Describe actions
+Describe defects
+6.2.1 GUI Configuration for the Review module
+Pre-requisite:
+The customer needs to have a Sigmalink license review.
+The customer needs to have the right to configure Review Module.
+One PRE_REFLOW or POST_REFLOW equipment must be defined.
+This new version of Sigmalink permits to:
+Configure all the lines and layout of the Review Module with a GUI friendlier than xml files.
+Check if the fields are filled correctly.
+The xml files are automatically pushed/sent at all the machine (contained into these files)
+6.2.2 Describe your production lines
+Select the tab “Lines” to configure/describe your production lines
+Create/Modify or Delete a Line
+Select your line number by clicking on the first left square and filled the line number.
+5 buttons are displayed at the bottom of the screen:
+Page 166
+===== PAGE 167 =====
+Sigmalink V1.6.5 User manual
+- "Save": the configuration lines is saved into the xml file named: review_lines.xml
+The configuration is sent/pushed for all pc/machine (configured into the review_lines.xml).
+If the configuration is modified when we are doing a review.
+The user receives this message: "New configuration has been detected. Please wait while the
+system is reloading."
+- "Add Line" : a "new line configuration" appears into the principle screen
+- "Reload" : the previous configuration line's appears (Last saved)
+- "Test": launch a pop-up, select the line to be tested
+- “Print”: launch a pop up, test barcode printer
+Create/Modify or Delete an equipment
+Your production line can contain: SPI, AOI (PRE or POST Reflow) and Review equipment.
+Select your equipment, by clicking on the checkbox : Active
+For each equipment, there is 2 mode of description (beginner or advanced user).
+When we have finished your equipment configuration you can ping this, by using the button:
+If equipment exists and we can ping it, the field is green:
+Else the field is red:
+All the fields with (*) are required.
+Create SPI equipment
+r
+e
+s Check the box : Active
+U
+r Equipment
+e
+n
+n Insert the name of the SPI
+ig
+e equipment
+B
+r
+e
+s
+U
+d
+e
+c
+n
+a
+v
+d
+A
+Dedicated to the experimented users, they can describe regular expression.
+Those regular expressions will be used to parse/list the programs/idcode into the directory.
+Page 167
+===== PAGE 168 =====
+Sigmalink V1.6.5 User manual
+Create AOI equipment (Pre or Post Reflow)
+r
+e
+s
+U
+r
+e
+n
+n
+ig
+e
+B
+Check the box : Active Equipment
+Insert the name of the AOI equipment.
+Select the supervisor profile (or manage to create a new one)
+r
+e
+s
+U
+d
+e
+c
+n
+a
+v
+d
+A
+Inject SPI defects is available with licensed option S500, it works with the “Sigma Line” K module, to install on the
+AOI Vision software.
+OIS directory has to be set with the shared folder where OIS files from Vision are posted after each inspection. If
+unset, OIS file will be requested to supervisor. This list of folders will be parsed in the specified order. Each folder
+must contain the same folder architecture: A panel id-code folder containing all the ois file named with topo and
+subpanel number.
+TST directory has to be set with the shared folder where TST files from Vision are posted. If unset, TST file will be
+retrieved by Inline Review. This field becomes mandatory to get the localization widget functional, if no iCad is
+specified. The tst folder will be parsed with all its subdirectory, the first tst file with matching name will be
+retained.
+For the experimented users, they can describe regular expression as Program matcher. Those regular expressions
+will be used to parse/list the programs into the directory.
+Page 168
+===== PAGE 169 =====
+Sigmalink V1.6.5 User manual
+Supervisor Profile
+Profile name : a unique name for this supervisor configuration profile
+IP address of the supervisor.
+Select your sql database: Microsoft® SQL Server, Access®, Oracle® database.
+* For Microsoft® SQL server database :
+- Fields Required: DB host name, DB name. DB Port, User and Password are already filled.
+Choose the port of the supervisor, by default, it is filled with 700.
+DB User and DB Password are already filled.
+For Microsoft® SQL server, a DB instance can be set.
+Choose the platform type: 32 or 64 bits.
+Page 169
+===== PAGE 170 =====
+Sigmalink V1.6.5 User manual
+Create Review equipment
+r
+e
+s
+U
+r
+e
+n
+n
+ig
+e
+B
+Review mode : Active Equipment
+Insert the IP/name of the Review equipment.
+Change the port if needed. (only for inline review server port)
+Conveyor:
+Conveyor type can be “Output only” or “Input / Output”
+Reset state signal after unloading change output level on I/O board when sending a new panel status result
+Printer:
+Check the box : Activate printer
+Set the printer name (as set in Windows™ Control Panel)
+Configure printer type and printer language to match your printer equipment.
+Adjust printing condition options:
+- Prompt user when print done: pop up a message when printer command sent
+- Print OK operator panels: print a bar code event for good panels
+Define print format:
+- Position: in dot for X and Y direction, from the top left of the sticker
+- Angle: 0°, 90°, 180°, 270°
+- Bar code format: code 39, code 93, code 128, LOGMARS
+- Bar size width: narrow bar width, wide bar ratio
+- Bar height
+- Human readable: print the code as text below the barcode
+Page 170
+===== PAGE 171 =====
+Sigmalink V1.6.5 User manual
+6.2.3 Global Review configuration
+Review configuration is composed of different topic relative to review :
+- General
+- Screen layout
+- Actions
+- Defects
+- Comments
+- OIS Export
+6.2.4 Describe general configuration
+Review folder expiration period: the period of time each review panel is kept in sigma review cash
+before cleaning. By default, set to 15 days. The folder concerned is /work/review.
+Inactivity timeout (in minutes): the delay after the last user action when automatic logout is triggered.
+Logout on exit review: Automatically logout at end of review
+Inline review session duration (in minutes): The delay between the last activity on an inline review and
+the system automatic logout. By default set to 720 minutes.
+Offline review session duration (in minutes): The delay between the last activity on an offline review
+and the system automatic logout. By default set to 30 minutes.
+The minimum hardcoded timeout for session in the review startup screen is one minute: To
+get enough time to set the filter criteria of review panels
+Page 171
+===== PAGE 172 =====
+Sigmalink V1.6.5 User manual
+6.2.5 Global review configuration
+Select the tab “Review” to configure/describe your screen layout, the widgets and actions
+2 buttons are displayed at the bottom of the screen:
+1- Save: the review configuration is saved into the xml file named:
+- review_layout.xml
+- review_actions.xml
+- review_defects.xml
+- review_comments.xml
+2- Reload: the previous configuration (Last saved)
+Create/Modify Screen Layout of the review
+First of all, choose if you want to have the
+same configuration onto the 4 screens of
+review (Inline, Offline, Remote and Repair).
+If you check the box, you can't select another
+review type in the left listbox
+If not, choose the screen that you want to
+define Inline, Offline, Remote or Repair
+Select the number of layout displayed, and
+their localization into the sscreen (2 to 6
+layouts). 2 widgets are required: defect list
+and defect image.
+Select and configure the widget for each
+layout
+Page 172
+===== PAGE 173 =====
+Sigmalink V1.6.5 User manual
+Define actions by roles
+Each action can be enabled for
+- Simple users
+- Review Manager
+Actions are classified in different groups:
+2- For each users, actions (Good, Bad, Tools, Finish) select if is
+enable or not.
+Page 173
+===== PAGE 174 =====
+Sigmalink V1.6.5 User manual
+Layout Illustrations:
+C2_1-1 C3_1H-1-1-1-1H C4_1-2-1-1-1H
+C5_1-1-2-1-1
+C2_2-1 C3_2-1-1
+C3_1-1-1 C4_1-1-1-1
+C3_1H-1-1-1 C4_1-2-1-1
+Layout Errors
+The layout configuration can be in error for various reason:
+- Any of mandatory widget “Defect list” and “Defect Image” is missing.
+- There are two or more instances of the same widget.
+- A widget is used while a license associated is not installed, or invalid.
+While any of the error is not fixed, Review type can’t be switched and configuration can’t be saved.
+Page 174
+===== PAGE 175 =====
+Sigmalink V1.6.5 User manual
+6.2.6 Describe actions
+Create/Modify or Delete actions
+This screen can be filtered by actions types: ALL, Sanctions, Tools and Customs
+New custom action can be added by specifying:
+- a Label (given to the button)
+- a DB button comment (will be stored in database)
+- a keyboard shortcut
+- a classification (the classification can store a comment)s
+- the status category: OK Operator, Repaired, KO Operator
+- the comment prompt (will prompt for a comment during the review sanction)
+Each action line can be edited using buttons:
+edit, delete an action,
+save and cancel your pending modifications
+Page 175
+===== PAGE 176 =====
+Sigmalink V1.6.5 User manual
+6.2.7 Describe defects
+Create/Modify or Delete Defects lists
+This screen can be filtered:
+- by actions types: Panel, Subpanel, Terminal, Pads, Pins
+- by Visible or not
+Each Defect line can be edited to change:
+- the Label
+- the icon
+- the visibility
+- the warning message (will appear in review if this defect is encountered)
+- the acquit (if checked the warning message in modal)
+Edition button are used to:
+edit, delete a defect,
+save and cancel your pending modifications
+6.2.8 Describe comments
+Predefined comments can be proposed to operator during review. They can be managed in this screen,
+by adding, editing or removing them.
+Comments are managed for several categories:
+- Panel
+- Scrap
+- Component repaired
+- Panel repaired
+- Release
+- Defect
+Page 176
+===== PAGE 177 =====
+Sigmalink V1.6.5 User manual
+6.2.9 Describe messages
+Messages are displayed when defect are selected during the review.
+In this configuration screen, messages can be created, deleted and imported from DefectViewer
+message file. Buttons are available in the “Messages” black title bar.
+Import message from DefectViewer message ini file
+Create new message
+Delete selected message
+Message can be set to ask for confirmation “To confirm” : in this case, it will be displayed as a modal
+dialog box, otherwise, it will only appears in a drawer at the bottom of the screen.
+Messages are triggered by criteria.
+Multiple set of criteria can be added.
+Each set of criteria in composed of several inputs:
+- Defect Type
+- Product
+- Ref designator
+- Jedec
+Page 177
+===== PAGE 178 =====
+Sigmalink V1.6.5 User manual
+- Part Number
+Each input can be multiple values separated by comma.
+Each set of criteria can be enabled or disabled with a checkbox.
+A message is triggered if at least of its set of criteria is valid.
+A set of criteria is valid when all the non-empty inputs have a matching value
+Criteria with all inputs empty is in warning and will always trigger
+6.2.10 Describe OIS export
+OIS files can be saved automatically in a particular path at the end of each review.
+To activate this automatic saving, check the option “active”.
+OIS files can be saved in separated paths according to each component review status.
+- OK Operator
+- KO Operator
+- Acceptable
+- Repaired
+Those paths have to be set correctly to get the corresponding OIS files saved correctly.
+A test button close to each path field can help checking path.
+If everything has to be stored at the same place, “same root folder” option can be checked.
+Optionally, images can also be stored by line (name or id) and by equipment (type or name)
+Page 178
+===== PAGE 179 =====
+Sigmalink V1.6.5 User manual
+6.3 Understand review module
+6.3.1 Concepts
+Program used to inspect current panel.
+Id code of the current panel.
+Defect count and index of current defect.
+Status bar describe sanction, sanction code and defect list.
+Can contains Warning button to display defect message at any
+time
+Data are displayed into a widget.
+Each widget has its own actions and configuration option.
+Each widget can be resized or closed using the black handle.
+Actions are available using buttons.
+Page 179
+===== PAGE 180 =====
+Sigmalink V1.6.5 User manual
+If many actions have been grouped, an action menu is displayed.
+6.3.2 Widgets
+Layouts and widgets are main concept to adapt display. By this way you can define which information
+you want to show or not.
+Please refer to §0 to configure your review.
+Defect list and Defect Image are required widgets. Review can’t work without these two
+widgets.
+Actions
+Each widget can define action to adapt display. Buttons are then available in widget title bar.
+Configuration
+Each widget can be configured using button.
+In configuration mode, allow saving changes and allow cancelling changes.
+If you change current defect while a widget is in configuration, modification are lost.
+Some widget can’t apply configuration option in live. Then in some case, it’s better to close current
+panel and open a new one to see modification.
+Page 180
+===== PAGE 181 =====
+Sigmalink V1.6.5 User manual
+Defect list widget (Required)
+This widget is required to display list of components to review.
+System displays the list of component and use colors to
+display component sanction.
+User can select a component in the list only if “Allow
+random access” option has been activated in
+configuration.
+Component are nodes which contains detailed defects for
+• body
+• bridges
+• connector
+Sanction can be applied to the whole component or to
+each of the defects. When sanction have been set to
+every defect of a component, the component status is
+then computed.
+Colors:
+Deep red and deep green: status set directly
+Light red and light green: status computed or inherited
+Page 181
+===== PAGE 182 =====
+Sigmalink V1.6.5 User manual
+Defect image widget (Required)
+This widget is required to display inspection image of the component.
+System display OIS image from the inspection machine.
+You can use mouse wheel to zoom in and zoom out on the image.
+Title: Sub panel number, JEDEC or package, Part number and
+reference designator of current component.
+If current defect has a sanction, system display a specific icon and
+change border colour of the image.
+or
+Pins in error are highlighted.
+You can use key “+” to automatically zoom on pin an error and to
+move from a pin to the next in error.
+Use key “-“ to un zoom and see all the component.
+Actions
+Use it to change image type.
+List is depending of the inspection program.
+May contains:
+- Color (C1, C2 … )
+- Light (grayscale, L1 L2 L…)
+- 3D (Texture or color gradient)
+Display detailed image information.
+Available information is depending of inspection system.
+Page 182
+===== PAGE 183 =====
+Sigmalink V1.6.5 User manual
+Allow to show / hide component outline.
+Allow to display defect image in full screen.
+Start/Stop rotation animation on 3D images
+Configuration
+Display outline Define if outline must be displayed or not.
+Page 183
+===== PAGE 184 =====
+Sigmalink V1.6.5 User manual
+Localization widget
+Display in successive images the position of the
+current component.
+If available, background image used in this
+widget is extracted from Data Import project
+(§5.11), otherwise iCad synthetic view will be
+generated.
+If not project is defined, TST synthetic view will
+be extracted from TST file. In offline review, a
+TST shared folder must be defined in
+equipment configuration (§0).
+According to image used during programming,
+component can be displayed or not.
+Configuration
+Columns Number of columns and rows. Columns x rows define the number of images
+to display.
+Rows
+Use background Define if system must use background image (if available) in image. If not,
+image system uses a synthetic view.
+or
+If no image has been set during programming, localization will use synthetic
+view even if this option have been checked.
+Page 184
+===== PAGE 185 =====
+Sigmalink V1.6.5 User manual
+Reference image widget
+This widget allows displaying reference image. System displays the first
+image and user can navigate into reference images. An icon and border
+colour defines if image correspond to acceptable or not acceptable
+component.
+Many image banks can be used (corresponding to root directory).
+Default one is named “standard-library”.
+You can manage reference images:
+manually in the file system
+in dedicated review tool (§0)
+in data import module (§5.22.4).
+using external tool OisExtractor (see OisExtractor user guide)
+If you want to manage manually, you’ve to respect rules:
+Directory Description Rules Example
+Level 1 Name of the bank. A bank can Name must contain only letters, standard-library
+be linked to a product using numbers or “-“. Spaces are not
+the widget configuration. allowed.
+Level 2 JEDEC or package name. Remove special characters 0805_SCP => 0805SCP
+[:/*?|<>_\"].
+Level 3 Part number of the component Remove special characters
+[:/*?|<>_\"].
+File name is: JEDEC + “_” + Part number + “_” + Light + “_” + Angle + “_” + Sanction + “_” + order + “.”
++ Image extension.
+JEDEC JEDEC or package name. Remove special characters [:/*?|<>_\"].
+Part number Part number of the component. Remove special characters [:/*?|<>_\"].
+Light Must be one of “Display”, “LVL0”, “LVL1”, “LVL2”, “LVL3”, “LVL4”, “LVL5”.
+Angle Component angle with one digit after “.”.
+Sanction “OK” If image is acceptable, “KO” if image is not acceptable.
+Order Arbitrary order. System display the lowest number first.
+Page 185
+===== PAGE 186 =====
+Sigmalink V1.6.5 User manual
+Image extension Supported extensions are: “png”, “bmp”, “jpg”, “jpeg”, “ois”, “vbi”, “otr”.
+If you add a new image bank, you’ll have to restart server and reload screen to see it.
+Configuration
+Image bank Name of the image bank to use. System will link current product to the
+selected image bank automatically.
+If an image is not found in a bank, system won’t try to find image in another
+image bank.
+Only same light Define if system must display only reference image with same light used to
+display current defect. Reference image is updated each time the user
+change light of current defect.
+Only same angle Define if system must display only reference image with same angle.
+Stretch image size Define if reference image tinier than widget will be stretch to fit the widget
+size.
+Display Define if system must display acceptable (Good  images with sanction OK
+in the file name) and / or not acceptable (Bad  images with sanction KO in
+the file name) reference images.
+Page 186
+===== PAGE 187 =====
+Sigmalink V1.6.5 User manual
+SPI image widget
+This widget allows displaying 3D image created with a VIT
+PI machine.
+Traceability system must be setup to ensure ability
+to retrieve data using id code.
+To allow good review, PI system must be setup to
+keep images of good components.
+Component layer must have been integrated in pad
+file (§5.17)
+Actions
+Change 3D display
+Textured view Color Gradent view
+Center view
+Start / stop rotation animation
+Show / hide theoretical deposit size
+Allow to display SPI image in full screen.
+Display SPI component, deposit, measure and tolerances information.
+Page 187
+===== PAGE 188 =====
+Sigmalink V1.6.5 User manual
+Offset measures and tolerances are in percent of in absolute according to the setting
+of the tolerance group the deposit is associated to.
+Page 188
+===== PAGE 189 =====
+Sigmalink V1.6.5 User manual
+Shortcuts widget
+This widget allows displaying all action buttons directly on the screen. It’s
+very useful if don’t know shortcut and if you don’t want to use action menu.
+System list only available buttons (cf. §6.2.6).
+Page 189
+===== PAGE 190 =====
+Sigmalink V1.6.5 User manual
+6.3.3 Actions
+Actions are all accessible using a button. For an action, if different options are available button open a
+menu.
+If only one action is available, then action is directly accessible without
+menu.
+An action is described by an icon, but if shortcut has been defined in
+configuration (cf. §6.2.6), icon is replaced by the shortcut.
+Labels are defined in configuration.
+Navigation
+System provides actions to select another defect. Navigation function doesn’t change sanction.
+Tab Move to the previous defect. If first defect is selected, then move to the last
+defect.
+Shift + Tab Move to the next defect. If last defect is selected, then move to the first
+defect.
+You can also directly select a defect in “defect list” widget.
+If option “Allow random access” is not activated, all navigation actions are disabled.
+Sanctions
+System provides two kinds of action to give a sanction to a defect.
+“False call”. Current defect is acceptable.
+“True call”. Current defect is not acceptable.
+“Repaired”: The current defect has been repaired
+Even if labels and codes are fully configurable(see Custom Actions), ViTechnology provides default
+action for each sanction:
+False Call:
+Acceptable. Operator analyze that something is wrong but take the risk to ignore this defect.
+False call. Inspection system make a mistake: current component have no problem. Ideally,
+inspection system programmer must tune is model to avoid this kind of defect.
+Panel acceptable: all the defect of the entire panel are set as acceptable.
+Page 190
+===== PAGE 191 =====
+Sigmalink V1.6.5 User manual
+Subpanel acceptable: all the defect of the current subpanel are set as acceptable
+True call
+Current component is in error. Panel must be removed from the production line.
+Panel faulty: all the defect of the entire panel are set as true call.
+Subpanel faulty: all the defect of the current subpanel are set as true call
+Repaired:
+Repaired : prompt the user for a comment, and apply sanction.
+Fast repaired : apply sanction with a default comment
+Repaired component can be repaired again to change the repair comment.
+The repair comment edition is available only for a standard repair action (not fast), in a dialog box.
+Using the fast repair action on an already repaired component will replace the previous
+comment by the automatic one.
+The Repair dialog box, let you set
+or modify the repair comment for
+a component.
+Given sanctions are visible in defect list widget and in the status bar:
+Page 191
+===== PAGE 192 =====
+Sigmalink V1.6.5 User manual
+Status column display code defined in
+configuration.
+Colors
+can be updated in configuration file
+review.xml.
+If user tries to change a sanction a warning message is displayed.
+User can cancel his operation or continue to force sanction update.
+If option “Confirm sanction update” is unchecked, this
+popup is not displayed.
+Once all defects have been sanctioned, system proposes to stop
+the review:
+User can confirm the review or cancel to be able to change
+sanction.
+If option “Confirm end review” is unchecked, this popup is not displayed. System
+automatically end the review (cf. §0 or §6.5.2).
+End of review
+System provides three ways to stop review
+Cancel. Ignore all modifications. Everything will be lost.
+Scrap. System will ask to a comment to explain why this
+panel must be scraped.
+Panel and subpanel can be scrapped
+Stop review. System computes a global status. In inline mode, all defects must have been
+sanctioned. In offline, status can be partial.
+Page 192
+===== PAGE 193 =====
+Sigmalink V1.6.5 User manual
+Tools: Classification
+Classification tool allows changing defect definition.
+System displays current defect. User can select in
+list a new defect type and pin number.
+Operator can also add a comment.
+This operation is very important if you want to analyze your process
+(make statistics of more frequent defect…)
+Defect codes and labels are configurable (§0).
+You can configure action button to automatically change defect type
+(§6.2.6).
+Comments are also configurable in configuration file review_comments.xml.
+Tools: Change ID codes
+Operator can update ID code in case of read error.
+Operator can update panel and subpanel ID codes.
+This tool allows propagating new panel ID code to subpanels.
+If ID code has been updated and if PI machine has been
+configured, 3D data are reloaded to provide corresponding 3D.
+Modification is taken in account only when panel is fully
+reviewed.
+Tools: Add current image as reference image
+Operator can add current defect image in the reference image bank.
+User can choose an image bank and the sanction.
+Tools: Assign Sigma Data Import project to current product
+Sigma DataImport project is really important to be able to display localization. User can assign or
+unassign current product to a DataImport project.
+Page 193
+===== PAGE 194 =====
+Sigmalink V1.6.5 User manual
+System lists all available iCAD projects. User can select one or
+select “No iCAD”.
+If “No iCAD” is selected the system will generate a synthetic
+image of the panel for the localization view.
+Link between iCAD project and current product is kept in cache.
+Page 194
+===== PAGE 195 =====
+Sigmalink V1.6.5 User manual
+6.4 Offline review
+6.4.1 Start up
+According to configuration 2 modes are available:
+Standard: you have to find panel using ID code
+FIFO: system use inspector sort order to define which panel must be reviewed.
+ViTechnology recommend using “Standard mode”.
+Use filters on the left of the popup, to limit panel
+list.
+Once a list of panel is available on the right part of
+the screen, select one and click on start button
+(you can also double click on one).
+By default, system lists last 200 inspected panels not yet reviewed. If you’ve a lot of lines, we
+recommend selecting a line to limit results and speed answer.
+Filters are kept when you finish to review a panel.
+In FIFO mode, an inspection machine and a
+program must be selected to be able to start
+review.
+In this mode at the end of a panel review, system
+opens automatically the next panel in the list.
+In Repair mode, all the function are identical to
+Standard mode.
+Only difference the subpanel can review
+separately.
+Page 195
+===== PAGE 196 =====
+Sigmalink V1.6.5 User manual
+Allow to configure offline review (§0). User must have configure or review manager role.
+To quit review module.
+Page 196
+===== PAGE 197 =====
+Sigmalink V1.6.5 User manual
+6.4.2 Configuration
+Allow FIFO Define if FIFO mode is available. If not, tab “FIFO” on start-up screen is
+hidden (§6.4.1).
+Allow reviewed Define if operator can review a panel already reviewed. If not, only not
+reviewed panel are available in panel list of the start-up screen (§6.4.1).
+Allow random access Define if operator will be able to navigate in defect list or if he must
+sanction defect to see the next one (§0).
+Display panels inspected Prompt for a confirmation dialog for every panel inspected as good during
+as good review session.
+When selected, Automatic release Good panels delay is available, (in
+seconds)
+Confirm sanction update Define if a confirmation popup must be displayed when operator update
+defect sanction (§0).
+Allow same sanction System allow to classify and give the same sanction. (default: false)
+Confirm end review Define if a confirmation popup must be displayed is all defect have been
+sanctioned (§0).
+Sort order SubPanel, Jedec or Partnumber : criteria of ordering in the review defect
+list
+Display at Define display angle. Rotation is applied to all images (reference image,
+defect and localization).
+Page 197
+===== PAGE 198 =====
+Sigmalink V1.6.5 User manual
+Send result before Send result to Vision Supervisor before sending ejection command to
+unloading configured conveyor IO board
+Autorotate 3D Automatically start rotation animation, on 3d image loaded
+Start on ID code match Automatically start review when only one panel match the filled idcode.
+Offline Review Client has specific options.
+Automatic release Close automatically the review after a period of time.
+after (in seconds)
+Page 198
+===== PAGE 199 =====
+Sigmalink V1.6.5 User manual
+6.5 Inline review
+6.5.1 Start-up
+System lists last 50 panels inspected. When a panel is
+available for review, a message is displayed.
+Operator has to click on start button.
+Allow to configure inline review (§6.5.2). User must have configure or review manager role.
+6.5.2 Configuration
+Sigmalink Allow to define Sigmalink server. Sigmalink server is used to retrieve
+reference images, iCAD project, and user accounts.
+Sigmalink server is not required but recommended.
+Allow random access Define if operator will be able to navigate in defect list or if he must
+sanction defect to see the next one (§0).
+Confirm sanction Define if a confirmation popup must be displayed when operator update
+update defect sanction (§0).
+Page 199
+===== PAGE 200 =====
+Sigmalink V1.6.5 User manual
+Confirm end review Define if a confirmation popup must be displayed is all defect have been
+sanctioned (§0).
+Automatic release Define timeout after which panel is released. Panel will have status “Bad”.
+after
+Automatic release Define timeout after which “Good” panel is released.
+good panels after
+Send results before Send results to supervisor before to send signal to I/O board.
+unloading
+Sort order SubPanel, Jedec or Partnumber : criteria of ordering in the review defect
+list
+Display at Define display angle. Rotation is applied to all images (reference image,
+defect and localization).
+Autorotate 3D Automatically start rotation animation, on 3d image loaded
+Those Inline review options are also available in an Offline Review Client
+6.5.3 Review both side of product “bi-prod”
+Bi production can be configured in Vision Software to perform review when both side of a panel have
+been inspected. This feature is only available in single lane.
+In this case the review of each side will be displayed automatically, one after the other.
+If one of the sides has an inspection result “GOOD”, a dialog box will inform the operator. If the
+configuration parameter “Automatic release Good panels after” is greater than 0, this dialog box will
+be automatically closed after the delay.
+If parameter “Automatic release delay” is set, and is lower than “Automatic release good
+panels delay” (or the second is 0), the delay of the first parameter is used
+Page 200
+===== PAGE 201 =====
+7 Module: Analysis
+The aim of this module is to provide a tool to data analyze for the SPI and AOI.
+Analysis features are provided by Analysis server and DBQuery Pi which are installed separately.
+User guide for Analysis is available in Analysis section of deliver website
+http://sigmalink.vitechnology.com/deliver/download/analyse/1.6.2a/userguide
+===== PAGE 202 =====
+8 Appendix
+===== PAGE 203 =====
+Sigmalink V1.6.5 User manual
+8.1 Defect Status List
+PANEL_WARPED TERMINAL_WICKING_UP
+PANEL_STENCIL_OFFSET TERMINAL_BGA_HEAD_IN_PILLOW
+PANEL_FOREIGN_MATERIAL TERMINAL_INCOMPLETE_REFLOW
+PANEL_PCB_DAMAGED TERMINAL_BROKEN_SOLDER
+PANEL_TOO_MANY_DEFECTS TERMINAL_DISTURBED_SOLDER
+PANEL_BAD_PROGRAM TERMINAL_LIFTED_LEAD
+PANEL_IDENTIFICATION_ERROR TERMINAL_VOID
+PANEL_INSPECTION_ERROR TERMINAL_SOLDER_PASTE_EXCESS
+PANEL_SKIP_NOT_READ TERMINAL_SOLDER_PASTE_INSUFFICIENT
+PANEL_SOLDER_BALL_SPLASH TERMINAL_DEWATTING_UNWETTING
+PANEL_FIDUCIAL_ERROR TERMINAL_MISSING
+PANEL_NOT_INSPECTED TERMINAL_BAD_PIN_ALIGNEMENT
+PANEL_EJECT_ERROR TERMINAL_JOIN
+SUBPANEL_IDENTIFICATION_ERROR TERMINAL_JOIN_BRIDGE
+SUBPANEL_SKIP_NOT_READ TERMINAL_BAD_PIN_ALIGNEMENT_X
+SUBPANEL_FIDUCIAL_ERROR TERMINAL_BAD_PIN_ALIGNEMENT_Y
+SUBPANEL_TOO_MANY_DEFECTS PAD_MISSING
+SUBPANEL_SKIPPED PAD_POSITION_X
+COMPO_POSITION_OFFSET PAD_POSITION_Y
+COMPO_POSITION_X PAD_VOLUME
+COMPO_POSITION_Y PAD_AREA
+COMPO_POSITION_Z PAD_HEIGHT
+COMPO_POSITION_THETA PAD_SHAPE2D
+COMPO_TILTED PAD_SHAPE3D
+COMPO_TOMBSTONE PAD_CUSTOM
+COMPO_POLARITY PADS_BRIDGE
+COMPO_IDENTIFICATION PADS_TOMBSTONE
+COMPO_EXCESS_COMPONENT UNSUPPORTED_DEFECT
+COMPO_BIL_BOARD_UPSIDE_DOWN PANEL_VISION_ERROR
+COMPO_WRONG_COMPONENT SUBPANEL_VISION_ERROR
+COMPO_THERMAL_DAMAGE COMPO_VISION_ERROR
+COMPO_MECHANICAL_DAMAGE TERMINAL_VISION_ERROR
+COMPO_INSPECTION_ERROR PAD_VISION_ERROR
+COMPO_MISSING PADS_VISION_ERROR
+Page 203
+===== PAGE 204 =====
+Vi Technology® is a registered trademark of Vi Technology®.
+All products and brands, named in this document, are trademarks of their respective owners. Specifications are subject to change without
+notice. @2013 Vi TECHNOLOGY
+If you reached this page by reading the entire document, you have all my gratitude (PB).
+Europe Asia / Pacific The Americas
+Tel. : + 33 (0)4 76 33 59 78 Tel. : + 65 6747 6550 Tel. : + 1 978 372 1230
+Fax : + 33 (0)4 76 75 05 19 Fax : + 65 6747 6558 Fax : + 1 978 372 1767
+E-mail: info@vitechnology.com - Internet: www.vitechnology.com

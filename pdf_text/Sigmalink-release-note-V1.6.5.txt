@@ -1,0 +1,482 @@
+
+===== PAGE 1 =====
+Sigmalink 1.6.5
+Release and installation notes
+===== PAGE 2 =====
+Sigmalink 1.6.5 Release and installation notes
+1 Release Notes
+1.1 New features
+1.1.1 Data import improvements
+Sigma Data import have been improved in several aspect:
+- Recent chrome browser support
+- Intuitive polygon drawing experience
+- Contextual menu cleaning and new behavior
+- Fast component to pad association more reliable
+- Project export over VIS export
+To use VIS export set :
+is.export.vis.allowed=true
+in conf/parameters.properties
+1.2 Corrected Bugs in 1.6.5
+Id Module Description
+Page 2
+===== PAGE 3 =====
+2 Installation
+Online Help
+Videos for installation are available here:
+http://SigmaLink.vitechnology.com/deliver/help/topic/SigmaLinkinstall
+Preferred configuration
+Link is a client-server application.
+Server side
+Computer configuration
+OS Windows 7 minimum
+Memory available 8 Go of RAM (16 Go recommended)
+HDD 10 GBytes minimum
+Disk free space required to run Sigmalink correctly is related to each usage. Instance
+production with several line using offline review will require more space. Be careful to adapt
+the recommandations to usage.
+We recommend to install Link on a dedicated offline programming station. It can be installed
+on AOI machine but some performance and memory issues may appear.
+Client side
+Computer configuration
+OS Windows 7 minimum
+Memory available 8 Go of RAM (16 Go recommended)
+HDD 1 GBytes
+GPU 512 Mo of dedicated RAM
+Web browser Sigma Client (Google Chrome)
+Screen resolution 1600x900 is recommended
+===== PAGE 4 =====
+Sigmalink 1.6.5 Release and installation notes
+A web browser must be installed on the machine.
+Web browser minimal version Recommended
+Google chrome V71 V71
+Firefox N/A N/A
+Internet Explorer v11 v11
+Page 4
+===== PAGE 5 =====
+Sigmalink 1.6.5 Release and installation notes
+Content
+1 Release Notes .............................................................................................................................2
+1.1 New features ...........................................................................................................................2
+1.2 Corrected Bugs in 1.6.4 ...........................................................................................................2
+2 Installation ..................................................................................................................................3
+1. Prerequisite .............................................................................................................................6
+2.2 Prepare installation .................................................................................................................6
+2.3 SigmaLink server .....................................................................................................................9
+2.4 Inline station ......................................................................................................................... 16
+2.5 Client installation .................................................................................................................. 25
+2.6 FIFO review client Installation................................................................................................ 27
+2.7 Manage your SigmaLink server .............................................................................................. 28
+2.8 Analysis ................................................................................................................................. 33
+2.9 Sigma Line ............................................................................................................................. 34
+Page 5
+===== PAGE 6 =====
+Sigmalink 1.6.5 Release and installation notes
+2.1 Prerequisite
+2.1.1 Define which module to install and where
+SigmaLink is composed of three different software.
+• SigmaLink server: used to manage data import, offline review, repair station and remote
+review. This software must be installed once by factory, ideally on dedicated server. The
+machine must be visible on the network from inspection machines and programming desktop.
+• Inline review server. Must be installed on a dedicated computer in each line.
+• Analysis server: provide analysis functionality without disturbing production tools like review
+and data import.
+2.1.2 Compatibility
+Sigmalink can communicate with specific SQL Database server version:
+- Microsoft SQL Server 2008 R2 or higher
+Sigmalink client running Data Import module needs to work with specific version of Java :
+- Java version 7.71 maximum
+- Java version 7.51 minimum
+2.2 Prepare installation
+Preparation is same for the SigmaLink server or inline review.
+Administrator rights on the computer are necessary to perform the installation.
+Download a Java Installer 8 from Sigmalink deliver website.
+http://sigmalink.vitechnology.com/deliver/download/public/java/8/windows_32
+If you prefer you can download directly on Oracle web site : http://java.com
+Download the installer
+http://SigmaLink.vitechnology.com/deliver/download/1.6.5/installer/32 or
+http://SigmaLink.vitechnology.com/deliver/download/1.6.5/installer/64
+Download a license file (contact your reseller).
+Install the Java Virtual Machine.
+Launch the downloaded binary.
+Page 6
+===== PAGE 7 =====
+Sigmalink 1.6.5 Release and installation notes
+On Windows 7, you’ll have this warning. Click “ Yes” button.
+Click on “Install” button.
+Wait during installation
+Page 7
+===== PAGE 8 =====
+Sigmalink 1.6.5 Release and installation notes
+(Optional screen) Unselect the checkbox (no installation of toolbar), then click “Next” button.
+A message will appear if Java is already installed on the machine. The installation can be
+cancelled in this case.
+Wait during installation
+Installation done. Click on “Close” button.
+You can test your installation by following the instruction on next chapter
+Page 8
+===== PAGE 9 =====
+Sigmalink 1.6.5 Release and installation notes
+2.3 SigmaLink server
+2.3.1 Installation
+Server installation must be unique in a factory and is dedicated to Data Import module, offline
+review, repair station and remote review.
+Administrator rights on the computer are necessary to perform the installation.
+Launch the downloaded binary by double clicking on the file installer.jar.
+In some cases, double-click doesn’t work. Then use a command line and launch java –jar
+installer.jar in the directory of the downloaded file.
+Select “Server installation” for first installation or
+“Server upgrade” for updating existing installation (§2.3.2), then click “Next” button.
+Set the installation folder
+Page 9
+===== PAGE 10 =====
+Sigmalink 1.6.5 Release and installation notes
+We recommend installing into C:\VIT_SigmaLink. Then click “Next” button.
+If you already have installed SigmaLink, you will have a confirmation message:
+For standard installation, don’t change default option.
+“Web application: SigmaLink install helper” can be unchecked, if you’re sure that your users will
+be able to install SigmaLink client (JVM and browser) without help.
+When the installation is done, click “Next” button.
+Page 10
+===== PAGE 11 =====
+Sigmalink 1.6.5 Release and installation notes
+If you want, you can change the name of the shortcut group, then click “Next” button.
+Let cleaning operation progress, then click “Next” button
+Window contain can be quite different according to installer version and operating system. If
+operation succeed next button is available.
+Installation done
+Page 11
+===== PAGE 12 =====
+Sigmalink 1.6.5 Release and installation notes
+Last step create the uninstaller. This operation can take few minutes.
+Installation directory must be similar to:
+2.3.2 Update an existing installation
+To avoid risk of corruption, we recommend backup your data before.
+If you want to update an existing installation:
+Stop the existing server
+Reboot Computer
+Follow the installation process and override old installation: wizard doesn’t modify user’s
+data (icad, profiles, users…).
+Page 12
+===== PAGE 13 =====
+Sigmalink 1.6.5 Release and installation notes
+Select server upgrade
+All parameters will be kept (parameters.properties).
+Be sure to define the same installation path than the previous installation in the first step of
+the wizard.
+Page 13
+===== PAGE 14 =====
+Sigmalink 1.6.5 Release and installation notes
+2.3.3 Configuration
+Two configuration actions are required:
+Copy the license file into C:\VIT_SigmaLink\conf.
+Change storage path in the file C:\VIT_SigmaLink\conf\parameters.properties:
+parameters.properties
+image_storage_path data/pcbi Absolute path or relative path to the
+SigmaLink installation.
+This folder must be a network sharing to
+allow PCB Image Recorder to store images
+into.
+Path separator must be / and not \.
+publish_folder_path data/publish Absolute path or relative path to the
+SigmaLink installation.
+This folder can be a network sharing to
+allow sharing of VIS and PAD files.
+Path separator must be / and not \.
+For advanced users, some parameters can be changed in the file
+C:\VIT_SigmaLink\conf\parameters.properties
+You don’t have to change default parameters unless you encounter problems or support team
+ask you to change them.
+parameters.properties
+Log.level ERROR or INFO or WARN or Used to change the log level of the
+DEBUG application.
+server.port 8080 or 8081 or 80 The server port. Useful if another web
+server is installed on the same machine
+(e.g. VieWeb).
+Page 14
+===== PAGE 15 =====
+Sigmalink 1.6.5 Release and installation notes
+server.shutdown.port 8005 or 8006 or 8007 Port used by the web server to manage
+shutdown. Useful if another web server is
+installed on the same machine. (e.g.
+VieWeb).
+(*) in bold the default value. Only one value must be set.
+The server must be restarted if parameters have been changed.
+If you have license for Review module, during first start up, system create all configuration
+files. Use user guide to configure SigmaReview.
+Configuration files
+conf/review/review.xml Define global parameters for review.
+conf/ review/review_actions.xml Define buttons and associated code.
+conf/ review/review_comments.xml Define pre defined comment.
+conf/ review/review_defects.xml Define defect label and code.
+conf/ review/review_layout.xml Define screen layout and widgets
+conf/ review/review_lines.xml Define SMT lines.
+conf/ review/review_plugins.xml Define plugins.
+conf/ review/review_policy.xml Define security policies.
+Page 15
+===== PAGE 16 =====
+Sigmalink 1.6.5 Release and installation notes
+2.4 Inline station
+2.4.1 Installation
+INLINE INSTALLATION IS AVAILABLE FOR 32bits or 64bits OPERATING SYSTEMS
+Server installation must be installing on a computer based on a line. This computer can manage
+I/O card to manage conveyor.
+Administrator rights on the computer are necessary to perform the installation.
+Launch the downloaded binary by double clicking on the file installer.jar.
+In some cases, double-click doesn’t work. Then use a command line and launch java –jar
+installer.jar in the directory of the downloaded file.
+Select “Server installation” for first installation or
+“Server upgrade” for updating existing installation (§2.3.2), then click “Next” button.
+Set the installation folder
+Page 16
+===== PAGE 17 =====
+Sigmalink 1.6.5 Release and installation notes
+We recommend installing into C:\VIT_SigmaLink_Inline. Then click “Next” button.
+If you already have installed SigmaLink, you will have a confirmation message:
+Choose module, then click “Next” button
+Only one optional module: line configuration. Allow you to create default configuration file.
+Page 17
+===== PAGE 18 =====
+Sigmalink 1.6.5 Release and installation notes
+This screen is used to configure line if module “Line configuration” has been chosen
+SigmaLink configuration (parameters.properties)
+Language English | French Language used by the interface (available in
+parameters.properties)
+Line number Number This number is very important to define which
+configuration used in case of multi lines definition.
+Allocate a unique number to all your lines.
+Line configuration (conf/review_lines.xml):
+Windows name of Computer name Define inspection machine linked to the current
+AOI inspection review. This name will be used to retrieve data into
+machine supervisor then ensure to use the name of the
+machine as described in Microsoft Windows.
+Inspection type POST REFLOW | PRE Inspection machine type.
+REFLOW
+Name or IP of Computer name or IP Supervisor to use to retrieve inspection result.
+supervisor address
+Supervisor ACCESS | SQL SERVER Define database type.
+database type | ORACLE
+Supervisor Number Port to use to connect to supervisor database.
+database port Default value is:Empty for Access, 1433 for SQL
+Server, 1521 for Oracle
+Database name Instance name Name of the database.
+Page 18
+===== PAGE 19 =====
+Sigmalink 1.6.5 Release and installation notes
+Field ignored if database type is “Access”.
+Database user Username Username of the database.
+Database password Password Password of the database.
+MDB path Path Full path for the mdb file (Access database file).
+If this file is on another machine, network sharing
+has to be configured properly.
+E.g. \\192.168.0.1\vit\data\Superviseur.mdb or
+c:\vit\data\Superviseur.mdb
+Field ignored if database type is not Acess.
+Line configuration (conf/review_inline.xml):
+SigmaLink server Computer name or IP SigmaLink server: used to synchronize
+name or IP address configuration and retrieve remote information.
+SigmaLink server Number Default value is 8080.
+port
+All those parameters will be stored into configurations and can be updated later.
+When the installation is done, click “Next” button.
+Page 19
+===== PAGE 20 =====
+Sigmalink 1.6.5 Release and installation notes
+If you want, you can change the name of the shortcut group, then click “Next” button.
+Let cleaning operation progress, then click “Next” button
+Window contain can be quite different according to installer version and operating system. If
+operation succeed next button is available.
+Installation done
+Page 20
+===== PAGE 21 =====
+Sigmalink 1.6.5 Release and installation notes
+Last step create the uninstaller. This operation can take few minutes.
+Page 21
+===== PAGE 22 =====
+Sigmalink 1.6.5 Release and installation notes
+Installation directory must be similar to:
+2.4.2 Update an existing installation
+To avoid risk of corruption, we recommend backup your data before.
+If you want to update an existing installation:
+Stop the existing server
+Reboot computer
+Follow wizard using “Inline upgrade” option
+Page 22
+===== PAGE 23 =====
+Sigmalink 1.6.5 Release and installation notes
+Select inline upgrade
+Be sure to define the same installation path than the previous installation in the first step of
+the wizard.
+Page 23
+===== PAGE 24 =====
+Sigmalink 1.6.5 Release and installation notes
+2.4.3 Configuration
+Some configuration actions are required:
+Copy the license file into C:\VIT_SigmaLink\conf.
+Change storage path in the file C:\VIT_SigmaLink\conf\parameters.properties:
+parameters.properties
+image_storage_path data/pcbi Absolute path or relative path to the SigmaLink
+installation.
+This folder must be a network sharing to allow PCB
+Image Recorder to store images into.
+Path separator must be / and not \.
+publish_folder_path data/publish Absolute path or relative path to the SigmaLink
+installation.
+This folder can be a network sharing to allow sharing of
+VIS and PAD files.
+Path separator must be / and not \.
+For advanced users, some parameters can be changed in the file
+C:\VIT_SigmaLink\conf\parameters.properties
+You don’t have to change default parameters instead you have problems or support team ask
+for.
+parameters.properties
+Log.level ERROR or Used to change the log level of the application.
+INFO or WARN
+or DEBUG
+server.port 8080 or 8081 The server port. Useful if another web server is installed
+or 80 on the same machine (e.g. VieWeb).
+Page 24
+===== PAGE 25 =====
+Sigmalink 1.6.5 Release and installation notes
+server.shutdown.port 8005 or 8006 Port used by the web server to manage shutdown.
+or 8007 Useful if another web server is installed on the same
+machine. (e.g. VieWeb).
+(*) in bold the default value. Only one value must be set.
+The server must be restarted if parameters have been changed.
+During first start up, system create all configuration files. Please use the configuration module to
+configure SigmaReview. (see the user guide)
+Configuration files
+conf/review.xml Define global parameters for review.
+conf/review_actions.xml Define buttons and associated code.
+conf/review_comments.xml Define pre defined comment.
+conf/review_defects.xml Define defect label and code.
+conf/review_layout.xml Define screen layout and widgets
+conf/review_lines.xml Define SMT lines.
+conf/review_plugins.xml Define plugins.
+conf/review_policy.xml Define security policies.
+2.5 Client installation
+2.5.1 Software
+To use SigmaLink, the desktop must have the following software installed:
+An internet browser choice between
+Google Chrome. Minimal version 24.
+Mozilla Firefox. Minimal version 18.
+Internet Explorer. Minimum version 9.
+To check installation, use your internet browser to connect to
+http://my_server_name:8080/SigmaLink-install.
+Page 25
+===== PAGE 26 =====
+Sigmalink 1.6.5 Release and installation notes
+In case of error, follow instruction.
+2.5.2 Configuration
+Connect to your SigmaLink server: http://my_server_name:8080/SigmaLink
+Page 26
+===== PAGE 27 =====
+Sigmalink 1.6.5 Release and installation notes
+2.6 FIFO review client Installation
+This client is used to control a conveyor using an IO card, and to send idcode of reviewed panel to
+printer.
+Page 27
+===== PAGE 28 =====
+Sigmalink 1.6.5 Release and installation notes
+2.7 Manage your SigmaLink server
+2.7.1 Starting server
+You can launch the server:
+from the windows menu “VIT SigmaLink Server”
+Or by a double click on the file C:\VIT_SigmaLink\start_server.bat
+Server is started if no ERROR has been displayed and if the last line is “INFO: Server startup in
+XXXXms”
+If you forget to install the license file, you’ll have this kind of message:
+Page 28
+===== PAGE 29 =====
+Sigmalink 1.6.5 Release and installation notes
+If you have install Link with the bad installer: 32 bits instead or 64 bits, you’ll have the
+message “Can't load IA 32-bit .dll on a AMD 64-bit platform”. Use Ctrl+C to close the DOS
+Console, delete the directory C:\VIT_SigmaLink, download the good installer and redo the
+installation.
+If you got the message “Could not reserve enough space for object heap”, SigmaLink was not
+able to detect memory quantity. You’ll have to edit the file start_server.bat to update the
+variable MAX_HEAP_SIZE (for 64bits system) or MAX_HEAP_SIZE_32 (for 32bits system). E.g.
+replace the line SET MAX_HEAP_SIZE_32=1536 by SET MAX_HEAP_SIZE=1024 to allocate 1GO RAM.
+When the server is started, you can find a log like “INFO: Starting ProtocolHandler ["http-nio-
+XXXX"]”. XXXX is the port to use in URL to connect to the server.
+2.7.2 Stopping server
+Use Ctrl+C in the DOS window and wait until server is stopped, then close the window.
+Page 29
+===== PAGE 30 =====
+Sigmalink 1.6.5 Release and installation notes
+2.7.3 Installation as scheduled task
+You can find 2 scripts in the directory named ‘tools’:
+Install_http_service.bat to install SigmaLink as windows service.
+Uninstall_http_service.bat to uninstall SigmaLink as windows service.
+Launch VIT Sigmalink Server (service) into the windows services screen.
+After this installation, if you can’t contact the SigmaLink Server. You need to add tomcat7.exe
+and tomact7w.exe to the Windows Exception List.
+To do that:
+1. Windows Start Menu ➔ Launch control panel
+2. Security and System
+3. Select Firewall Windows
+4. Click "Allow a program or feature through windows firewall"
+5. Modify the parameters/”Allow another program…”
+6. Browse on your desktop pc and select :
+C:\VIT_SigmaLink\server\apache-tomcat-7.0.55\bin\tomcat7.exe
+C:\VIT_SigmaLink\server\apache-tomcat-7.0.55\bin\tomcat7w.exe
+7. Check the checkbox before and after Commons Daemon Service Runner
+2.7.4 Installation as scheduled task
+You can find 2 scripts in the directory named ‘tools’:
+install_http_scheduled_task.bat to install SigmaLink as scheduled task.
+uninstall_http_scheduled_task.bat to uninstall SigmaLink as scheduled task.
+Server will be started at the login of any user on the computer.
+2.7.5 Test SigmaLink server installation
+Use a web browser to connect to http://localhost:8080/SigmaLink.
+You must replace localhost by the IP or the name of the server, if you’re not on the same
+machine.
+If you have change server.port (advanced parameters), replace 8080 by the value of
+server.port.
+Login admin
+Password admin
+Page 30
+===== PAGE 31 =====
+Sigmalink 1.6.5 Release and installation notes
+Log in with default account.
+Use “Configure” module.
+Change admin password.
+Page 31
+===== PAGE 32 =====
+Sigmalink 1.6.5 Release and installation notes
+Create user account.
+ViTECHNOLOGY preconize to never work with the administrator account or to share account
+between multiple users. Each user must have its own account.
+2.7.6 Backup
+No automatic backup system is provided by SigmaLink.
+To save your data save C:\VIT_SigmaLink\data
+To save the whole installation, stop the server then zip C:\VIT_SigmaLink.
+2.7.7 Moving installation
+If you want to change server or installation path, follow this process:
+Stop your server
+Install a new server (on a new machine or in a new path) using standard installation wizard
+Copy the directory data/ of your old installation into the new one.
+Delete old installation directory.
+e.g. if your previous installation was in c:\VIT_SigmaLink\SigmaLink and you want to install into
+d:\VIT_SigmaLink, copy the directory c:\VIT_SigmaLink\SigmaLink\data into d:\VIT_SigmaLink. At
+the end, you must have a directory d:\VIT_SigmaLink\data and you mustn’t have
+d:\VIT_SigmaLink\data\data.
+Page 32
+===== PAGE 33 =====
+Sigmalink 1.6.5 Release and installation notes
+2.8 Analysis
+Analysis Pi and K module need the installation of DBQuery Pi Analysis Server.
+To process to DBQuery installation, please read the installation note available on :
+http://sigmalink.vitechnology.com/deliver
+Download > Analyse > DBQuery Pi
+and
+Download > Analyse > Analyse
+Page 33
+===== PAGE 34 =====
+Sigmalink 1.6.5 Release and installation notes
+2.9 Sigma Line
+The licensed feature S500 allows you to inject the SPI defect into the AOI inspection coverage.
+To get this feature working properly, a K module needs to be installed on the AVision software of the
+Machine that will have its coverage fulfilled by SPI defects.
+K Module can be downloaded from vitechnology deliver website
+http://sigmalink.vitechnology.com/deliver
+Download > Tools > Sigmaline
+Page 34
