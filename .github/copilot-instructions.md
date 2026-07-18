@@ -183,3 +183,39 @@ matches — the skill descriptions are keyword-rich for discovery.
   Reuse the `aoi-quality-metrics` formulas exactly.
 - Never write to the VIT Superviseur DB from any Sigmalink or Nieweb code
   path — the same performance warning as Vieweb applies.
+
+## Development database (archived HLYAOI)
+
+An archived copy of the AOI production DB is available for development at
+`HLYMSSQL2/HLYAOI` (SQL Server, Vision3D CR4 / Vision20 CR5 schema — same
+tables and constants documented in the `vit-aoi-database` skill).
+
+**Credentials.** SQL Server auth (Windows auth is not available for our
+account). The account currently has **write** access because a read-only
+account was not yet provisioned. Credentials live in a git-ignored `.env`
+at the repo root — see `.env.example` for keys (`AOI_SERVER`,
+`AOI_DATABASE`, `AOI_USER`, `AOI_PASSWORD`). Never paste the password into
+chat, into a commit message, or into any file that isn't `.env`.
+
+**Read-only discipline (mandatory until an RO account is provisioned).**
+Every code path that touches HLYAOI must:
+
+- Refuse to issue `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`,
+  `MERGE`, `EXEC`, `GRANT`, `REVOKE`, `CREATE`. The reference guard is in
+  `tools/db/probe-schema.ps1` (regex-based statement inspector).
+- Prefix every query batch with:
+  `SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; SET NOCOUNT ON;`
+- Use `WITH (NOLOCK)` on `SELECT` from production-shaped tables so we
+  can't block or be blocked.
+- Set `ApplicationName='Nieweb-<script-name>'` on connections so DBAs can
+  identify our sessions.
+- Time-window filter every query on the large tables (`PANELS`, `CARDS`,
+  `TESTED_OBJECT`, `PIN`, `PIN_MEASURE`, `*_HISTO`) — never a bare
+  `SELECT * FROM …`.
+
+**Reference tooling.** `tools/db/probe-schema.ps1` connects with the above
+guards and dumps `INFORMATION_SCHEMA` + row counts + a few status
+distributions into `tools/db/out/*.csv` (git-ignored) so we can verify the
+`vit-aoi-database` skill against the live schema. Any new dev script must
+adopt the same guard pattern (load `.env`, refuse write keywords, prefix
+isolation level, tag `ApplicationName`).

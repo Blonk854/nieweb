@@ -7,7 +7,11 @@ description: 'Expert knowledge of the ViTechnology (VIT) Superviseur / K-Series 
 
 Source: `Database fields and constants (Vision3D CR4).pdf` (extracted at
 `pdf_text/Database fields and constants (Vision3D CR4).txt`), authored by
-Vincent SAFFRE, VIT, 10/05/2018.
+Vincent SAFFRE, VIT, 10/05/2018. Column list in
+[references/schema.md](references/schema.md) has been **verified against
+the archived `HLYAOI` database (schema version `5.0`, DATABASEID
+1762100668)** — trust that file over the CR4 PDF when they disagree on
+column names or types.
 
 > **CRITICAL WARNING (verbatim from VIT):** Do NOT run heavy or long-running
 > queries against this database. It is written to in real time by the
