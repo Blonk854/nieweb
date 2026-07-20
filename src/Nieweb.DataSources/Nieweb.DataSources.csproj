@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Nieweb data-source contracts: interfaces, DTOs, capability flags. Framework-neutral abstractions over AOI Superviseur databases.</Description>
+  </PropertyGroup>
+
+</Project>

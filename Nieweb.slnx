@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nieweb.DataSources.Sql/Nieweb.DataSources.Sql.csproj" />
+    <Project Path="src/Nieweb.DataSources/Nieweb.DataSources.csproj" />
+  </Folder>
+</Solution>

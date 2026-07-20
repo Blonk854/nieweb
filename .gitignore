@@ -33,6 +33,15 @@ target/
 .gradle/
 !.gradle-wrapper.jar
 
+# ─── .NET build outputs ───
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+[Nn]ieweb.slnx.tmp
+
 # ─── IDE & OS noise ───
 .vscode/*
 !.vscode/settings.json

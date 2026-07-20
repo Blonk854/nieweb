@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>SQL Server implementations of Nieweb data-source contracts for VIT Superviseur databases (post-reflow HLYAOI v5.0 and pre-reflow MEAOI v4.3.1). Enforces read-only discipline.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nieweb.DataSources\Nieweb.DataSources.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
+  </ItemGroup>
+
+</Project>
