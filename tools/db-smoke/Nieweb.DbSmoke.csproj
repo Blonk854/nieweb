@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <Description>Smoke-test console app: connects to the live AOI Superviseur DBs using .env credentials and dumps the machine list. Use to verify that a data source can round-trip a query end-to-end.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nieweb.DataSources.Sql\Nieweb.DataSources.Sql.csproj" />
+  </ItemGroup>
+
+</Project>
