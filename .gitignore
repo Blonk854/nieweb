@@ -1,10 +1,12 @@
-# ─── Legacy install trees (kept on disk for reference; too large for git) ───
-# The archived VIT installations remain in the workspace so the AI assistant
-# and developers can inspect raw JSPs, XML config, JAR manifests, etc., but
-# they are NOT versioned. See .github/copilot-instructions.md and
-# .github/skills/*/SKILL.md for the distilled facts we do version.
+# ─── Legacy install trees & vendor reference material ───
+# Archived VIT installations and vendor reference PDFs (e.g. Koh Young
+# K-Smart programming guide) live in the workspace so the AI assistant and
+# developers can inspect raw JSPs, XML config, JAR manifests, PDFs, etc.,
+# but they are NOT versioned. Distilled facts get versioned via
+# .github/copilot-instructions.md, .github/skills/*/SKILL.md, and pdf_text/.
 VIT_Vieweb/
 VIT_Sigmalink/
+Ksmart/
 
 # ─── Python (for extract_pdfs.py / extract_sigmalink_pdfs.py) ───
 __pycache__/

@@ -48,6 +48,20 @@ public sealed record TestedObjectRow(
 
 public sealed record Machine(int MachineId, int MachineType, string MachineName, string MachineTypeName);
 
-public sealed record Product(int ProductId, string ProductName);
+public sealed record Product(int ProductId, string? ProductName, string? Revision, string? Description);
 
-public sealed record Recipe(int RecipeId, string RecipeName, int ProductId);
+/// <summary>
+/// A recipe (inspection program). <see cref="FileName"/> is the human-readable
+/// name used throughout the UI - the AOI Superviseur schema calls this column
+/// <c>File_Name</c> even though it's really the recipe name.
+/// </summary>
+public sealed record Recipe(
+    int RecipeId,
+    string? FileName,
+    int ProductId,
+    string? Author,
+    int InspectedSideNb,
+    string? InspectedSideName,
+    string? Customer,
+    string? ProductionStep,
+    string? VariantName);
