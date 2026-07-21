@@ -48,6 +48,12 @@ public static partial class ReportEndpoints
         group.MapGet("/panel-yield/export.xlsx", ExportPanelYieldXlsxAsync)
             .WithName("ReportsPanelYieldExportXlsx");
 
+        group.MapGet("/dpmo-table", RunDpmoTableAsync)
+            .WithName("ReportsDpmoTable");
+
+        group.MapGet("/pareto", RunParetoAsync)
+            .WithName("ReportsPareto");
+
         return routes;
     }
 

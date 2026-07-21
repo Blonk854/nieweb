@@ -32,6 +32,8 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public IReadOnlyList<Recipe> SeededRecipes { get; init; } = [];
 
+    public IReadOnlyList<TestedObjectRow> SeededTestedObjects { get; init; } = [];
+
     public Task<DateTime?> GetLatestPanelUtcAsync(CancellationToken ct)
     {
         if (LatestPanelThrows is not null)
@@ -100,14 +102,35 @@ internal sealed class FakeAoiSource : IAoiSource
     public IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        return EmptyAsync(ct);
+        return FilterAsync(SeededTestedObjects, query, ct);
 
-        static async IAsyncEnumerable<TestedObjectRow> EmptyAsync(
+        static async IAsyncEnumerable<TestedObjectRow> FilterAsync(
+            IReadOnlyList<TestedObjectRow> seed,
+            TestedObjectQuery q,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken innerCt)
         {
-            innerCt.ThrowIfCancellationRequested();
-            await Task.CompletedTask.ConfigureAwait(false);
-            yield break;
+            foreach (var obj in seed)
+            {
+                innerCt.ThrowIfCancellationRequested();
+                if (obj.PanelNumericDate < q.Window.StartEpochSeconds)
+                {
+                    continue;
+                }
+                if (obj.PanelNumericDate >= q.Window.EndEpochSecondsExclusive)
+                {
+                    continue;
+                }
+                if (q.MachineIds is { Count: > 0 } && !q.MachineIds.Contains(obj.MachineId))
+                {
+                    continue;
+                }
+                if (q.ProductIds is { Count: > 0 } && !q.ProductIds.Contains(obj.ProductId))
+                {
+                    continue;
+                }
+                yield return obj;
+                await Task.Yield();
+            }
         }
     }
 
