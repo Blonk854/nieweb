@@ -13,6 +13,7 @@ import {
 } from "@mantine/core";
 import { Link } from "@tanstack/react-router";
 import { IconAlertTriangle } from "@tabler/icons-react";
+import { Trans, useTranslation } from "react-i18next";
 import { apiFetch } from "../api/client";
 
 type SourceDescriptor = {
@@ -22,6 +23,7 @@ type SourceDescriptor = {
 };
 
 export function HomeRoute() {
+    const { t } = useTranslation();
     const { data, error, isPending } = useQuery({
         queryKey: ["sources"],
         queryFn: () => apiFetch<SourceDescriptor[]>("/api/sources"),
@@ -30,19 +32,20 @@ export function HomeRoute() {
     return (
         <Stack gap="lg">
             <Stack gap={4}>
-                <Title order={2}>Welcome to Nieweb</Title>
+                <Title order={2}>{t("home.title")}</Title>
                 <Text c="dimmed">
-                    Phase 1 MVP scaffold. Head to{" "}
-                    <Anchor component={Link} to="/report/panel-yield">
-                        Panel Yield by Line
-                    </Anchor>{" "}
-                    to try the first report.
+                    <Trans
+                        i18nKey="home.intro"
+                        components={{
+                            1: <Anchor component={Link} to="/report/panel-yield" />,
+                        }}
+                    />
                 </Text>
             </Stack>
 
             <Card withBorder padding="lg" radius="md">
                 <Group justify="space-between" mb="sm">
-                    <Title order={4}>Configured AOI sources</Title>
+                    <Title order={4}>{t("home.sourcesCard")}</Title>
                     {isPending && <Loader size="xs" />}
                 </Group>
 
@@ -50,7 +53,7 @@ export function HomeRoute() {
                     <Alert
                         color="red"
                         icon={<IconAlertTriangle size={18} />}
-                        title="Could not reach the API"
+                        title={t("home.sourcesErrorTitle")}
                         role="alert"
                     >
                         {error instanceof Error ? error.message : String(error)}
@@ -58,7 +61,7 @@ export function HomeRoute() {
                 )}
 
                 {data && data.length === 0 && (
-                    <Text c="dimmed">No sources configured.</Text>
+                    <Text c="dimmed">{t("home.sourcesEmpty")}</Text>
                 )}
 
                 {data && data.length > 0 && (
@@ -70,7 +73,9 @@ export function HomeRoute() {
                                     <Badge variant="light">{s.id}</Badge>
                                     {s.schemaVersion && (
                                         <Text size="sm" c="dimmed">
-                                            schema {s.schemaVersion}
+                                            {t("home.schemaLabel", {
+                                                version: s.schemaVersion,
+                                            })}
                                         </Text>
                                     )}
                                 </Group>

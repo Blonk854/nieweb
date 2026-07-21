@@ -7,8 +7,11 @@ import { RouterProvider } from "@tanstack/react-router";
 
 import { router } from "./router/router";
 import { createQueryClient } from "./query/queryClient";
+import { initI18n } from "./i18n";
 import "@mantine/core/styles.css";
 import "./index.css";
+
+initI18n();
 
 const theme = createTheme({
     primaryColor: "blue",

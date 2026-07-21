@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom/vitest";
+import { initI18n } from "./i18n";
 
 // jsdom does not implement window.matchMedia. Mantine's ColorScheme
 // provider, useMediaQuery, and other hooks call it during mount, so we
@@ -16,3 +17,9 @@ if (typeof window !== "undefined" && !window.matchMedia) {
         dispatchEvent: () => false,
     });
 }
+
+// Initialise i18next once for the whole test process. Individual tests
+// that need a specific language can call i18n.changeLanguage(...) in
+// beforeEach / afterEach.
+initI18n();
+

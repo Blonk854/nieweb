@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import {
     RouterProvider,
 } from "@tanstack/react-router";
 import { createQueryClient } from "../query/queryClient";
+import i18n from "../i18n";
 import { HomeRoute } from "../routes/home";
 import { PanelYieldRoute } from "../routes/panel-yield";
 import { LoginRoute } from "../routes/login";
@@ -41,6 +42,9 @@ function renderRouteAt(initialPath: string) {
 }
 
 describe("Router", () => {
+    beforeEach(async () => {
+        await i18n.changeLanguage("en");
+    });
     afterEach(() => {
         cleanup();
         vi.restoreAllMocks();

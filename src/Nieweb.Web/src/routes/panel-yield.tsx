@@ -1,4 +1,5 @@
 import { Card, Stack, Text, Title } from "@mantine/core";
+import { Trans, useTranslation } from "react-i18next";
 
 /**
  * Panel Yield by Line report - placeholder. F4-F7 fill in:
@@ -8,23 +9,23 @@ import { Card, Stack, Text, Title } from "@mantine/core";
  *   - Mantine data table with sort + column export
  */
 export function PanelYieldRoute() {
+    const { t } = useTranslation();
     return (
         <Stack gap="lg">
             <Stack gap={4}>
-                <Title order={2}>Panel Yield by Line</Title>
-                <Text c="dimmed">
-                    First-panel-yield across every AOI line, split by source
-                    and date window.
-                </Text>
+                <Title order={2}>{t("panelYield.title")}</Title>
+                <Text c="dimmed">{t("panelYield.subtitle")}</Text>
             </Stack>
             <Card withBorder padding="lg" radius="md">
                 <Text>
-                    The report UI ships in later backlog items (F4-F7). The
-                    API is already live at{" "}
-                    <Text component="code">GET /api/reports/panel-yield</Text>{" "}
-                    with CSV and XLSX exports under{" "}
-                    <Text component="code">/export.csv</Text> and{" "}
-                    <Text component="code">/export.xlsx</Text>.
+                    <Trans
+                        i18nKey="panelYield.placeholderBody"
+                        components={{
+                            1: <Text component="code" />,
+                            3: <Text component="code" />,
+                            5: <Text component="code" />,
+                        }}
+                    />
                 </Text>
             </Card>
         </Stack>
