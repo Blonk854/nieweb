@@ -14,6 +14,7 @@ export type TranslationBundle = {
     nav: {
         home: string;
         panelYield: string;
+        pareto: string;
         adminUsers: string;
         adminAudit: string;
         signIn: string;
@@ -88,6 +89,98 @@ export type TranslationBundle = {
                 green: string;
                 amber: string;
                 red: string;
+            };
+        };
+    };
+    pareto: {
+        title: string;
+        subtitle: string;
+        axis: {
+            Defect: string;
+            Product: string;
+            AoiMachine: string;
+            ReferenceDesignator: string;
+            PartNumber: string;
+            Jedec: string;
+        };
+        numerator: {
+            Aoi: string;
+            Real: string;
+            Dummy: string;
+        };
+        opportunity: {
+            All: string;
+            Components: string;
+            Paste: string;
+        };
+        filters: {
+            heading: string;
+            source: string;
+            sourcePlaceholder: string;
+            axis: string;
+            from: string;
+            to: string;
+            numerator: string;
+            opportunity: string;
+            topN: string;
+            topNHint: string;
+            vitalFewThreshold: string;
+            vitalFewThresholdHint: string;
+            machines: string;
+            machinesPlaceholder: string;
+            products: string;
+            productsPlaceholder: string;
+            recipes: string;
+            recipesPlaceholder: string;
+            defectBitsChipsLabel: string;
+            defectBitChip: string;
+            removeDefectBit: string;
+            submit: string;
+            reset: string;
+            print: string;
+            exportCsv: string;
+            exportXlsx: string;
+            emptyPrompt: string;
+            missingRequired: string;
+        };
+        results: {
+            heading: string;
+            errorTitle: string;
+            source: string;
+            window: string;
+            axis: string;
+            totalDefects: string;
+            totalOpportunities: string;
+            overallDpmoPpm: string;
+            noRows: string;
+            groupName: string;
+            defectCount: string;
+            opportunityCount: string;
+            dpmoPpm: string;
+            defectSharePercent: string;
+            cumulativePercent: string;
+            isVitalFew: string;
+        };
+        chart: {
+            seriesDefects: string;
+            seriesCumulative: string;
+            yLeftDefects: string;
+            yRightCumulative: string;
+            vitalFew: string;
+            defectCount: string;
+            opportunityCount: string;
+            dpmoPpm: string;
+            defectShare: string;
+            cumulative: string;
+            emptyChart: string;
+            ariaSummary: string;
+            axis: {
+                Defect: string;
+                Product: string;
+                AoiMachine: string;
+                ReferenceDesignator: string;
+                PartNumber: string;
+                Jedec: string;
             };
         };
     };

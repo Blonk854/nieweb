@@ -144,6 +144,17 @@ try
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<IJwtTokenIssuer, JwtTokenIssuer>();
 
+    // Emit enum values as strings on the wire so the SPA (Nieweb.Web)
+    // and any future consumer sees stable, self-documenting names
+    // (`"axis": "Product"` rather than `"axis": 1`). The default STJ
+    // reader accepts both string and numeric forms, so existing tests
+    // deserialising into typed enums keep working without changes.
+    builder.Services.ConfigureHttpJsonOptions(options =>
+    {
+        options.SerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
     // Audit log (I4). Written to by admin endpoints, OIDC provisioning,
     // and the auth flow. IHttpContextAccessor is required so the
     // service can resolve the calling user + remote IP transparently.

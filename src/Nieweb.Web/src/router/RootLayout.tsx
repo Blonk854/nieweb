@@ -104,6 +104,13 @@ function SideNav() {
                 leftSection={<IconChartBar size={18} />}
                 active={active.startsWith("/report/panel-yield")}
             />
+            <NavLink
+                component={Link}
+                to="/report/pareto"
+                label={t("nav.pareto")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/pareto")}
+            />
             {isAdmin && (
                 <NavLink
                     component={Link}

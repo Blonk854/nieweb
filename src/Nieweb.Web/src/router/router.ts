@@ -9,6 +9,8 @@ import { requireAuthentication } from "./guards";
 import { HomeRoute } from "../routes/home";
 import { PanelYieldRoute } from "../routes/panel-yield";
 import { validatePanelYieldSearch } from "../routes/panel-yield.search";
+import { ParetoRoute } from "../routes/pareto";
+import { validateParetoSearch } from "../routes/pareto.search";
 import { LoginRoute } from "../routes/login";
 import { validateLoginSearch } from "../routes/login.search";
 import { OidcReturnRoute } from "../routes/oidc-return";
@@ -34,6 +36,15 @@ const panelYieldRoute = createRoute({
     // Reports are gated behind authentication; the API returns 401 for
     // anonymous callers, but bouncing to /login *before* the query
     // fires avoids a flash of an empty report page.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const paretoRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/pareto",
+    component: ParetoRoute,
+    validateSearch: validateParetoSearch,
+    // Same auth-gating story as panelYieldRoute.
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
@@ -101,6 +112,7 @@ const changePasswordRoute = createRoute({
 const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
+    paretoRoute,
     loginRoute,
     oidcReturnRoute,
     adminUsersRoute,
@@ -112,6 +124,7 @@ const routeTree = rootRoute.addChildren([
 // can call `panelYieldRoute.useSearch()` and get the fully-typed
 // PanelYieldSearch back.
 export { panelYieldRoute };
+export { paretoRoute };
 
 export const router = createRouter({
     routeTree,

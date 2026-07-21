@@ -1,0 +1,242 @@
+import { describe, expect, it } from "vitest";
+import {
+    pickDefaultSourceId,
+    toApiQuery,
+    validateParetoSearch,
+    withDefectBit,
+    withoutDefectBit,
+    type ParetoSearch,
+} from "./pareto.search";
+import type { SourceInfo } from "../api/sources";
+
+describe("validateParetoSearch", () => {
+    it("returns an empty shape for empty input", () => {
+        expect(validateParetoSearch({})).toEqual<ParetoSearch>({
+            sourceId: undefined,
+            startUtc: undefined,
+            endUtc: undefined,
+            axis: undefined,
+            numerator: undefined,
+            opportunity: undefined,
+            topN: undefined,
+            vitalFewThreshold: undefined,
+            machineIds: undefined,
+            productIds: undefined,
+            recipeIds: undefined,
+            defectBits: undefined,
+            topologies: undefined,
+            partNumbers: undefined,
+            jedecNames: undefined,
+        });
+    });
+
+    it("parses canonical enum names case-insensitively", () => {
+        const s = validateParetoSearch({
+            axis: "product",
+            numerator: "REAL",
+            opportunity: "Components",
+        });
+        expect(s.axis).toBe("Product");
+        expect(s.numerator).toBe("Real");
+        expect(s.opportunity).toBe("Components");
+    });
+
+    it("drops unknown enum values", () => {
+        const s = validateParetoSearch({
+            axis: "bogus",
+            numerator: "",
+            opportunity: 42,
+        });
+        expect(s.axis).toBeUndefined();
+        expect(s.numerator).toBeUndefined();
+        expect(s.opportunity).toBeUndefined();
+    });
+
+    it("parses comma-separated defectBits", () => {
+        const s = validateParetoSearch({
+            defectBits: "1,3,5",
+        });
+        expect(s.defectBits).toEqual([1, 3, 5]);
+    });
+
+    it("parses array defectBits", () => {
+        const s = validateParetoSearch({
+            defectBits: ["2", 4],
+        });
+        expect(s.defectBits).toEqual([2, 4]);
+    });
+
+    it("parses topN as a positive integer only", () => {
+        expect(validateParetoSearch({ topN: "10" }).topN).toBe(10);
+        expect(validateParetoSearch({ topN: 0 }).topN).toBeUndefined();
+        expect(validateParetoSearch({ topN: -1 }).topN).toBeUndefined();
+        expect(validateParetoSearch({ topN: "3.5" }).topN).toBeUndefined();
+        expect(validateParetoSearch({ topN: "abc" }).topN).toBeUndefined();
+    });
+
+    it("parses vitalFewThreshold as any finite number", () => {
+        expect(validateParetoSearch({ vitalFewThreshold: "80" }).vitalFewThreshold).toBe(80);
+        expect(validateParetoSearch({ vitalFewThreshold: 90.5 }).vitalFewThreshold).toBe(90.5);
+        expect(validateParetoSearch({ vitalFewThreshold: "abc" }).vitalFewThreshold).toBeUndefined();
+    });
+
+    it("parses string-list narrowing filters", () => {
+        const s = validateParetoSearch({
+            topologies: "R1,R2, R3",
+            partNumbers: ["PN-A", " PN-B "],
+            jedecNames: "SOT23",
+        });
+        expect(s.topologies).toEqual(["R1", "R2", "R3"]);
+        expect(s.partNumbers).toEqual(["PN-A", "PN-B"]);
+        expect(s.jedecNames).toEqual(["SOT23"]);
+    });
+});
+
+describe("toApiQuery", () => {
+    it("omits empty and default fields", () => {
+        expect(toApiQuery({})).toEqual({});
+    });
+
+    it("emits enum names as-is", () => {
+        expect(
+            toApiQuery({
+                axis: "Product",
+                numerator: "Real",
+                opportunity: "Components",
+            }),
+        ).toEqual({
+            axis: "Product",
+            numerator: "Real",
+            opportunity: "Components",
+        });
+    });
+
+    it("joins id arrays with commas", () => {
+        expect(
+            toApiQuery({
+                machineIds: [1, 2],
+                defectBits: [3, 4],
+                topologies: ["R1", "R2"],
+            }),
+        ).toEqual({
+            machineIds: "1,2",
+            defectBits: "3,4",
+            topologies: "R1,R2",
+        });
+    });
+
+    it("emits topN and vitalFewThreshold as strings", () => {
+        expect(toApiQuery({ topN: 5, vitalFewThreshold: 90 })).toEqual({
+            topN: "5",
+            vitalFewThreshold: "90",
+        });
+    });
+
+    it("drops non-positive topN", () => {
+        expect(toApiQuery({ topN: 0 })).toEqual({});
+        expect(toApiQuery({ topN: -1 })).toEqual({});
+    });
+
+    it("emits the full populated shape", () => {
+        expect(
+            toApiQuery({
+                sourceId: "postreflow",
+                startUtc: "2026-06-01T00:00:00.000Z",
+                endUtc: "2026-07-01T00:00:00.000Z",
+                axis: "Defect",
+                numerator: "Real",
+                opportunity: "All",
+                topN: 10,
+                vitalFewThreshold: 80,
+                machineIds: [1],
+                productIds: [2, 3],
+                recipeIds: [4],
+                defectBits: [1, 5],
+                topologies: ["R1"],
+                partNumbers: ["PN-A"],
+                jedecNames: ["SOT23"],
+            }),
+        ).toEqual({
+            sourceId: "postreflow",
+            startUtc: "2026-06-01T00:00:00.000Z",
+            endUtc: "2026-07-01T00:00:00.000Z",
+            axis: "Defect",
+            numerator: "Real",
+            opportunity: "All",
+            topN: "10",
+            vitalFewThreshold: "80",
+            machineIds: "1",
+            productIds: "2,3",
+            recipeIds: "4",
+            defectBits: "1,5",
+            topologies: "R1",
+            partNumbers: "PN-A",
+            jedecNames: "SOT23",
+        });
+    });
+});
+
+describe("withDefectBit / withoutDefectBit", () => {
+    it("appends a new bit, preserving order", () => {
+        const next = withDefectBit({ defectBits: [1, 3] }, 5);
+        expect(next.defectBits).toEqual([1, 3, 5]);
+    });
+
+    it("returns the same search when the bit is already present", () => {
+        const search: ParetoSearch = { defectBits: [1, 3] };
+        expect(withDefectBit(search, 3)).toBe(search);
+    });
+
+    it("ignores non-positive and non-integer bits", () => {
+        const search: ParetoSearch = { defectBits: [1] };
+        expect(withDefectBit(search, 0)).toBe(search);
+        expect(withDefectBit(search, -1)).toBe(search);
+        expect(withDefectBit(search, 1.5)).toBe(search);
+        expect(withDefectBit(search, NaN)).toBe(search);
+    });
+
+    it("initialises the array when defectBits is undefined", () => {
+        const next = withDefectBit({}, 7);
+        expect(next.defectBits).toEqual([7]);
+    });
+
+    it("removes an existing bit", () => {
+        const next = withoutDefectBit({ defectBits: [1, 3, 5] }, 3);
+        expect(next.defectBits).toEqual([1, 5]);
+    });
+
+    it("clears the field when removing the last bit", () => {
+        const next = withoutDefectBit({ defectBits: [3] }, 3);
+        expect(next.defectBits).toBeUndefined();
+    });
+
+    it("returns the same search when the bit was not present", () => {
+        const search: ParetoSearch = { defectBits: [1, 5] };
+        expect(withoutDefectBit(search, 3)).toBe(search);
+    });
+});
+
+describe("pickDefaultSourceId", () => {
+    const src = (id: string, available: boolean): SourceInfo => ({
+        id,
+        displayName: id,
+        schemaVersion: "5.0",
+        capabilities: [],
+        latestPanelUtc: null,
+        available,
+    });
+
+    it("returns undefined for empty list", () => {
+        expect(pickDefaultSourceId([])).toBeUndefined();
+    });
+
+    it("prefers the first available source", () => {
+        expect(
+            pickDefaultSourceId([src("a", false), src("b", true), src("c", true)]),
+        ).toBe("b");
+    });
+
+    it("falls back to the first source when none are available", () => {
+        expect(pickDefaultSourceId([src("a", false), src("b", false)])).toBe("a");
+    });
+});
