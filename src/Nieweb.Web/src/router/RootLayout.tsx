@@ -1,4 +1,4 @@
-import { Link, Outlet, useRouter } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import {
     AppShell,
@@ -9,11 +9,13 @@ import {
     Select,
     Text,
     Title,
+    UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconChartBar, IconHome, IconLogin } from "@tabler/icons-react";
+import { IconChartBar, IconHome, IconLogin, IconLogout, IconUsers } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LANGUAGES } from "../i18n";
+import { useSessionStore } from "../state/session";
 
 /**
  * Root layout: Mantine AppShell with a header + collapsible left navbar.
@@ -49,9 +51,10 @@ export function RootLayout() {
                         </Title>
                     </Group>
                     <Group gap="md">
-                        <Text size="sm" c="dimmed">
+                        <Text size="sm" c="dimmed" visibleFrom="sm">
                             {t("app.subtitle")}
                         </Text>
+                        <SessionIndicator />
                         <LanguageSwitcher />
                     </Group>
                 </Group>
@@ -78,6 +81,8 @@ function SideNav() {
     const router = useRouter();
     const active = router.state.location.pathname;
     const { t } = useTranslation();
+    const user = useSessionStore((s) => s.user);
+    const isAdmin = user?.roles.includes("Admin") ?? false;
     return (
         <>
             <NavLink
@@ -94,14 +99,57 @@ function SideNav() {
                 leftSection={<IconChartBar size={18} />}
                 active={active.startsWith("/report/panel-yield")}
             />
+            {isAdmin && (
+                <NavLink
+                    component={Link}
+                    to="/admin/users"
+                    label={t("nav.adminUsers")}
+                    leftSection={<IconUsers size={18} />}
+                    active={active.startsWith("/admin/users")}
+                />
+            )}
             <NavLink
                 component={Link}
                 to="/login"
-                label={t("nav.signIn")}
-                leftSection={<IconLogin size={18} />}
+                label={user ? t("nav.signOut") : t("nav.signIn")}
+                leftSection={
+                    user ? <IconLogout size={18} /> : <IconLogin size={18} />
+                }
                 active={active === "/login"}
             />
         </>
+    );
+}
+
+function SessionIndicator() {
+    const user = useSessionStore((s) => s.user);
+    const clearSession = useSessionStore((s) => s.clear);
+    const navigate = useNavigate();
+    const { t } = useTranslation();
+    if (!user) {
+        return null;
+    }
+    return (
+        <Group gap="xs">
+            <Text size="sm" fw={500} visibleFrom="sm">
+                {user.displayName}
+            </Text>
+            <UnstyledButton
+                onClick={() => {
+                    clearSession();
+                    void navigate({ to: "/login" });
+                }}
+                aria-label={t("login.signOut")}
+                title={t("login.signOut")}
+            >
+                <Group gap={4} c="dimmed">
+                    <IconLogout size={16} />
+                    <Text size="sm" visibleFrom="sm">
+                        {t("login.signOut")}
+                    </Text>
+                </Group>
+            </UnstyledButton>
+        </Group>
     );
 }
 

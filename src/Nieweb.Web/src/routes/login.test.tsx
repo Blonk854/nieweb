@@ -1,0 +1,225 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Mock } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { MantineProvider } from "@mantine/core";
+import {
+    createMemoryHistory,
+    createRootRoute,
+    createRoute,
+    createRouter,
+    Outlet,
+    RouterProvider,
+} from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import i18n from "../i18n";
+import { LoginRoute } from "./login";
+import { useSessionStore } from "../state/session";
+
+/**
+ * These tests exercise the sign-in route end-to-end at the component
+ * level: form validation, POST /auth/login + GET /auth/whoami wiring,
+ * session-store hydration, 401 error surfacing, and the signed-in
+ * "sign out" affordance. `fetch` is stubbed per-test so no real HTTP
+ * goes out.
+ */
+
+function HomeStub() {
+    return <h1>Home stub</h1>;
+}
+
+function renderLogin(initialPath: string = "/login") {
+    const rootRoute = createRootRoute({ component: Outlet });
+    const home = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/",
+        component: HomeStub,
+    });
+    const login = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/login",
+        component: LoginRoute,
+    });
+    const routeTree = rootRoute.addChildren([home, login]);
+    const router = createRouter({
+        routeTree,
+        history: createMemoryHistory({ initialEntries: [initialPath] }),
+    });
+    // Fresh QueryClient per render so mutations don't leak across tests.
+    const client = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+    return render(
+        <MantineProvider>
+            <QueryClientProvider client={client}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>
+        </MantineProvider>,
+    );
+}
+
+function stubFetch(
+    responses: Array<{
+        match: (url: string, init?: RequestInit) => boolean;
+        status: number;
+        body: unknown;
+    }>,
+) {
+    const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        const asString =
+            typeof url === "string"
+                ? url
+                : url instanceof URL
+                    ? url.toString()
+                    : url.url;
+        const hit = responses.find((r) => r.match(asString, init));
+        if (!hit) {
+            throw new Error(`Unexpected fetch: ${asString}`);
+        }
+        const bodyText =
+            typeof hit.body === "string" ? hit.body : JSON.stringify(hit.body);
+        return new Response(bodyText, {
+            status: hit.status,
+            statusText: hit.status === 200 ? "OK" : "Unauthorized",
+            headers: { "Content-Type": "application/json" },
+        });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock as Mock;
+}
+
+describe("LoginRoute", () => {
+    beforeEach(() => {
+        void i18n.changeLanguage("en");
+        useSessionStore.getState().clear();
+        window.localStorage.clear();
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    it("renders the form when not signed in", async () => {
+        renderLogin();
+        expect(
+            await screen.findByRole("heading", { name: /sign in to nieweb/i }),
+        ).toBeInTheDocument();
+        expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
+        expect(
+            screen.getByPlaceholderText("Enter your password"),
+        ).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+    });
+
+    it("shows validation errors when submitting an empty form", async () => {
+        renderLogin();
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole("button", { name: /sign in/i }));
+        expect(await screen.findByText(/email is required/i)).toBeInTheDocument();
+        expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+    });
+
+    it("hydrates the session store on a successful sign-in", async () => {
+        const fetchMock = stubFetch([
+            {
+                match: (u) => u.endsWith("/auth/login"),
+                status: 200,
+                body: {
+                    accessToken: "jwt-token-abc",
+                    tokenType: "Bearer",
+                    expiresUtc: "2099-01-01T00:00:00Z",
+                },
+            },
+            {
+                match: (u) => u.endsWith("/auth/whoami"),
+                status: 200,
+                body: {
+                    userId: "user-1",
+                    email: "admin@nieweb.local",
+                    name: "Administrator",
+                    roles: ["Admin"],
+                },
+            },
+        ]);
+        renderLogin();
+        const user = userEvent.setup();
+        await user.type(
+            await screen.findByPlaceholderText("you@example.com"),
+            "admin@nieweb.local",
+        );
+        // PasswordInput renders both the input and a "Show password" toggle;
+        // the placeholder is unambiguous.
+        await user.type(
+            screen.getByPlaceholderText("Enter your password"),
+            "AdminPass123",
+        );
+        await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+        await waitFor(() => {
+            const state = useSessionStore.getState();
+            expect(state.token).toBe("jwt-token-abc");
+            expect(state.user?.email).toBe("admin@nieweb.local");
+            expect(state.user?.displayName).toBe("Administrator");
+            expect(state.user?.roles).toEqual(["Admin"]);
+        });
+
+        // Two calls: /auth/login then /auth/whoami with Bearer header.
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const whoamiCall = fetchMock.mock.calls[1];
+        const init = whoamiCall[1] as RequestInit;
+        const headers = new Headers(init.headers);
+        expect(headers.get("Authorization")).toBe("Bearer jwt-token-abc");
+    });
+
+    it("surfaces an invalid-credentials alert on 401", async () => {
+        stubFetch([
+            {
+                match: (u) => u.endsWith("/auth/login"),
+                status: 401,
+                body: { error: "invalid" },
+            },
+        ]);
+        renderLogin();
+        const user = userEvent.setup();
+        await user.type(
+            await screen.findByPlaceholderText("you@example.com"),
+            "admin@nieweb.local",
+        );
+        await user.type(
+            screen.getByPlaceholderText("Enter your password"),
+            "wrong",
+        );
+        await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+        const alert = await screen.findByRole("alert");
+        expect(alert).toHaveTextContent(/invalid email or password/i);
+        expect(useSessionStore.getState().user).toBeNull();
+        expect(useSessionStore.getState().token).toBeNull();
+    });
+
+    it("renders the signed-in state with a working sign-out button", async () => {
+        useSessionStore.getState().setSession(
+            {
+                email: "admin@nieweb.local",
+                displayName: "Administrator",
+                roles: ["Admin"],
+            },
+            "existing-token",
+        );
+        renderLogin();
+        expect(
+            await screen.findByText(/signed in as/i),
+        ).toBeInTheDocument();
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: /sign out/i }));
+        await waitFor(() => {
+            expect(useSessionStore.getState().user).toBeNull();
+            expect(useSessionStore.getState().token).toBeNull();
+        });
+    });
+});

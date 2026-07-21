@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 using Nieweb.Api.Auth;
 using Nieweb.Api.Endpoints;
+using Nieweb.Api.Startup;
 using Nieweb.Data;
 using Nieweb.DataSources.Sql;
 using Nieweb.Identity.DependencyInjection;
@@ -212,15 +213,33 @@ try
     // BuildNiewebSpa MSBuild target in Nieweb.Api.csproj. If wwwroot/app
     // does not exist (fresh clone, API-only test host) both middlewares
     // simply no-op.
-    app.UseDefaultFiles(new DefaultFilesOptions
+    //
+    // IMPORTANT: register these BEFORE the explicit UseRouting() call
+    // below. WebApplication would otherwise auto-insert UseRouting at
+    // the top of the pipeline, matching the /app/{*catchall} fallback
+    // endpoint for every /app/assets/*.js request. StaticFileMiddleware
+    // then sees a matched endpoint and defers to it, so hashed asset
+    // URLs would incorrectly receive the SPA shell (HTML) instead of
+    // their .js/.css bytes — which trips the browser's strict module
+    // MIME check. Serving files before routing sidesteps that.
+    var spaContentRoot = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "app");
+    if (Directory.Exists(spaContentRoot))
     {
-        RequestPath = "/app",
-        DefaultFileNames = ["index.html"],
-    });
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        RequestPath = "/app",
-    });
+        var spaFileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(spaContentRoot);
+        app.UseDefaultFiles(new DefaultFilesOptions
+        {
+            RequestPath = "/app",
+            FileProvider = spaFileProvider,
+            DefaultFileNames = ["index.html"],
+        });
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            RequestPath = "/app",
+            FileProvider = spaFileProvider,
+        });
+    }
+
+    app.UseRouting();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -229,6 +248,7 @@ try
     app.MapSourceEndpoints();
     app.MapReportEndpoints();
     app.MapSavedViewEndpoints();
+    app.MapAdminUsersEndpoints();
     app.MapHealthEndpoints();
 
     // SPA fallback: TanStack Router uses HTML5 history, so a hard
@@ -238,7 +258,8 @@ try
     // API-only test host (or a fresh clone that hasn't run
     // `npm run build`) keeps returning 404 for unknown routes as
     // expected. Redirect / -> /app/ so browsers hitting the bare host
-    // land on the SPA.
+    // land on the SPA. Hashed asset URLs never reach this fallback
+    // because UseStaticFiles is registered before UseRouting above.
     var spaIndexPath = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "app", "index.html");
     if (File.Exists(spaIndexPath))
     {
@@ -250,6 +271,12 @@ try
             await context.Response.SendFileAsync(spaIndexPath);
         });
     }
+
+    // Apply pending migrations, ensure built-in roles exist, and
+    // (if configured) create the bootstrap administrator. Runs
+    // synchronously before Kestrel starts accepting requests so a
+    // partially-provisioned host never serves traffic.
+    await app.EnsureBootstrapAsync().ConfigureAwait(false);
 
     app.Run();
 }

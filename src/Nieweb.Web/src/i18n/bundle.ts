@@ -14,7 +14,9 @@ export type TranslationBundle = {
     nav: {
         home: string;
         panelYield: string;
+        adminUsers: string;
         signIn: string;
+        signOut: string;
     };
     home: {
         title: string;
@@ -89,8 +91,22 @@ export type TranslationBundle = {
     };
     login: {
         title: string;
+        signInHeading: string;
         signedInAs: string;
-        placeholderBody: string;
+        signOut: string;
+        form: {
+            emailLabel: string;
+            emailPlaceholder: string;
+            passwordLabel: string;
+            passwordPlaceholder: string;
+            submit: string;
+            signingIn: string;
+            emailRequired: string;
+            emailInvalid: string;
+            passwordRequired: string;
+            invalidCredentials: string;
+            unexpectedError: string;
+        };
     };
     common: {
         loading: string;
@@ -133,5 +149,83 @@ export type TranslationBundle = {
         deleteError: string;
         saved: string;
         deleted: string;
+    };
+    admin: {
+        users: {
+            title: string;
+            subtitle: string;
+            reload: string;
+            createButton: string;
+            emptyState: string;
+            loadError: string;
+            forbidden: string;
+            columns: {
+                email: string;
+                displayName: string;
+                roles: string;
+                status: string;
+                lastLogin: string;
+                actions: string;
+            };
+            status: {
+                active: string;
+                disabled: string;
+            };
+            never: string;
+            roles: {
+                reader: string;
+                author: string;
+                admin: string;
+            };
+            actions: {
+                edit: string;
+                resetPassword: string;
+            };
+            create: {
+                title: string;
+                emailLabel: string;
+                emailPlaceholder: string;
+                displayNameLabel: string;
+                displayNamePlaceholder: string;
+                passwordLabel: string;
+                passwordPlaceholder: string;
+                rolesLabel: string;
+                rolesPlaceholder: string;
+                submit: string;
+                cancel: string;
+                success: string;
+                emailRequired: string;
+                emailInvalid: string;
+                displayNameRequired: string;
+                passwordRequired: string;
+                conflict: string;
+                validationFailed: string;
+                unexpectedError: string;
+            };
+            edit: {
+                title: string;
+                displayNameLabel: string;
+                rolesLabel: string;
+                isDisabledLabel: string;
+                isDisabledHint: string;
+                submit: string;
+                cancel: string;
+                success: string;
+                conflictLastAdmin: string;
+                conflictSelfDisable: string;
+                validationFailed: string;
+                unexpectedError: string;
+            };
+            reset: {
+                title: string;
+                body: string;
+                newPasswordLabel: string;
+                submit: string;
+                cancel: string;
+                success: string;
+                validationFailed: string;
+                unexpectedError: string;
+            };
+        };
     };
 };
