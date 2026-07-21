@@ -76,6 +76,13 @@ public static class AoiSourceServiceCollectionExtensions
             var opts = monitor.Get(typeof(TSource).Name);
             return (TSource)Activator.CreateInstance(typeof(TSource), opts)!;
         });
+
+        // Second registration under the interface so consumers that just
+        // want "give me every configured source" (e.g. GET /api/sources)
+        // can resolve IEnumerable<IAoiSource> without having to enumerate
+        // concrete types. The lambda forwards to the concrete singleton
+        // above so both resolves return the exact same instance.
+        services.AddSingleton<IAoiSource>(sp => sp.GetRequiredService<TSource>());
     }
 
     private static bool IsPopulated(IConfigurationSection section)

@@ -46,11 +46,18 @@ try
         options.ValidateScopes = true;
     });
 
-    builder.Host.UseSerilog((context, services, configuration) =>
-        configuration
+    builder.Host.UseSerilog(
+        (context, services, configuration) => configuration
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services)
-            .Enrich.FromLogContext());
+            .Enrich.FromLogContext(),
+        // preserveStaticLogger: keep the bootstrap Log.Logger intact so that
+        // WebApplicationFactory<Program>-based integration tests, which
+        // build multiple hosts in a single process, do not re-freeze the
+        // reloadable logger (which throws "The logger is already frozen").
+        // Runtime logging still flows through ILogger<T> resolved from DI,
+        // so behaviour in a single-host production process is unchanged.
+        preserveStaticLogger: true);
 
     // Assembly-derived resource attributes surface in every trace, metric,
     // and log record OpenTelemetry produces.
@@ -174,6 +181,7 @@ try
     app.UseAuthorization();
 
     app.MapAuthEndpoints();
+    app.MapSourceEndpoints();
 
     app.Run();
 }
