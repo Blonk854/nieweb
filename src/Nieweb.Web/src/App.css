@@ -1,0 +1,50 @@
+.app-shell {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+.app-shell header h1 {
+    margin: 0 0 0.25rem;
+    font-size: 1.75rem;
+}
+
+.app-shell .subtitle {
+    margin: 0 0 2rem;
+    color: color-mix(in oklab, currentColor 60%, transparent);
+}
+
+.app-shell section {
+    padding: 1.25rem;
+    border: 1px solid color-mix(in oklab, currentColor 15%, transparent);
+    border-radius: 8px;
+}
+
+.app-shell h2 {
+    margin-top: 0;
+    font-size: 1.15rem;
+}
+
+.app-shell ul {
+    padding-left: 1.25rem;
+    margin: 0;
+}
+
+.app-shell .muted {
+    color: color-mix(in oklab, currentColor 55%, transparent);
+    font-size: 0.9em;
+}
+
+.app-shell .error {
+    color: #b00020;
+    background: #fff2f2;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .app-shell .error {
+        color: #ff6b6b;
+        background: #2a1919;
+    }
+}

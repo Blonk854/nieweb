@@ -2,6 +2,25 @@
 
   <PropertyGroup>
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
+    <!--
+      Nieweb.Web (React + Vite) sources live one folder over. Vite writes
+      the built SPA into wwwroot/app/ via its own vite.config.ts. We keep
+      that folder out of source control (see .gitignore) but include the
+      built assets when they exist so `dotnet publish` sweeps them into
+      the final output alongside the API.
+
+      SpaRoot is relative to $(MSBuildProjectDirectory) and is used by
+      the BuildNiewebSpa target below.
+    -->
+    <SpaRoot>..\Nieweb.Web\</SpaRoot>
+    <SpaOutDir>$(MSBuildProjectDirectory)\wwwroot\app\</SpaOutDir>
+    <!--
+      Skip the SPA build in CI/local one-off compile if the SPA is not
+      required (e.g. running only the API tests). Set to true to force
+      a build even outside of Publish; set to false to skip it during
+      Publish (developer machines without Node installed).
+    -->
+    <BuildNiewebSpaOnPublish Condition=" '$(BuildNiewebSpaOnPublish)' == '' ">true</BuildNiewebSpaOnPublish>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,4 +56,31 @@
     <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
   </ItemGroup>
 
+  <!--
+    Publish-time build of the React SPA. On `dotnet publish`:
+      1. Ensure npm is on PATH.
+      2. Run `npm ci` for a reproducible install from package-lock.json.
+      3. Run `npm run build` which type-checks and writes into
+         $(SpaOutDir) = Nieweb.Api/wwwroot/app/.
+      4. The standard Web SDK then sweeps wwwroot/** into the publish
+         output alongside the compiled DLL.
+
+    Guarded by BuildNiewebSpaOnPublish so developer machines without
+    Node can skip the SPA build by setting the property to false, e.g.:
+      dotnet publish -p:BuildNiewebSpaOnPublish=false
+  -->
+  <Target Name="BuildNiewebSpa"
+          BeforeTargets="PrepareForPublish"
+          Condition=" '$(BuildNiewebSpaOnPublish)' == 'true' ">
+    <PropertyGroup>
+      <_NpmCommand Condition=" '$(OS)' == 'Windows_NT' ">npm.cmd</_NpmCommand>
+      <_NpmCommand Condition=" '$(OS)' != 'Windows_NT' ">npm</_NpmCommand>
+    </PropertyGroup>
+    <Message Text="Nieweb.Web: installing npm dependencies (npm ci) in $(SpaRoot)" Importance="high" />
+    <Exec Command="$(_NpmCommand) ci" WorkingDirectory="$(SpaRoot)" />
+    <Message Text="Nieweb.Web: building SPA bundle into $(SpaOutDir)" Importance="high" />
+    <Exec Command="$(_NpmCommand) run build" WorkingDirectory="$(SpaRoot)" />
+  </Target>
+
 </Project>
+

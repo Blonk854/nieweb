@@ -25,6 +25,10 @@ build/
 .nuxt/
 .turbo/
 .svelte-kit/
+# Nieweb.Web (React + Vite) build output — Vite emits the SPA bundle
+# straight into Nieweb.Api's wwwroot at publish time. The folder is
+# populated on demand and never versioned.
+src/Nieweb.Api/wwwroot/app/
 
 # ─── JVM / build outputs (future Nieweb work) ───
 target/
@@ -43,6 +47,8 @@ obj/
 .vs/
 TestResults/
 [Nn]ieweb.slnx.tmp
+# Local `dotnet publish -o artifacts/...` outputs (never versioned).
+artifacts/
 
 # ─── IDE & OS noise ───
 .vscode/*

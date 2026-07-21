@@ -177,6 +177,22 @@ try
 
     app.UseSerilogRequestLogging();
 
+    // Serve the built React SPA (Nieweb.Web) from wwwroot/app when it is
+    // present. The bundle lands there via `npm run build`, either during
+    // developer smoke or automatically at publish time via the
+    // BuildNiewebSpa MSBuild target in Nieweb.Api.csproj. If wwwroot/app
+    // does not exist (fresh clone, API-only test host) both middlewares
+    // simply no-op.
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        RequestPath = "/app",
+        DefaultFileNames = ["index.html"],
+    });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        RequestPath = "/app",
+    });
+
     app.UseAuthentication();
     app.UseAuthorization();
 
