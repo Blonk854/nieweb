@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.IO.Pipelines;
+using System.Text;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 
@@ -39,6 +41,9 @@ public static partial class ReportEndpoints
         group.MapGet("/panel-yield", RunPanelYieldAsync)
             .WithName("ReportsPanelYield");
 
+        group.MapGet("/panel-yield/export.csv", ExportPanelYieldCsvAsync)
+            .WithName("ReportsPanelYieldExportCsv");
+
         return routes;
     }
 
@@ -73,41 +78,207 @@ public static partial class ReportEndpoints
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
+        var built = TryBuildPanelYieldRequest(
+            sourceId, startUtc, endUtc, machineIds, productIds, recipeIds,
+            onlyLastInspection, sources);
+        if (built.Error is not null)
+        {
+            return built.Error;
+        }
+
+        LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
+        var result = await PanelYieldByLineReport
+            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .ConfigureAwait(false);
+        return Results.Ok(result);
+    }
+
+    /// <summary>
+    /// <c>GET /api/reports/panel-yield/export.csv</c>.
+    /// Streams the per-machine breakdown of <see cref="PanelYieldByLineReport"/>
+    /// as a UTF-8 (BOM-prefixed) CSV file through the response's
+    /// <see cref="PipeWriter"/>, so the response body is never fully
+    /// buffered on the server side.
+    /// </summary>
+    /// <remarks>
+    /// The CSV contains one row per machine, with the source id, source
+    /// display name, and window bounds repeated on every row so that the
+    /// file is self-describing when copy-pasted into Excel or Power Query.
+    /// The window end is the exclusive upper bound of the report window,
+    /// matching the DateRange semantics used throughout Nieweb.
+    /// </remarks>
+    private static async Task ExportPanelYieldCsvAsync(
+        HttpContext context,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        string? productIds,
+        string? recipeIds,
+        bool? onlyLastInspection,
+        IEnumerable<IAoiSource> sources,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var built = TryBuildPanelYieldRequest(
+            sourceId, startUtc, endUtc, machineIds, productIds, recipeIds,
+            onlyLastInspection, sources);
+        if (built.Error is not null)
+        {
+            await built.Error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
+        var result = await PanelYieldByLineReport
+            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        var filename = string.Create(CultureInfo.InvariantCulture,
+            $"panel-yield-{built.Source.Descriptor.Id}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}.csv");
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = "text/csv; charset=utf-8";
+        // RFC 6266 attachment disposition. Filename is ASCII so no filename* needed.
+        context.Response.Headers.ContentDisposition = $"attachment; filename=\"{filename}\"";
+
+        await WritePanelYieldCsvAsync(context.Response.BodyWriter, result, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Serializes a <see cref="PanelYieldResult"/> as CSV into
+    /// <paramref name="writer"/>. UTF-8 BOM is prepended so Excel on
+    /// Windows opens the file with the correct encoding.
+    /// </summary>
+    private static async Task WritePanelYieldCsvAsync(
+        PipeWriter writer, PanelYieldResult result, CancellationToken ct)
+    {
+        // UTF-8 BOM: helps Excel-on-Windows autodetect encoding.
+        await writer.WriteAsync(Utf8Bom, ct).ConfigureAwait(false);
+
+        var sb = new StringBuilder(1024);
+        sb.Append("SourceId,SourceName,WindowStartUtc,WindowEndUtc,MachineId,MachineName,")
+          .Append("TotalPanels,InspectedPanels,GoodPanels,FaultyPanels,NotInspectedPanels,FpyPercent\r\n");
+        await FlushAsync(writer, sb, ct).ConfigureAwait(false);
+
+        var sourceId = CsvEscape(result.Source.Id);
+        var sourceName = CsvEscape(result.Source.DisplayName);
+        var startIso = result.Window.StartUtc.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        var endIso = result.Window.EndUtcExclusive.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+
+        foreach (var row in result.ByMachine)
+        {
+            sb.Append(sourceId).Append(',')
+              .Append(sourceName).Append(',')
+              .Append(startIso).Append(',')
+              .Append(endIso).Append(',')
+              .Append(row.MachineId.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(CsvEscape(row.MachineName)).Append(',')
+              .Append(row.Kpi.TotalPanels.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.Kpi.InspectedPanels.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.Kpi.GoodPanels.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.Kpi.FaultyPanels.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.Kpi.NotInspectedPanels.ToString(CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.Kpi.FpyPercent.ToString("0.####", CultureInfo.InvariantCulture)).Append("\r\n");
+            await FlushAsync(writer, sb, ct).ConfigureAwait(false);
+        }
+
+        await writer.FlushAsync(ct).ConfigureAwait(false);
+        await writer.CompleteAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Encodes and writes <paramref name="sb"/> as UTF-8, then clears the builder.</summary>
+    private static async ValueTask FlushAsync(PipeWriter writer, StringBuilder sb, CancellationToken ct)
+    {
+        if (sb.Length == 0)
+        {
+            return;
+        }
+        var text = sb.ToString();
+        sb.Clear();
+        var byteCount = Encoding.UTF8.GetByteCount(text);
+        var memory = writer.GetMemory(byteCount);
+        var written = Encoding.UTF8.GetBytes(text, memory.Span);
+        writer.Advance(written);
+        await writer.FlushAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// RFC-4180 CSV field escaping: wrap in double-quotes and double any
+    /// embedded double-quote when the value contains a comma, quote, CR,
+    /// or LF; otherwise return as-is. <c>null</c> becomes an empty field.
+    /// </summary>
+    private static string CsvEscape(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+        var needsQuoting =
+            value.IndexOfAny(_csvSpecials) >= 0;
+        if (!needsQuoting)
+        {
+            return value;
+        }
+        return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static readonly char[] _csvSpecials = [',', '"', '\r', '\n'];
+    private static readonly ReadOnlyMemory<byte> Utf8Bom = new byte[] { 0xEF, 0xBB, 0xBF };
+
+    /// <summary>
+    /// Shared query-string parser used by both the JSON and CSV panel-yield
+    /// endpoints. Returns either a resolved source + validated filter, or
+    /// the <see cref="IResult"/> to short-circuit the response with.
+    /// </summary>
+    private static (IAoiSource? Source, PanelYieldFilter? Filter, IResult? Error) TryBuildPanelYieldRequest(
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        string? productIds,
+        string? recipeIds,
+        bool? onlyLastInspection,
+        IEnumerable<IAoiSource> sources)
+    {
         ArgumentNullException.ThrowIfNull(sources);
 
         if (string.IsNullOrWhiteSpace(sourceId))
         {
-            return Results.Problem(
+            return (null, null, Results.Problem(
                 title: "Missing required query parameter 'sourceId'.",
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status400BadRequest));
         }
 
         var source = sources.FirstOrDefault(s =>
             string.Equals(s.Descriptor.Id, sourceId, StringComparison.OrdinalIgnoreCase));
         if (source is null)
         {
-            return Results.Problem(
+            return (null, null, Results.Problem(
                 title: $"Unknown sourceId '{sourceId}'.",
-                statusCode: StatusCodes.Status404NotFound);
+                statusCode: StatusCodes.Status404NotFound));
         }
 
         if (!TryParseUtc(startUtc, out var start))
         {
-            return Results.Problem(
+            return (null, null, Results.Problem(
                 title: "Query parameter 'startUtc' is missing or not a valid ISO-8601 UTC instant.",
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status400BadRequest));
         }
         if (!TryParseUtc(endUtc, out var end))
         {
-            return Results.Problem(
+            return (null, null, Results.Problem(
                 title: "Query parameter 'endUtc' is missing or not a valid ISO-8601 UTC instant.",
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status400BadRequest));
         }
         if (end <= start)
         {
-            return Results.Problem(
+            return (null, null, Results.Problem(
                 title: "'endUtc' must be strictly after 'startUtc'.",
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status400BadRequest));
         }
 
         DateRange window;
@@ -118,9 +289,9 @@ public static partial class ReportEndpoints
 #pragma warning disable CA1031 // catch general exception - report a client-friendly 400 for any DateRange rejection
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
-            return Results.Problem(
+            return (null, null, Results.Problem(
                 title: "Invalid window: " + ex.Message,
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status400BadRequest));
         }
 #pragma warning restore CA1031
 
@@ -131,11 +302,7 @@ public static partial class ReportEndpoints
             RecipeIds: ParseIntList(recipeIds),
             OnlyLastInspection: onlyLastInspection ?? true);
 
-        LogRunning(logger, source.Descriptor.Id, start, end);
-        var result = await PanelYieldByLineReport
-            .RunAsync(source, filter, cancellationToken)
-            .ConfigureAwait(false);
-        return Results.Ok(result);
+        return (source, filter, null);
     }
 
     /// <summary>
