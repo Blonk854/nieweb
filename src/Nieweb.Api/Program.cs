@@ -201,6 +201,26 @@ try
     app.MapReportEndpoints();
     app.MapSavedViewEndpoints();
 
+    // SPA fallback: TanStack Router uses HTML5 history, so a hard
+    // refresh on /app/report/panel-yield needs to serve the SPA shell
+    // (wwwroot/app/index.html) rather than 404. We only register the
+    // fallback if the built SPA is actually present on disk so an
+    // API-only test host (or a fresh clone that hasn't run
+    // `npm run build`) keeps returning 404 for unknown routes as
+    // expected. Redirect / -> /app/ so browsers hitting the bare host
+    // land on the SPA.
+    var spaIndexPath = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "app", "index.html");
+    if (File.Exists(spaIndexPath))
+    {
+        app.MapGet("/", () => Results.Redirect("/app/", permanent: false))
+            .ExcludeFromDescription();
+        app.MapFallback("/app/{*catchall}", async context =>
+        {
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.SendFileAsync(spaIndexPath);
+        });
+    }
+
     app.Run();
 }
 catch (Exception ex) when (ex is not HostAbortedException)

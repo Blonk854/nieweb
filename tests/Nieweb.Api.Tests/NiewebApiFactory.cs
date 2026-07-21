@@ -13,7 +13,7 @@ namespace Nieweb.Api.Tests;
 /// tests can exercise the real endpoint pipeline (auth handshake,
 /// Identity, JWT issuance) without touching the developer's disk DB.
 /// </summary>
-public sealed class NiewebApiFactory : WebApplicationFactory<Program>
+public class NiewebApiFactory : WebApplicationFactory<Program>
 {
     // Keeping the connection open for the factory's lifetime keeps the
     // in-memory SQLite database alive across scopes.
