@@ -144,6 +144,12 @@ try
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<IJwtTokenIssuer, JwtTokenIssuer>();
 
+    // Audit log (I4). Written to by admin endpoints, OIDC provisioning,
+    // and the auth flow. IHttpContextAccessor is required so the
+    // service can resolve the calling user + remote IP transparently.
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<Nieweb.Api.Audit.IAuditLog, Nieweb.Api.Audit.EfAuditLog>();
+
     // OIDC / SSO configuration (I2). Bind unconditionally so
     // /auth/config can inspect it; the actual OpenID Connect handler
     // is only registered when Nieweb:Auth:Oidc:Enabled=true, keeping
@@ -343,6 +349,7 @@ try
     app.MapReportEndpoints();
     app.MapSavedViewEndpoints();
     app.MapAdminUsersEndpoints();
+    app.MapAuditEndpoints();
     app.MapHealthEndpoints();
 
     // SPA fallback: TanStack Router uses HTML5 history, so a hard

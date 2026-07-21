@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+using Nieweb.Api.Audit;
 using Nieweb.Api.Startup;
 using Nieweb.Data.Entities;
 
@@ -174,6 +175,7 @@ public static partial class AdminUsersEndpoints
     private static async Task<Results<Created<AdminUserDto>, ValidationProblem, Conflict<string>>> CreateAsync(
         [FromBody] CreateUserRequest request,
         UserManager<NiewebUser> users,
+        IAuditLog audit,
         ILogger<AdminUsersMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -232,6 +234,18 @@ public static partial class AdminUsersEndpoints
         }
 
         LogUserCreated(logger, user.Email!, user.Id);
+        await audit.WriteAsync(
+            AuditEventTypes.UserCreated,
+            AuditTargetTypes.User,
+            user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            new
+            {
+                email = user.Email,
+                displayName = user.DisplayName,
+                roles = request.Roles,
+                mustRotatePassword = user.MustRotatePassword,
+            },
+            cancellationToken).ConfigureAwait(false);
         var dto = new AdminUserDto(
             user.Id,
             user.Email ?? string.Empty,
@@ -249,6 +263,7 @@ public static partial class AdminUsersEndpoints
         [FromBody] UpdateUserRequest request,
         UserManager<NiewebUser> users,
         ClaimsPrincipal caller,
+        IAuditLog audit,
         ILogger<AdminUsersMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -329,6 +344,33 @@ public static partial class AdminUsersEndpoints
 
         LogUserUpdated(logger, user.Email ?? string.Empty, user.Id);
         var freshRoles = (IReadOnlyList<string>)await users.GetRolesAsync(user).ConfigureAwait(false);
+        // One row per user.updated with the resulting state; role
+        // changes are also surfaced as user.role.changed so a filter
+        // on that event key alone stays meaningful.
+        await audit.WriteAsync(
+            AuditEventTypes.UserUpdated,
+            AuditTargetTypes.User,
+            user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            new
+            {
+                email = user.Email,
+                displayName = user.DisplayName,
+                isDisabled = user.IsDisabled,
+                isOidcProvisioned = user.IsOidcProvisioned,
+                rolesRemoved = toRemove,
+                rolesAdded = toAdd,
+                rolesAfter = freshRoles,
+            },
+            cancellationToken).ConfigureAwait(false);
+        if (toRemove.Length > 0 || toAdd.Length > 0)
+        {
+            await audit.WriteAsync(
+                AuditEventTypes.UserRoleChanged,
+                AuditTargetTypes.User,
+                user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                new { rolesRemoved = toRemove, rolesAdded = toAdd, rolesAfter = freshRoles },
+                cancellationToken).ConfigureAwait(false);
+        }
         return TypedResults.Ok(new AdminUserDto(
             user.Id,
             user.Email ?? string.Empty,
@@ -344,6 +386,7 @@ public static partial class AdminUsersEndpoints
         int id,
         [FromBody] ResetPasswordRequest request,
         UserManager<NiewebUser> users,
+        IAuditLog audit,
         ILogger<AdminUsersMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -385,6 +428,12 @@ public static partial class AdminUsersEndpoints
         _ = await users.UpdateAsync(user).ConfigureAwait(false);
 
         LogPasswordReset(logger, user.Email ?? string.Empty, user.Id);
+        await audit.WriteAsync(
+            AuditEventTypes.UserPasswordReset,
+            AuditTargetTypes.User,
+            user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            new { email = user.Email, mustRotatePassword = user.MustRotatePassword },
+            cancellationToken).ConfigureAwait(false);
         return TypedResults.NoContent();
     }
 

@@ -109,6 +109,7 @@ public static partial class OidcEndpoints
         IJwtTokenIssuer tokenIssuer,
         UserManager<NiewebUser> users,
         IOptionsMonitor<OidcOptions> oidcOptions,
+        Audit.IAuditLog audit,
         ILogger<Marker> logger)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -116,6 +117,7 @@ public static partial class OidcEndpoints
         ArgumentNullException.ThrowIfNull(tokenIssuer);
         ArgumentNullException.ThrowIfNull(users);
         ArgumentNullException.ThrowIfNull(oidcOptions);
+        ArgumentNullException.ThrowIfNull(audit);
         ArgumentNullException.ThrowIfNull(logger);
 
         if (!oidcOptions.CurrentValue.Enabled)
@@ -159,6 +161,29 @@ public static partial class OidcEndpoints
             await context
                 .SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme)
                 .ConfigureAwait(false);
+            // Audit the failed provisioning attempt. The IdP-supplied
+            // subject + email are the only identifiers we have — no
+            // Nieweb user exists yet, so ActorUserId stays null.
+            var attemptedEmail = authResult.Principal.FindFirst("email")?.Value
+                ?? authResult.Principal.FindFirst("preferred_username")?.Value
+                ?? authResult.Principal.FindFirst("upn")?.Value
+                ?? string.Empty;
+            var subject = authResult.Principal.FindFirst("sub")?.Value
+                ?? authResult.Principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? string.Empty;
+            await audit.WriteAsync(
+                Audit.AuditEventTypes.OidcConflict,
+                Audit.AuditTargetTypes.User,
+                subject,
+                actorUserId: null,
+                actorDisplayName: attemptedEmail.Length > 0 ? attemptedEmail : "unknown",
+                details: new
+                {
+                    outcome = result.Outcome.ToString(),
+                    error = result.Error,
+                    attemptedEmail,
+                    loginProvider = "oidc",
+                }).ConfigureAwait(false);
             var reason = Uri.EscapeDataString(result.Outcome.ToString());
             var errorMsg = Uri.EscapeDataString(result.Error ?? "OIDC sign-in failed.");
             context.Response.Redirect(
@@ -180,6 +205,41 @@ public static partial class OidcEndpoints
             LogSignInOk(logger, result.User.Id, result.Outcome.ToString(), result.User.Email ?? string.Empty);
 #pragma warning restore CA1873
         }
+
+        // Audit trail: distinguish first-ever OIDC provisioning from a
+        // returning SSO sign-in (and further split returning-existing
+        // by whether a fresh login binding was attached). Every path
+        // also emits the generic auth.sso.signin.ok row so a filter on
+        // that key alone captures every SSO sign-in.
+        var userIdStr = result.User.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var actorName = result.User.DisplayName;
+        if (result.Outcome == OidcUserProvisioner.ProvisionOutcome.Provisioned)
+        {
+            await audit.WriteAsync(
+                Audit.AuditEventTypes.UserOidcProvisioned,
+                Audit.AuditTargetTypes.User,
+                userIdStr,
+                actorUserId: result.User.Id,
+                actorDisplayName: actorName,
+                details: new
+                {
+                    email = result.User.Email,
+                    displayName = result.User.DisplayName,
+                    role = oidcOptions.CurrentValue.DefaultRole,
+                }).ConfigureAwait(false);
+        }
+        await audit.WriteAsync(
+            Audit.AuditEventTypes.AuthSsoSignInOk,
+            Audit.AuditTargetTypes.Session,
+            userIdStr,
+            actorUserId: result.User.Id,
+            actorDisplayName: actorName,
+            details: new
+            {
+                email = result.User.Email,
+                outcome = result.Outcome.ToString(),
+                roles,
+            }).ConfigureAwait(false);
 
         var safeReturn = NormaliseReturnUrl(returnUrl);
         var expiresIso = issued.ExpiresUtc.ToString("O", CultureInfo.InvariantCulture);

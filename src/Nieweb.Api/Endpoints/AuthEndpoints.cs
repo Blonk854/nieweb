@@ -143,6 +143,7 @@ public static partial class AuthEndpoints
         SignInManager<NiewebUser> signIn,
         UserManager<NiewebUser> users,
         IJwtTokenIssuer tokens,
+        Audit.IAuditLog audit,
         ILogger<LoginRequestMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -153,6 +154,18 @@ public static partial class AuthEndpoints
         {
             // Do not disclose whether the account exists.
             LogUnknownOrDisabled(logger);
+            await audit.WriteAsync(
+                Audit.AuditEventTypes.AuthSignInFailed,
+                Audit.AuditTargetTypes.Session,
+                user?.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "unknown",
+                actorUserId: user?.Id,
+                actorDisplayName: user?.DisplayName ?? request.Email,
+                details: new
+                {
+                    email = request.Email,
+                    reason = user is null ? "unknown-account" : "disabled",
+                },
+                cancellationToken).ConfigureAwait(false);
             return Results.Unauthorized();
         }
 
@@ -161,11 +174,27 @@ public static partial class AuthEndpoints
         if (result.IsLockedOut)
         {
             LogLockedOut(logger, user.Id);
+            await audit.WriteAsync(
+                Audit.AuditEventTypes.AuthSignInFailed,
+                Audit.AuditTargetTypes.Session,
+                user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                actorUserId: user.Id,
+                actorDisplayName: user.DisplayName,
+                details: new { email = user.Email, reason = "locked-out" },
+                cancellationToken).ConfigureAwait(false);
             return Results.Unauthorized();
         }
         if (!result.Succeeded)
         {
             LogBadPassword(logger, user.Id);
+            await audit.WriteAsync(
+                Audit.AuditEventTypes.AuthSignInFailed,
+                Audit.AuditTargetTypes.Session,
+                user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                actorUserId: user.Id,
+                actorDisplayName: user.DisplayName,
+                details: new { email = user.Email, reason = "bad-password" },
+                cancellationToken).ConfigureAwait(false);
             return Results.Unauthorized();
         }
 
@@ -176,6 +205,14 @@ public static partial class AuthEndpoints
         var issued = tokens.Issue(user, (IReadOnlyCollection<string>)roles);
 
         LogGranted(logger, user.Id);
+        await audit.WriteAsync(
+            Audit.AuditEventTypes.AuthSignInOk,
+            Audit.AuditTargetTypes.Session,
+            user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            actorUserId: user.Id,
+            actorDisplayName: user.DisplayName,
+            details: new { email = user.Email, mustRotatePassword = user.MustRotatePassword, roles },
+            cancellationToken).ConfigureAwait(false);
         return Results.Ok(new LoginResponse(
             issued.AccessToken,
             "Bearer",
@@ -210,6 +247,7 @@ public static partial class AuthEndpoints
         [FromBody] ChangePasswordRequest request,
         ClaimsPrincipal principal,
         UserManager<NiewebUser> users,
+        Audit.IAuditLog audit,
         ILogger<LoginRequestMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -247,6 +285,12 @@ public static partial class AuthEndpoints
         _ = await users.UpdateAsync(user).ConfigureAwait(false);
 
         LogPasswordChanged(logger, user.Id);
+        await audit.WriteAsync(
+            Audit.AuditEventTypes.AuthPasswordChanged,
+            Audit.AuditTargetTypes.User,
+            user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            new { email = user.Email },
+            cancellationToken).ConfigureAwait(false);
         return Results.NoContent();
     }
 
