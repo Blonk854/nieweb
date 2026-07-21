@@ -7,6 +7,7 @@
     <Project Path="src/Nieweb.DataSources.Fake/Nieweb.DataSources.Fake.csproj" />
     <Project Path="src/Nieweb.DataSources.Sql/Nieweb.DataSources.Sql.csproj" />
     <Project Path="src/Nieweb.DataSources/Nieweb.DataSources.csproj" />
+    <Project Path="src/Nieweb.Filters/Nieweb.Filters.csproj" />
     <Project Path="src/Nieweb.Identity/Nieweb.Identity.csproj" />
     <Project Path="src/Nieweb.Reports.Common/Nieweb.Reports.Common.csproj" />
     <Project Path="src/Nieweb.Reports/Nieweb.Reports.csproj" />
