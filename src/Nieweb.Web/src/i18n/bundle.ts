@@ -82,4 +82,11 @@ export type TranslationBundle = {
     common: {
         loading: string;
     };
+    table: {
+        columns: string;
+        downloadCsv: string;
+        pageSize: string;
+        noRows: string;
+        rowCount: string;
+    };
 };

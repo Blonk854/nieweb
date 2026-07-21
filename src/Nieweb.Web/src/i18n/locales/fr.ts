@@ -87,4 +87,11 @@ export const fr: TranslationBundle = {
     common: {
         loading: "Chargement…",
     },
+    table: {
+        columns: "Colonnes",
+        downloadCsv: "Télécharger les colonnes visibles (CSV)",
+        pageSize: "Lignes par page",
+        noRows: "Aucune ligne à afficher.",
+        rowCount: "{{count}} lignes",
+    },
 };

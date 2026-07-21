@@ -10,7 +10,6 @@ import {
     MultiSelect,
     Select,
     Stack,
-    Table,
     Text,
     Title,
 } from "@mantine/core";
@@ -30,10 +29,13 @@ import {
 import {
     panelYieldExportUrl,
     runPanelYieldReport,
+    type PanelYieldByMachineRow,
     type PanelYieldResult,
 } from "../api/reports";
 import type { PanelYieldSearch } from "./panel-yield.search";
 import { pickDefaultSourceId } from "./panel-yield.search";
+import { DataTable, type Column } from "../components/DataTable";
+import { downloadCsv, rowsToCsv } from "../components/csvExport";
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when a
 // user actually runs a report with per-machine rows.
@@ -475,32 +477,7 @@ function ResultsCard(props: {
                                     overallFpyPercent={data.overall.fpyPercent}
                                 />
                             </Suspense>
-                            <Table striped withTableBorder>
-                            <Table.Thead>
-                                <Table.Tr>
-                                    <Table.Th>{t("panelYield.results.machineName")}</Table.Th>
-                                    <Table.Th>{t("panelYield.results.totalPanels")}</Table.Th>
-                                    <Table.Th>{t("panelYield.results.inspectedPanels")}</Table.Th>
-                                    <Table.Th>{t("panelYield.results.goodPanels")}</Table.Th>
-                                    <Table.Th>{t("panelYield.results.faultyPanels")}</Table.Th>
-                                    <Table.Th>{t("panelYield.results.notInspectedPanels")}</Table.Th>
-                                    <Table.Th>{t("panelYield.results.fpyPercent")}</Table.Th>
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {data.byMachine.map((row) => (
-                                    <Table.Tr key={row.machineId}>
-                                        <Table.Td>{row.machineName ?? `#${row.machineId}`}</Table.Td>
-                                        <Table.Td>{row.kpi.totalPanels}</Table.Td>
-                                        <Table.Td>{row.kpi.inspectedPanels}</Table.Td>
-                                        <Table.Td>{row.kpi.goodPanels}</Table.Td>
-                                        <Table.Td>{row.kpi.faultyPanels}</Table.Td>
-                                        <Table.Td>{row.kpi.notInspectedPanels}</Table.Td>
-                                        <Table.Td>{row.kpi.fpyPercent.toFixed(2)}</Table.Td>
-                                    </Table.Tr>
-                                ))}
-                            </Table.Tbody>
-                        </Table>
+                            <PanelYieldTable rows={data.byMachine} />
                         </>
                     )}
                 </Stack>
@@ -536,4 +513,80 @@ function formatWindow(startIso: string, endIso: string): string {
         .toISOString()
         .slice(0, 16)
         .replace("T", " ")} UTC`;
+}
+
+/**
+ * Per-machine results table (F6). Uses the shared DataTable for
+ * sorting, pagination, column visibility and client-side CSV export.
+ * The download here contains ONLY the currently-visible columns and
+ * respects the current sort - orthogonal to the server-side
+ * exportCsv / exportXlsx anchors above the form which always dump the
+ * full raw report.
+ */
+function PanelYieldTable({ rows }: { rows: PanelYieldByMachineRow[] }) {
+    const { t } = useTranslation();
+    const columns = useMemo<Column<PanelYieldByMachineRow>[]>(
+        () => [
+            {
+                key: "machineName",
+                header: t("panelYield.results.machineName"),
+                accessor: (r) => r.machineName ?? `#${r.machineId}`,
+                hideable: false,
+            },
+            {
+                key: "totalPanels",
+                header: t("panelYield.results.totalPanels"),
+                accessor: (r) => r.kpi.totalPanels,
+                align: "right",
+            },
+            {
+                key: "inspectedPanels",
+                header: t("panelYield.results.inspectedPanels"),
+                accessor: (r) => r.kpi.inspectedPanels,
+                align: "right",
+            },
+            {
+                key: "goodPanels",
+                header: t("panelYield.results.goodPanels"),
+                accessor: (r) => r.kpi.goodPanels,
+                align: "right",
+            },
+            {
+                key: "faultyPanels",
+                header: t("panelYield.results.faultyPanels"),
+                accessor: (r) => r.kpi.faultyPanels,
+                align: "right",
+            },
+            {
+                key: "notInspectedPanels",
+                header: t("panelYield.results.notInspectedPanels"),
+                accessor: (r) => r.kpi.notInspectedPanels,
+                align: "right",
+            },
+            {
+                key: "fpyPercent",
+                header: t("panelYield.results.fpyPercent"),
+                accessor: (r) => r.kpi.fpyPercent,
+                formatter: (v) => (typeof v === "number" ? v.toFixed(2) : ""),
+                csvFormatter: (v) => (typeof v === "number" ? v.toFixed(2) : ""),
+                align: "right",
+            },
+        ],
+        [t],
+    );
+
+    return (
+        <DataTable
+            columns={columns}
+            rows={rows}
+            rowKey={(r) => r.machineId}
+            initialSort={{ key: "fpyPercent", direction: "asc" }}
+            onExportCsv={(visibleRows, visibleColumns) => {
+                downloadCsv(
+                    `panel-yield-${new Date().toISOString().slice(0, 10)}.csv`,
+                    rowsToCsv(visibleRows, visibleColumns),
+                );
+            }}
+        />
+    );
 }

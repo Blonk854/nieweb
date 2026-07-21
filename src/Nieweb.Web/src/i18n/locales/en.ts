@@ -90,4 +90,11 @@ export const en: TranslationBundle = {
     common: {
         loading: "Loading…",
     },
+    table: {
+        columns: "Columns",
+        downloadCsv: "Download visible as CSV",
+        pageSize: "Rows per page",
+        noRows: "No rows to display.",
+        rowCount: "{{count}} rows",
+    },
 };
