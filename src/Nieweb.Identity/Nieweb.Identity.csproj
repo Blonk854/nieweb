@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nieweb.Data\Nieweb.Data.csproj" />
+  </ItemGroup>
+
+</Project>

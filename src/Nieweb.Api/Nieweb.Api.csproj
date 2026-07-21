@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nieweb.Data\Nieweb.Data.csproj" />
+    <ProjectReference Include="..\Nieweb.Identity\Nieweb.Identity.csproj" />
+    <ProjectReference Include="..\Nieweb.Reports\Nieweb.Reports.csproj" />
+    <ProjectReference Include="..\Nieweb.DataSources.Sql\Nieweb.DataSources.Sql.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Nieweb.Api/Nieweb.Api.csproj" />
+    <Project Path="src/Nieweb.Data/Nieweb.Data.csproj" />
     <Project Path="src/Nieweb.DataSources.Sql/Nieweb.DataSources.Sql.csproj" />
     <Project Path="src/Nieweb.DataSources/Nieweb.DataSources.csproj" />
+    <Project Path="src/Nieweb.Identity/Nieweb.Identity.csproj" />
+    <Project Path="src/Nieweb.Reports/Nieweb.Reports.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/db-smoke/Nieweb.DbSmoke.csproj" />
