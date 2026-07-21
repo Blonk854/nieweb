@@ -183,6 +183,25 @@ try
     // read-only discipline documented in copilot-instructions.md.
     builder.Services.AddNiewebAoiSources(builder.Configuration);
 
+    // Health checks for orchestration probes / load-balancers:
+    //   /health/live  -> process is alive (always healthy while
+    //                    the pipeline is running; no dependencies).
+    //   /health/ready -> app is ready to serve traffic (self + the
+    //                    Nieweb internal DB responded).
+    //   /health/db    -> targeted probe of the Nieweb internal DB
+    //                    only. We deliberately DO NOT health-check
+    //                    the AOI Superviseur DBs from here to
+    //                    avoid adding periodic queries onto the
+    //                    SMT-line critical-path server.
+    builder.Services.AddHealthChecks()
+        .AddCheck(
+            "self",
+            () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy(),
+            tags: ["live", "ready"])
+        .AddDbContextCheck<NiewebDbContext>(
+            name: "nieweb-db",
+            tags: ["ready", "db"]);
+
     var app = builder.Build();
 
     app.UseSerilogRequestLogging();
@@ -210,6 +229,7 @@ try
     app.MapSourceEndpoints();
     app.MapReportEndpoints();
     app.MapSavedViewEndpoints();
+    app.MapHealthEndpoints();
 
     // SPA fallback: TanStack Router uses HTML5 history, so a hard
     // refresh on /app/report/panel-yield needs to serve the SPA shell
