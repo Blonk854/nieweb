@@ -7,7 +7,7 @@ namespace Nieweb.DataSources.Sql;
 /// mandated by <c>.github/copilot-instructions.md</c>. Any SQL text that
 /// reaches the wire passes through <see cref="EnsureReadOnly"/> first.
 /// </summary>
-internal static partial class SqlGuards
+public static partial class SqlGuards
 {
     /// <summary>
     /// Prelude prepended to every batch. Read-uncommitted so we neither block

@@ -11,6 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 using Nieweb.Api.Auth;
 using Nieweb.Api.Endpoints;
 using Nieweb.Data;
+using Nieweb.DataSources.Sql;
 using Nieweb.Identity.DependencyInjection;
 
 using OpenTelemetry.Metrics;
@@ -156,6 +157,14 @@ try
             };
         });
     builder.Services.AddAuthorization();
+
+    // AOI Superviseur read-only data sources. Only the sources whose
+    // credentials are populated in Nieweb:Aoi:{Postreflow,Prereflow}
+    // are registered; missing credentials are treated as "not
+    // available on this host" (developer machines that only see one
+    // DB, CI hosts that see none). Every wire query enforces the
+    // read-only discipline documented in copilot-instructions.md.
+    builder.Services.AddNiewebAoiSources(builder.Configuration);
 
     var app = builder.Build();
 
