@@ -8,6 +8,7 @@
     <Project Path="src/Nieweb.DataSources.Sql/Nieweb.DataSources.Sql.csproj" />
     <Project Path="src/Nieweb.DataSources/Nieweb.DataSources.csproj" />
     <Project Path="src/Nieweb.Identity/Nieweb.Identity.csproj" />
+    <Project Path="src/Nieweb.Reports.Common/Nieweb.Reports.Common.csproj" />
     <Project Path="src/Nieweb.Reports/Nieweb.Reports.csproj" />
   </Folder>
   <Folder Name="/tools/">
