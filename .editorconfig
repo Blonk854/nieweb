@@ -144,3 +144,16 @@ dotnet_naming_style.interface_pascal.capitalization = pascal_case
 dotnet_diagnostic.IDE0005.severity = warning   # Remove unnecessary usings
 dotnet_diagnostic.IDE0055.severity = suggestion # Fix formatting (dotnet format handles it)
 dotnet_diagnostic.IDE0161.severity = warning   # Convert to file-scoped namespace
+
+# ---------- Generated code exemptions ----------
+# EF Core migration files and other generated code use classic namespaces,
+# unused usings, and inline arrays. Mark them generated so analyzers stay
+# quiet - hand-written code stays strict.
+[**/Migrations/*.cs]
+generated_code = true
+
+[**/Migrations/*.Designer.cs]
+generated_code = true
+
+[**/NiewebDbContextModelSnapshot.cs]
+generated_code = true

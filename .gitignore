@@ -76,3 +76,9 @@ secrets.yaml
 credentials.*
 appsettings.Development.json
 appsettings.Local.json
+
+# ─── Local dev databases ───
+# SQLite dev/design-time DBs live in the workspace but are never tracked.
+*.db
+*.db-shm
+*.db-wal
