@@ -2,6 +2,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 
+using Microsoft.EntityFrameworkCore;
+
+using Nieweb.Data;
+
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -54,6 +58,37 @@ try
             .AddRuntimeInstrumentation()
             .AddMeter(NiewebDiagnostics.MeterName)
             .AddConsoleExporter());
+
+    // Nieweb's internal database (users, roles, saved views, audit log).
+    // The provider is selected by Nieweb:Db:Provider ("Sqlite" or "Npgsql");
+    // MigrationsAssembly is pinned per provider so EF picks up only the
+    // matching migration set from Nieweb.Data.Migrations.{Sqlite,Npgsql}.
+    var dbProvider = builder.Configuration["Nieweb:Db:Provider"] ?? "Sqlite";
+    var dbConnection = builder.Configuration.GetConnectionString("NiewebDb")
+        ?? throw new InvalidOperationException(
+            "ConnectionStrings:NiewebDb is not configured. Set it in appsettings, "
+            + "user secrets, or the NIEWEB__CONNECTIONSTRINGS__NIEWEBDB env var.");
+
+    builder.Services.AddDbContext<NiewebDbContext>(options =>
+    {
+        if (string.Equals(dbProvider, "Npgsql", StringComparison.OrdinalIgnoreCase))
+        {
+            options.UseNpgsql(
+                dbConnection,
+                b => b.MigrationsAssembly("Nieweb.Data.Migrations.Npgsql"));
+        }
+        else if (string.Equals(dbProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            options.UseSqlite(
+                dbConnection,
+                b => b.MigrationsAssembly("Nieweb.Data.Migrations.Sqlite"));
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                $"Unknown Nieweb:Db:Provider '{dbProvider}'. Use 'Sqlite' or 'Npgsql'.");
+        }
+    });
 
     var app = builder.Build();
 

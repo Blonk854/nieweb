@@ -2,6 +2,8 @@
   <Folder Name="/src/">
     <Project Path="src/Nieweb.Api/Nieweb.Api.csproj" />
     <Project Path="src/Nieweb.Data/Nieweb.Data.csproj" />
+    <Project Path="src/Nieweb.Data.Migrations.Npgsql/Nieweb.Data.Migrations.Npgsql.csproj" />
+    <Project Path="src/Nieweb.Data.Migrations.Sqlite/Nieweb.Data.Migrations.Sqlite.csproj" />
     <Project Path="src/Nieweb.DataSources.Sql/Nieweb.DataSources.Sql.csproj" />
     <Project Path="src/Nieweb.DataSources/Nieweb.DataSources.csproj" />
     <Project Path="src/Nieweb.Identity/Nieweb.Identity.csproj" />

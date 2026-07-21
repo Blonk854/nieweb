@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nieweb.Data\Nieweb.Data.csproj" />
+    <ProjectReference Include="..\Nieweb.Data.Migrations.Npgsql\Nieweb.Data.Migrations.Npgsql.csproj" />
+    <ProjectReference Include="..\Nieweb.Data.Migrations.Sqlite\Nieweb.Data.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\Nieweb.Identity\Nieweb.Identity.csproj" />
     <ProjectReference Include="..\Nieweb.Reports\Nieweb.Reports.csproj" />
     <ProjectReference Include="..\Nieweb.DataSources.Sql\Nieweb.DataSources.Sql.csproj" />
