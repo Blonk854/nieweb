@@ -54,7 +54,18 @@ public static class IdentityServiceCollectionExtensions
                 options.User.RequireUniqueEmail = true;
             })
             .AddRoles<NiewebRole>()
-            .AddEntityFrameworkStores<NiewebDbContext>();
+            .AddEntityFrameworkStores<NiewebDbContext>()
+            // SignInManager is required for API login flows that record
+            // failed-attempt counts and apply lockout via
+            // CheckPasswordSignInAsync. AddIdentityCore does not register
+            // it by default because it depends on the ASP.NET Core
+            // shared framework (FrameworkReference).
+            .AddSignInManager();
+
+        // SignInManager pulls the current HTTP context to attach the
+        // authenticated principal; IHttpContextAccessor is not
+        // registered by default in non-MVC hosts.
+        services.AddHttpContextAccessor();
 
         // AddIdentityCore registers PasswordHasher<NiewebUser> as Scoped
         // via TryAddScoped; swap in the Argon2id implementation.

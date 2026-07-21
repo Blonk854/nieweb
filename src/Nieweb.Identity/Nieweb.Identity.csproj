@@ -1,6 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!--
+      SignInManager and its DI extensions live in the shared framework
+      assembly Microsoft.AspNetCore.Identity, not in the Identity.Core
+      NuGet package. FrameworkReference gives this class library access
+      to those types without turning it into an Sdk.Web project.
+    -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Nieweb.Data\Nieweb.Data.csproj" />
   </ItemGroup>
 

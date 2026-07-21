@@ -82,3 +82,6 @@ appsettings.Local.json
 *.db
 *.db-shm
 *.db-wal
+
+# Transient smoke-test scratch files
+.smoke.*

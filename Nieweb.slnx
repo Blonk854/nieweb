@@ -14,5 +14,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nieweb.Identity.Tests/Nieweb.Identity.Tests.csproj" />
+    <Project Path="tests/Nieweb.Api.Tests/Nieweb.Api.Tests.csproj" />
   </Folder>
 </Solution>

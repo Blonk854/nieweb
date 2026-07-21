@@ -1,9 +1,15 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Text;
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
+using Nieweb.Api.Auth;
+using Nieweb.Api.Endpoints;
 using Nieweb.Data;
 using Nieweb.Identity.DependencyInjection;
 
@@ -107,9 +113,58 @@ try
     // section Nieweb:Identity - see appsettings.json for defaults.
     builder.Services.AddNiewebIdentity(builder.Configuration);
 
+    // JWT bearer authentication for /auth/* and every future
+    // [Authorize]-protected endpoint. Validation parameters are wired
+    // through the options pipeline so a test host (or a future secret
+    // rotation) that overrides Nieweb:Auth:Jwt after container
+    // construction still takes effect.
+    var jwtConfigSection = builder.Configuration.GetSection("Nieweb:Auth:Jwt");
+    builder.Services.Configure<JwtOptions>(jwtConfigSection);
+
+    builder.Services.AddSingleton(TimeProvider.System);
+    builder.Services.AddSingleton<IJwtTokenIssuer, JwtTokenIssuer>();
+
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer();
+
+    builder.Services
+        .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+        .Configure<IOptionsMonitor<JwtOptions>>((bearer, jwt) =>
+        {
+            var opts = jwt.CurrentValue;
+            if (string.IsNullOrWhiteSpace(opts.SigningKey)
+                || Encoding.UTF8.GetByteCount(opts.SigningKey) < 32)
+            {
+                throw new InvalidOperationException(
+                    "Nieweb:Auth:Jwt:SigningKey must be at least 32 UTF-8 bytes. "
+                    + "Override it via user-secrets, an environment variable, or a "
+                    + "secret store - never commit a production key to source control.");
+            }
+            bearer.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = opts.Issuer,
+                ValidateAudience = true,
+                ValidAudience = opts.Audience,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(opts.SigningKey)),
+                ValidateLifetime = true,
+                ClockSkew = opts.ClockSkew,
+                NameClaimType = System.Security.Claims.ClaimTypes.Name,
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+            };
+        });
+    builder.Services.AddAuthorization();
+
     var app = builder.Build();
 
     app.UseSerilogRequestLogging();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapAuthEndpoints();
 
     app.Run();
 }
@@ -134,3 +189,13 @@ internal static class NiewebDiagnostics
     public const string MeterName = "Nieweb.Api";
     public static readonly ActivitySource ActivitySource = new(ActivitySourceName, "1.0.0");
 }
+
+/// <summary>
+/// Top-level Program placeholder. Exposed so integration tests can use
+/// <c>WebApplicationFactory&lt;Program&gt;</c> against the real host.
+/// </summary>
+#pragma warning disable CA1050 // Declare types in namespaces - top-level Program has no namespace by design.
+public partial class Program
+{
+}
+#pragma warning restore CA1050
