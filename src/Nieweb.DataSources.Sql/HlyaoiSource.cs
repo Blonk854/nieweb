@@ -105,9 +105,7 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
         throw new NotImplementedException("QueryCardsAsync will be implemented alongside the first CARDS-consuming report.");
     }
 
-    public override Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct)
-    {
-        ValidateWindow(query);
-        throw new NotImplementedException("QueryTestedObjectsAsync will be implemented alongside the first TESTED_OBJECT-consuming report.");
-    }
+    // QueryTestedObjectsAsync uses the shared base-class implementation
+    // (BuildTestedObjectsQuery + MapTestedObjectRow) — v5.0 exposes
+    // Error_Table_AR so no HasTestedObjectErrorTableAr override is needed.
 }

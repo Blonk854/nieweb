@@ -30,6 +30,16 @@ public interface IAoiSource
     /// </summary>
     IAsyncEnumerable<CardRow> StreamCardsAsync(CardQuery query, CancellationToken ct);
 
+    /// <summary>
+    /// Stream all matching TESTED_OBJECT rows for component-level
+    /// aggregations (DPMO table, Pareto chart, deviation trend). Rows
+    /// carry <c>MachineId</c>, <c>ProductId</c>, and
+    /// <c>PanelNumericDate</c> from the parent panel plus reference-data
+    /// strings (<c>Topology</c>, <c>PartNumberName</c>, <c>JedecName</c>)
+    /// so the report layer can group without extra queries.
+    /// </summary>
+    IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct);
+
     Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
 
     Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct);

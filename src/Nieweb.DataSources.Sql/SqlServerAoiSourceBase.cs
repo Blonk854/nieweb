@@ -325,7 +325,93 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         }
     }
 
-    public abstract Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct);
+    /// <summary>
+    /// True when <c>dbo.TESTED_OBJECT</c> exposes the
+    /// <c>Error_Table_AR</c> column (post-review defect field). Set by
+    /// v5.0 sources (HLYAOI); overridden to <c>false</c> on v4.3.1
+    /// sources (MEAOI) where the column does not exist and
+    /// <see cref="TestedObjectRow.ErrorTableAr"/> is populated from
+    /// <c>Error_Table</c> to satisfy the "missing-AR means no review
+    /// yet" contract documented on the DTO.
+    /// </summary>
+    protected virtual bool HasTestedObjectErrorTableAr => true;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Shared implementation: joins <c>TESTED_OBJECT</c> to <c>CARDS</c>
+    /// (for <c>Card_Number</c>) and <c>PANELS</c> (for
+    /// <c>Machine_Id</c> / <c>Product_Id</c> / <c>Panel_Numeric_Date</c>
+    /// and for the mandatory <c>Panel_Numeric_Date</c> window filter),
+    /// and left-joins <c>PART_NUMBER</c> + <c>JEDEC</c> for the
+    /// reference-data labels. Ordering matches
+    /// <see cref="TestedObjectCursor"/>:
+    /// (<c>Panel_Id</c>, <c>Card_Number</c>, <c>Tested_Object_Id</c>).
+    /// The window filter and the <c>IS_LAST_INSPECTION</c> guard both
+    /// apply to <c>PANELS</c> — mirroring
+    /// <see cref="QueryPanelsAsync"/> so the two reports agree on
+    /// scope.
+    /// </remarks>
+    public virtual async Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(
+        TestedObjectQuery query, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateWindow(query);
+        var pageSize = ValidatePageSize(query.PageSize);
+
+        var (sql, bind) = BuildTestedObjectsQuery(query, pageSize + 1);
+
+        var rows = new List<TestedObjectRow>(pageSize + 1);
+        await foreach (var row in ExecuteQueryAsync(sql, bind, MapTestedObjectRow, ct).ConfigureAwait(false))
+        {
+            rows.Add(row);
+        }
+
+        var hasMore = rows.Count > pageSize;
+        if (hasMore)
+        {
+            rows.RemoveAt(rows.Count - 1);
+        }
+
+        TestedObjectCursor? next = hasMore && rows.Count > 0
+            ? new TestedObjectCursor(
+                LastPanelId: checked((int)rows[^1].PanelId),
+                LastCardIdOnPanel: rows[^1].CardIdOnPanel,
+                LastObjectId: rows[^1].ObjectId)
+            : null;
+
+        return new Page<TestedObjectRow, TestedObjectCursor>(rows, next, hasMore);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Default implementation loops <see cref="QueryTestedObjectsAsync"/>
+    /// keyset pages. Adapters that have a cheaper streaming path
+    /// (e.g. sqlclient <c>ExecuteReader</c> against a joined query)
+    /// override this.
+    /// </remarks>
+    public virtual async IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(
+        TestedObjectQuery query, [EnumeratorCancellation] CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateWindow(query);
+        _ = ValidatePageSize(query.PageSize);
+
+        var current = query;
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var page = await QueryTestedObjectsAsync(current, ct).ConfigureAwait(false);
+            foreach (var row in page.Rows)
+            {
+                yield return row;
+            }
+            if (!page.HasMore || page.NextCursor is not TestedObjectCursor next)
+            {
+                yield break;
+            }
+            current = current with { Cursor = next };
+        }
+    }
 
     public abstract Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
 
@@ -505,4 +591,124 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         OperatorId: r.IsDBNull(13) ? null : r.GetInt32(13),
         ProductId: r.GetInt32(14),
         RecipeId: r.GetInt32(15));
+
+    // ---- Shared TESTED_OBJECT query builder --------------------------------
+
+    private (string Sql, Action<SqlParameterCollection> Bind) BuildTestedObjectsQuery(
+        TestedObjectQuery q, int topCount)
+    {
+        EnsureUnderInListCap(q.MachineIds, nameof(q.MachineIds));
+        EnsureUnderInListCap(q.ProductIds, nameof(q.ProductIds));
+        EnsureUnderInListCap(q.RecipeIds, nameof(q.RecipeIds));
+
+        var startEpoch = checked((int)q.Window.StartEpochSeconds);
+        var endEpoch = checked((int)q.Window.EndEpochSecondsExclusive);
+
+        // Error_Table_AR only exists on v5.0 sources. On v4.3.1 the DTO
+        // contract is "mirror Error_Table into ErrorTableAr" — we do
+        // that in MapTestedObjectRow by reading column 4 in both slots.
+        var arColumn = HasTestedObjectErrorTableAr
+            ? "t.Error_Table_AR"
+            : "t.Error_Table";
+
+        var sb = new StringBuilder(1024);
+        sb.Append("SELECT TOP (@topCount)").AppendLine();
+        sb.Append("  p.Panel_Id, c.Card_Number, t.Tested_Object_Id,").AppendLine();
+        sb.Append("  t.Object_Type_Id, t.Error_Table, ").Append(arColumn).Append(',').AppendLine();
+        sb.Append("  t.Topology, p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date,").AppendLine();
+        sb.Append("  pn.Part_Number, j.Jedec_Name").AppendLine();
+        sb.Append(
+            """
+            FROM dbo.TESTED_OBJECT t WITH (NOLOCK)
+            JOIN dbo.CARDS  c WITH (NOLOCK) ON c.Card_Id  = t.Card_Id
+            JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
+            LEFT JOIN dbo.PART_NUMBER pn WITH (NOLOCK) ON pn.Part_Number_Id = t.Part_Number_Id
+            LEFT JOIN dbo.JEDEC       j  WITH (NOLOCK) ON j.Jedec_Id       = pn.Jedec_Id
+            WHERE p.Panel_Numeric_Date >= @startEpoch
+              AND p.Panel_Numeric_Date <  @endEpoch
+            """);
+
+        // Reuse the panel-level IS_LAST_INSPECTION guard so DPMO/FPY
+        // over the same window agree on which panels are in scope.
+        var useLastInsp =
+            Descriptor.Caps.HasFlag(Capabilities.IsLastInspectionFilter);
+        if (useLastInsp)
+        {
+            sb.AppendLine().Append("  AND p.IS_LAST_INSPECTION = 1");
+        }
+
+        AppendInClause(sb, "p.Machine_Id", "@m", q.MachineIds);
+        AppendInClause(sb, "p.Product_Id", "@p", q.ProductIds);
+        AppendInClause(sb, "p.Recipe_Id",  "@r", q.RecipeIds);
+
+        if (q.Cursor is not null)
+        {
+            // Keyset paging on (Panel_Id, Card_Number, Tested_Object_Id).
+            // Tested_Object_Id is BIGINT on v5.0 so bind as @cursorObj BIGINT.
+            sb.AppendLine().Append(
+                """
+                  AND (p.Panel_Id > @cursorPanel
+                    OR (p.Panel_Id = @cursorPanel AND c.Card_Number > @cursorCard)
+                    OR (p.Panel_Id = @cursorPanel AND c.Card_Number = @cursorCard AND t.Tested_Object_Id > @cursorObj))
+                """);
+        }
+
+        sb.AppendLine().Append("ORDER BY p.Panel_Id, c.Card_Number, t.Tested_Object_Id;");
+
+        void Bind(SqlParameterCollection p)
+        {
+            p.Add(new SqlParameter("@topCount", SqlDbType.Int) { Value = topCount });
+            p.Add(new SqlParameter("@startEpoch", SqlDbType.Int) { Value = startEpoch });
+            p.Add(new SqlParameter("@endEpoch", SqlDbType.Int) { Value = endEpoch });
+
+            BindInParameters(p, "@m", q.MachineIds);
+            BindInParameters(p, "@p", q.ProductIds);
+            BindInParameters(p, "@r", q.RecipeIds);
+
+            if (q.Cursor is TestedObjectCursor c)
+            {
+                p.Add(new SqlParameter("@cursorPanel", SqlDbType.Int) { Value = c.LastPanelId });
+                p.Add(new SqlParameter("@cursorCard", SqlDbType.Int) { Value = c.LastCardIdOnPanel });
+                p.Add(new SqlParameter("@cursorObj", SqlDbType.BigInt) { Value = (long)c.LastObjectId });
+            }
+        }
+
+        return (sb.ToString(), Bind);
+    }
+
+    /// <summary>
+    /// Map a row from <see cref="BuildTestedObjectsQuery"/>. Column
+    /// order is fixed by the SELECT list; when the source lacks
+    /// <c>Error_Table_AR</c> the builder repeats <c>Error_Table</c> in
+    /// slot 5, so this mapper reads slot 5 uniformly.
+    /// </summary>
+    private static TestedObjectRow MapTestedObjectRow(SqlDataReader r)
+    {
+        // Column 2 is TESTED_OBJECT.Tested_Object_Id — BIGINT on v5.0,
+        // INT on v4.3.1. GetInt64 handles both after SQL Server's
+        // implicit widening. We then narrow (checked) to match the
+        // current int-typed DTO / cursor; overflow throws instead of
+        // silently truncating.
+        var testedObjectId = checked((int)r.GetInt64(2));
+
+        return new TestedObjectRow(
+            PanelId: r.GetInt32(0),
+            CardIdOnPanel: r.GetInt32(1),
+            ObjectId: testedObjectId,
+            ObjectTypeId: r.GetInt32(3),
+            ErrorTable: r.GetInt64(4),
+            ErrorTableAr: r.GetInt64(5),
+            // Object-level Status is not a physical column on
+            // TESTED_OBJECT — derive it from Error_Table_AR
+            // (0 = OK, 1 = at least one post-review defect) so
+            // report code that inspects Status behaves the same for
+            // both schemas.
+            Status: r.GetInt64(5) != 0 ? 1 : 0,
+            MachineId: r.GetInt32(7),
+            ProductId: r.GetInt32(8),
+            PanelNumericDate: r.GetInt32(9),
+            Topology: r.IsDBNull(6) ? null : r.GetString(6),
+            PartNumberName: r.IsDBNull(10) ? null : r.GetString(10),
+            JedecName: r.IsDBNull(11) ? null : r.GetString(11));
+    }
 }

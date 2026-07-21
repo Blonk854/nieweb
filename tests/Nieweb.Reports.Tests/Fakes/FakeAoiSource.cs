@@ -29,6 +29,16 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public IReadOnlyList<Product> SeededProducts { get; init; } = [];
 
+    /// <summary>
+    /// Tested-object rows used by component-level report tests (DPMO
+    /// table, Pareto chart). Rows are filtered on
+    /// <c>TestedObjectQuery.Window</c> via
+    /// <see cref="TestedObjectRow.PanelNumericDate"/> and on the
+    /// standard <see cref="BaseQuery.MachineIds"/> /
+    /// <see cref="BaseQuery.ProductIds"/> masks.
+    /// </summary>
+    public IReadOnlyList<TestedObjectRow> SeededTestedObjects { get; init; } = [];
+
     public Task<DateTime?> GetLatestPanelUtcAsync(CancellationToken ct)
         => Task.FromResult<DateTime?>(null);
 
@@ -99,6 +109,35 @@ internal sealed class FakeAoiSource : IAoiSource
                 continue;
             }
             yield return card;
+            await Task.Yield();
+        }
+    }
+
+    public async IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(
+        TestedObjectQuery query,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        foreach (var obj in SeededTestedObjects)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (obj.PanelNumericDate < query.Window.StartEpochSeconds)
+            {
+                continue;
+            }
+            if (obj.PanelNumericDate >= query.Window.EndEpochSecondsExclusive)
+            {
+                continue;
+            }
+            if (query.MachineIds is { Count: > 0 } && !query.MachineIds.Contains(obj.MachineId))
+            {
+                continue;
+            }
+            if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(obj.ProductId))
+            {
+                continue;
+            }
+            yield return obj;
             await Task.Yield();
         }
     }

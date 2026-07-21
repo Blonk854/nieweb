@@ -1,0 +1,73 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "axis": "Defect",
+  "numerator": "Real",
+  "opportunity": "All",
+  "weight": "Count",
+  "appliedFilters": {
+    "machineIds": [],
+    "productIds": [],
+    "recipeIds": [],
+    "defectBits": [],
+    "topologies": [],
+    "partNumbers": [],
+    "jedecNames": []
+  },
+  "overall": {
+    "testedObjectCount": 26,
+    "opportunityCount": 26,
+    "defectBitCount": 11,
+    "dpmoPpm": 423076.92307692306
+  },
+  "rows": [
+    {
+      "groupKey": "1",
+      "groupName": "Object missing",
+      "defectCount": 6,
+      "weightedScore": 6,
+      "opportunityCount": 26,
+      "opportunitySharePercent": 100,
+      "dpmoPpm": 230769.23076923078,
+      "defectSharePercent": 54.54545454545455,
+      "cumulativePercent": 54.54545454545455,
+      "isVitalFew": true
+    },
+    {
+      "groupKey": "2",
+      "groupName": "Polarity error",
+      "defectCount": 3,
+      "weightedScore": 3,
+      "opportunityCount": 26,
+      "opportunitySharePercent": 100,
+      "dpmoPpm": 115384.61538461539,
+      "defectSharePercent": 27.272727272727273,
+      "cumulativePercent": 81.81818181818181,
+      "isVitalFew": true
+    },
+    {
+      "groupKey": "3",
+      "groupName": "Solder joint defect",
+      "defectCount": 2,
+      "weightedScore": 2,
+      "opportunityCount": 26,
+      "opportunitySharePercent": 100,
+      "dpmoPpm": 76923.07692307692,
+      "defectSharePercent": 18.181818181818183,
+      "cumulativePercent": 100,
+      "isVitalFew": false
+    }
+  ],
+  "othersBucket": null
+}

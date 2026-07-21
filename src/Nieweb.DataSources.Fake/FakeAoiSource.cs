@@ -135,6 +135,20 @@ public sealed class FakeAoiSource : IAoiSource
         }
     }
 
+    // The E2E fixture doesn't seed tested-object rows; component-level
+    // reports (DPMO, Pareto) fall back to an empty result on this
+    // source. Real integration tests bind against SQL adapters or the
+    // seeded fakes in Nieweb.Reports.Tests.
+    public async IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(
+        TestedObjectQuery query,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ct.ThrowIfCancellationRequested();
+        await Task.CompletedTask.ConfigureAwait(false);
+        yield break;
+    }
+
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(_machines);
 

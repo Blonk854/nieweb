@@ -1,0 +1,36 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "axis": "Product",
+  "numerator": "Real",
+  "opportunity": "All",
+  "weight": "Count",
+  "appliedFilters": {
+    "machineIds": [],
+    "productIds": [],
+    "recipeIds": [],
+    "defectBits": [],
+    "topologies": [],
+    "partNumbers": [],
+    "jedecNames": []
+  },
+  "overall": {
+    "testedObjectCount": 0,
+    "opportunityCount": 0,
+    "defectBitCount": 0,
+    "dpmoPpm": 0
+  },
+  "rows": [],
+  "othersBucket": null
+}

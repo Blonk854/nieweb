@@ -97,6 +97,20 @@ internal sealed class FakeAoiSource : IAoiSource
         }
     }
 
+    public IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        return EmptyAsync(ct);
+
+        static async IAsyncEnumerable<TestedObjectRow> EmptyAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken innerCt)
+        {
+            innerCt.ThrowIfCancellationRequested();
+            await Task.CompletedTask.ConfigureAwait(false);
+            yield break;
+        }
+    }
+
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(SeededMachines);
 

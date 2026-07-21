@@ -1,0 +1,46 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "groupBy": "Defect",
+  "numerator": "Aoi",
+  "opportunity": "All",
+  "overall": {
+    "testedObjectCount": 2,
+    "opportunityCount": 2,
+    "defectBitCount": 3,
+    "dpmoPpm": 1500000
+  },
+  "rows": [
+    {
+      "groupKey": "1",
+      "groupName": "Object missing",
+      "kpi": {
+        "testedObjectCount": 2,
+        "opportunityCount": 2,
+        "defectBitCount": 2,
+        "dpmoPpm": 1000000
+      }
+    },
+    {
+      "groupKey": "2",
+      "groupName": "Polarity error",
+      "kpi": {
+        "testedObjectCount": 2,
+        "opportunityCount": 2,
+        "defectBitCount": 1,
+        "dpmoPpm": 500000
+      }
+    }
+  ]
+}

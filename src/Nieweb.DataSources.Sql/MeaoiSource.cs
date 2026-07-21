@@ -101,9 +101,16 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
         throw new NotImplementedException("QueryCardsAsync will be implemented alongside the first CARDS-consuming report.");
     }
 
-    public override Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct)
-    {
-        ValidateWindow(query);
-        throw new NotImplementedException("QueryTestedObjectsAsync will be implemented alongside the first TESTED_OBJECT-consuming report.");
-    }
+    /// <summary>
+    /// v4.3.1 TESTED_OBJECT lacks <c>Error_Table_AR</c> — the shared
+    /// query builder falls back to <c>Error_Table</c> so
+    /// <see cref="TestedObjectRow.ErrorTableAr"/> mirrors
+    /// <see cref="TestedObjectRow.ErrorTable"/> (contract:
+    /// "missing-AR means no review has occurred yet").
+    /// </summary>
+    protected override bool HasTestedObjectErrorTableAr => false;
+
+    // QueryTestedObjectsAsync uses the shared base-class implementation
+    // (BuildTestedObjectsQuery + MapTestedObjectRow) — see the
+    // HasTestedObjectErrorTableAr override above for the v4.3.1 quirk.
 }

@@ -95,6 +95,29 @@ foreach (var name in wanted)
                 $"status={p.PanelStatus,2}  cards={p.NbOfValidCards,2}  " +
                 $"barcode='{p.PanelBarCode}'");
         }
+
+        // --- TESTED_OBJECT smoke: first page of the same 60-day window.
+        // Small PageSize so we barely touch the live DB; the point is to
+        // validate the shared BuildTestedObjectsQuery (join to CARDS +
+        // PANELS + PART_NUMBER + JEDEC, and the v4.3.1
+        // Error_Table_AR fallback on MEAOI).
+        var toQuery = new TestedObjectQuery
+        {
+            Window = panelQuery.Window,
+            PageSize = 5,
+        };
+        var toPage = await source.QueryTestedObjectsAsync(toQuery, cts.Token);
+        Console.WriteLine();
+        Console.WriteLine(
+            $"    Tested objects in same window (first {toQuery.PageSize}): " +
+            $"{toPage.Rows.Count} rows, HasMore={toPage.HasMore}.");
+        foreach (var o in toPage.Rows.Take(5))
+        {
+            Console.WriteLine(
+                $"      panel={o.PanelId,8} card={o.CardIdOnPanel,2} obj={o.ObjectId,8}  " +
+                $"type=0x{o.ObjectTypeId:X}  errBR=0x{o.ErrorTable:X}  errAR=0x{o.ErrorTableAr:X}  " +
+                $"topo='{o.Topology}'  pn='{o.PartNumberName}'  jedec='{o.JedecName}'");
+        }
     }
     catch (Exception ex)
     {
