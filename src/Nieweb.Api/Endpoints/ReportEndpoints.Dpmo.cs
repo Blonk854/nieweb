@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.IO.Pipelines;
+using System.Text;
+using ClosedXML.Excel;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 
@@ -272,5 +275,287 @@ public static partial class ReportEndpoints
             return false;
         }
         return true;
+    }
+
+    // -------------------------------------------------------------------------
+    // Export endpoints
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// <c>GET /api/reports/dpmo-table/export.csv</c>. Same query
+    /// contract as <see cref="RunDpmoTableAsync"/>. Streams a UTF-8
+    /// (BOM-prefixed) CSV with one header row, one <c>OVERALL</c>
+    /// summary row, then one row per group bucket. Every row repeats
+    /// the source id, source name, window bounds, and axis metadata
+    /// so the file is self-describing.
+    /// </summary>
+    /// <param name="context">Ambient <see cref="HttpContext"/>.</param>
+    /// <param name="sourceId">Registered <see cref="SourceDescriptor.Id"/>.</param>
+    /// <param name="startUtc">Window start, inclusive.</param>
+    /// <param name="endUtc">Window end, exclusive.</param>
+    /// <param name="groupBy">Group-by axis (kebab-case slug or enum name).</param>
+    /// <param name="numerator">Numerator flavour (default <c>real</c>).</param>
+    /// <param name="opportunity">Opportunity filter (default <c>all</c>).</param>
+    /// <param name="machineIds">Optional comma-separated int list.</param>
+    /// <param name="productIds">Optional comma-separated int list.</param>
+    /// <param name="recipeIds">Optional comma-separated int list.</param>
+    /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
+    /// <param name="sources">All registered AOI sources.</param>
+    /// <param name="logger">Endpoint logger.</param>
+    /// <param name="cancellationToken">Request abort signal.</param>
+    private static async Task ExportDpmoTableCsvAsync(
+        HttpContext context,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? groupBy,
+        string? numerator,
+        string? opportunity,
+        string? machineIds,
+        string? productIds,
+        string? recipeIds,
+        bool? includeObsoleteBits,
+        IEnumerable<IAoiSource> sources,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var built = TryBuildDpmoRequest(
+            sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
+            machineIds, productIds, recipeIds, includeObsoleteBits, sources);
+        if (built.Error is not null)
+        {
+            await built.Error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        LogRunningDpmo(
+            logger,
+            built.Source!.Descriptor.Id,
+            built.Filter!.GroupBy,
+            built.Filter.Numerator,
+            built.Filter.Window.StartUtc,
+            built.Filter.Window.EndUtcExclusive);
+
+        var result = await DpmoTableReport.Instance
+            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        var filename = string.Create(CultureInfo.InvariantCulture,
+            $"dpmo-{built.Source.Descriptor.Id}-{result.GroupBy}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}.csv");
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = "text/csv; charset=utf-8";
+        context.Response.Headers.ContentDisposition = $"attachment; filename=\"{filename}\"";
+
+        await WriteDpmoCsvAsync(context.Response.BodyWriter, result, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task WriteDpmoCsvAsync(
+        PipeWriter writer, DpmoTableResult result, CancellationToken ct)
+    {
+        await writer.WriteAsync(Utf8Bom, ct).ConfigureAwait(false);
+
+        var sb = new StringBuilder(1024);
+        sb.Append("SourceId,SourceName,WindowStartUtc,WindowEndUtc,GroupBy,Numerator,Opportunity,")
+          .Append("GroupKey,GroupName,TestedObjectCount,OpportunityCount,DefectBitCount,DpmoPpm\r\n");
+        await FlushAsync(writer, sb, ct).ConfigureAwait(false);
+
+        var sourceId = CsvEscape(result.Source.Id);
+        var sourceName = CsvEscape(result.Source.DisplayName);
+        var startIso = result.Window.StartUtc.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        var endIso = result.Window.EndUtcExclusive.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
+        var groupBy = result.GroupBy.ToString();
+        var numerator = result.Numerator.ToString();
+        var opportunity = result.Opportunity.ToString();
+
+        AppendDpmoRow(sb, sourceId, sourceName, startIso, endIso, groupBy, numerator, opportunity,
+            "OVERALL", "Overall", result.Overall);
+        await FlushAsync(writer, sb, ct).ConfigureAwait(false);
+
+        foreach (var row in result.Rows)
+        {
+            AppendDpmoRow(sb, sourceId, sourceName, startIso, endIso, groupBy, numerator, opportunity,
+                row.GroupKey, row.GroupName, row.Kpi);
+            await FlushAsync(writer, sb, ct).ConfigureAwait(false);
+        }
+
+        await writer.FlushAsync(ct).ConfigureAwait(false);
+        await writer.CompleteAsync().ConfigureAwait(false);
+    }
+
+    private static void AppendDpmoRow(
+        StringBuilder sb,
+        string sourceId, string sourceName, string startIso, string endIso,
+        string groupBy, string numerator, string opportunity,
+        string? groupKey, string? groupName, DpmoKpi kpi)
+    {
+        sb.Append(sourceId).Append(',')
+          .Append(sourceName).Append(',')
+          .Append(startIso).Append(',')
+          .Append(endIso).Append(',')
+          .Append(groupBy).Append(',')
+          .Append(numerator).Append(',')
+          .Append(opportunity).Append(',')
+          .Append(CsvEscape(groupKey)).Append(',')
+          .Append(CsvEscape(groupName)).Append(',')
+          .Append(kpi.TestedObjectCount.ToString(CultureInfo.InvariantCulture)).Append(',')
+          .Append(kpi.OpportunityCount.ToString(CultureInfo.InvariantCulture)).Append(',')
+          .Append(kpi.DefectBitCount.ToString(CultureInfo.InvariantCulture)).Append(',')
+          .Append(kpi.DpmoPpm.ToString("0.####", CultureInfo.InvariantCulture)).Append("\r\n");
+    }
+
+    /// <summary>
+    /// <c>GET /api/reports/dpmo-table/export.xlsx</c>. Same query
+    /// contract as <see cref="RunDpmoTableAsync"/>. Produces a
+    /// two-sheet workbook: <c>Summary</c> holds the metadata + overall
+    /// KPI, <c>Rows</c> holds one typed row per group bucket sorted
+    /// descending by DPMO.
+    /// </summary>
+    /// <param name="context">Ambient <see cref="HttpContext"/>.</param>
+    /// <param name="sourceId">Registered <see cref="SourceDescriptor.Id"/>.</param>
+    /// <param name="startUtc">Window start, inclusive.</param>
+    /// <param name="endUtc">Window end, exclusive.</param>
+    /// <param name="groupBy">Group-by axis (kebab-case slug or enum name).</param>
+    /// <param name="numerator">Numerator flavour (default <c>real</c>).</param>
+    /// <param name="opportunity">Opportunity filter (default <c>all</c>).</param>
+    /// <param name="machineIds">Optional comma-separated int list.</param>
+    /// <param name="productIds">Optional comma-separated int list.</param>
+    /// <param name="recipeIds">Optional comma-separated int list.</param>
+    /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
+    /// <param name="sources">All registered AOI sources.</param>
+    /// <param name="logger">Endpoint logger.</param>
+    /// <param name="cancellationToken">Request abort signal.</param>
+    private static async Task ExportDpmoTableXlsxAsync(
+        HttpContext context,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? groupBy,
+        string? numerator,
+        string? opportunity,
+        string? machineIds,
+        string? productIds,
+        string? recipeIds,
+        bool? includeObsoleteBits,
+        IEnumerable<IAoiSource> sources,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var built = TryBuildDpmoRequest(
+            sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
+            machineIds, productIds, recipeIds, includeObsoleteBits, sources);
+        if (built.Error is not null)
+        {
+            await built.Error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        LogRunningDpmo(
+            logger,
+            built.Source!.Descriptor.Id,
+            built.Filter!.GroupBy,
+            built.Filter.Numerator,
+            built.Filter.Window.StartUtc,
+            built.Filter.Window.EndUtcExclusive);
+
+        var result = await DpmoTableReport.Instance
+            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        var filename = string.Create(CultureInfo.InvariantCulture,
+            $"dpmo-{built.Source.Descriptor.Id}-{result.GroupBy}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}.xlsx");
+
+        using var buffer = new MemoryStream(16 * 1024);
+        BuildDpmoWorkbook(result, buffer);
+        buffer.Position = 0;
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = XlsxContentType;
+        context.Response.ContentLength = buffer.Length;
+        context.Response.Headers.ContentDisposition = $"attachment; filename=\"{filename}\"";
+
+        await buffer.CopyToAsync(context.Response.Body, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void BuildDpmoWorkbook(DpmoTableResult result, Stream destination)
+    {
+        using var workbook = new XLWorkbook();
+
+        // ---- Summary sheet ----
+        var summary = workbook.Worksheets.Add("Summary");
+        summary.Cell("A1").Value = "Nieweb - DPMO Table";
+        summary.Cell("A1").Style.Font.Bold = true;
+        summary.Cell("A1").Style.Font.FontSize = 14;
+        summary.Range("A1:B1").Merge();
+
+        summary.Cell("A3").Value = "Source Id";
+        summary.Cell("B3").Value = result.Source.Id;
+        summary.Cell("A4").Value = "Source Name";
+        summary.Cell("B4").Value = result.Source.DisplayName;
+        summary.Cell("A5").Value = "Window Start (UTC)";
+        summary.Cell("B5").Value = result.Window.StartUtc.UtcDateTime;
+        summary.Cell("B5").Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+        summary.Cell("A6").Value = "Window End (UTC, exclusive)";
+        summary.Cell("B6").Value = result.Window.EndUtcExclusive.UtcDateTime;
+        summary.Cell("B6").Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+        summary.Cell("A7").Value = "Group By";
+        summary.Cell("B7").Value = result.GroupBy.ToString();
+        summary.Cell("A8").Value = "Numerator";
+        summary.Cell("B8").Value = result.Numerator.ToString();
+        summary.Cell("A9").Value = "Opportunity Filter";
+        summary.Cell("B9").Value = result.Opportunity.ToString();
+
+        summary.Cell("A11").Value = "Metric";
+        summary.Cell("B11").Value = "Value";
+        summary.Range("A11:B11").Style.Font.Bold = true;
+        summary.Cell("A12").Value = "Tested Objects";
+        summary.Cell("B12").Value = result.Overall.TestedObjectCount;
+        summary.Cell("A13").Value = "Opportunities";
+        summary.Cell("B13").Value = result.Overall.OpportunityCount;
+        summary.Cell("A14").Value = "Defect Bits";
+        summary.Cell("B14").Value = result.Overall.DefectBitCount;
+        summary.Cell("A15").Value = "DPMO (ppm)";
+        summary.Cell("B15").Value = result.Overall.DpmoPpm;
+        summary.Cell("B15").Style.NumberFormat.Format = "0.####";
+        summary.Columns("A:B").AdjustToContents();
+
+        // ---- Rows sheet ----
+        var rows = workbook.Worksheets.Add("Rows");
+        string[] headers =
+        [
+            "GroupKey", "GroupName",
+            "TestedObjectCount", "OpportunityCount", "DefectBitCount", "DpmoPpm",
+        ];
+        for (var i = 0; i < headers.Length; i++)
+        {
+            rows.Cell(1, i + 1).Value = headers[i];
+        }
+        rows.Range(1, 1, 1, headers.Length).Style.Font.Bold = true;
+
+        var r = 2;
+        foreach (var row in result.Rows)
+        {
+            rows.Cell(r, 1).Value = row.GroupKey ?? string.Empty;
+            rows.Cell(r, 2).Value = row.GroupName ?? string.Empty;
+            rows.Cell(r, 3).Value = row.Kpi.TestedObjectCount;
+            rows.Cell(r, 4).Value = row.Kpi.OpportunityCount;
+            rows.Cell(r, 5).Value = row.Kpi.DefectBitCount;
+            rows.Cell(r, 6).Value = row.Kpi.DpmoPpm;
+            rows.Cell(r, 6).Style.NumberFormat.Format = "0.####";
+            r++;
+        }
+
+        if (result.Rows.Count > 0)
+        {
+            rows.Range(1, 1, result.Rows.Count + 1, headers.Length).SetAutoFilter();
+        }
+        rows.Columns(1, headers.Length).AdjustToContents();
+
+        workbook.SaveAs(destination);
     }
 }

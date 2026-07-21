@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+using ClosedXML.Excel;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -517,4 +520,393 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     // Wrapper matching the DPMO tests' Obj(...) helper (5-arg form used above).
     private static TestedObjectRow Obj(int machineId, int date, int objectTypeId, long errorTable, long errorTableAr)
         => Obj(machineId, date, objectId: date, objectTypeId: objectTypeId, errorTable: errorTable, errorTableAr: errorTableAr);
+
+    // -------------------------------------------------------------------------
+    // DPMO CSV export
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task DpmoCsv_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DpmoCsv_UnknownSource_Returns404()
+    {
+        var (authed, _) = await AuthedClientAsync("dpmo-csv-unknown@nieweb.test");
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.csv?sourceId=nope&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        authed.Dispose();
+    }
+
+    [Fact]
+    public async Task DpmoCsv_MissingGroupBy_Returns400()
+    {
+        var fake = new FakeAoiSource(_postDescriptor);
+        var (authed, factory) = await AuthedClientAsync("dpmo-csv-missing-groupby@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DpmoCsv_ReturnsUtf8CsvWithOverallAndPerMachineRows()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects =
+            [
+                Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
+                Obj(10, WindowStartEpoch + 61, ComponentType, 0, 0),
+                Obj(10, WindowStartEpoch + 62, ComponentType, BitSolderJoint, BitSolderJoint),
+                Obj(10, WindowStartEpoch + 63, ComponentType, 0, 0),
+                Obj(11, WindowStartEpoch + 70, ComponentType, BitObjectMissing, BitObjectMissing),
+                Obj(11, WindowStartEpoch + 71, ComponentType, 0, 0),
+            ],
+            SeededMachines =
+            [
+                new Machine(10, 2, "AOI-10", "AOI"),
+                new Machine(11, 2, "AOI-11", "AOI"),
+            ],
+        };
+
+        var (authed, factory) = await AuthedClientAsync("dpmo-csv-happy@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine&numerator=aoi", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/csv", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("utf-8", response.Content.Headers.ContentType?.CharSet);
+        Assert.NotNull(response.Content.Headers.ContentDisposition);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition!.DispositionType);
+        Assert.Equal(
+            "dpmo-postreflow-AoiMachine-20260101-20260102.csv",
+            response.Content.Headers.ContentDisposition.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length >= 3);
+        Assert.Equal(0xEF, bytes[0]);
+        Assert.Equal(0xBB, bytes[1]);
+        Assert.Equal(0xBF, bytes[2]);
+        var csv = Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Equal(4, lines.Length); // header + OVERALL + 2 machine rows
+        Assert.Equal(
+            "SourceId,SourceName,WindowStartUtc,WindowEndUtc,GroupBy,Numerator,Opportunity,GroupKey,GroupName,TestedObjectCount,OpportunityCount,DefectBitCount,DpmoPpm",
+            lines[0]);
+        // OVERALL: 6 tested, 6 opps, 4 defect bits (2+1+1), 666666.6667
+        Assert.StartsWith(
+            "postreflow,Post-reflow AOI,2026-01-01T00:00:00Z,2026-01-02T00:00:00Z,AoiMachine,Aoi,All,OVERALL,Overall,6,6,4,",
+            lines[1], StringComparison.Ordinal);
+        // Machine 10 first (750000), then 11 (500000).
+        Assert.Contains(",AoiMachine,Aoi,All,10,AOI-10,4,4,3,750000", lines[2], StringComparison.Ordinal);
+        Assert.Contains(",AoiMachine,Aoi,All,11,AOI-11,2,2,1,500000", lines[3], StringComparison.Ordinal);
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // DPMO XLSX export
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task DpmoXlsx_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DpmoXlsx_ReturnsWorkbookWithSummaryAndRowsSheets()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects =
+            [
+                Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
+                Obj(10, WindowStartEpoch + 61, ComponentType, 0, 0),
+                Obj(10, WindowStartEpoch + 62, ComponentType, BitSolderJoint, BitSolderJoint),
+                Obj(11, WindowStartEpoch + 70, ComponentType, BitObjectMissing, BitObjectMissing),
+                Obj(11, WindowStartEpoch + 71, ComponentType, 0, 0),
+            ],
+            SeededMachines =
+            [
+                new Machine(10, 2, "AOI-10", "AOI"),
+                new Machine(11, 2, "AOI-11", "AOI"),
+            ],
+        };
+
+        var (authed, factory) = await AuthedClientAsync("dpmo-xlsx-happy@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine&numerator=aoi", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(XlsxContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "dpmo-postreflow-AoiMachine-20260101-20260102.xlsx",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var ms = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(ms);
+
+        var summary = workbook.Worksheet("Summary");
+        Assert.Equal("Source Id", summary.Cell("A3").GetString());
+        Assert.Equal("postreflow", summary.Cell("B3").GetString());
+        Assert.Equal("AoiMachine", summary.Cell("B7").GetString());
+        Assert.Equal("Aoi", summary.Cell("B8").GetString());
+        // Overall metrics.
+        Assert.Equal("Tested Objects", summary.Cell("A12").GetString());
+        Assert.Equal(5, (int)summary.Cell("B12").GetDouble());
+        Assert.Equal(5, (int)summary.Cell("B13").GetDouble());
+        Assert.Equal(4, (int)summary.Cell("B14").GetDouble());
+
+        var rows = workbook.Worksheet("Rows");
+        Assert.Equal("GroupKey", rows.Cell(1, 1).GetString());
+        // Row 2 = highest DPMO = machine 10.
+        Assert.Equal("10", rows.Cell(2, 1).GetString());
+        Assert.Equal("AOI-10", rows.Cell(2, 2).GetString());
+        Assert.Equal(3, (int)rows.Cell(2, 3).GetDouble());
+        Assert.Equal(3, (int)rows.Cell(2, 4).GetDouble());
+        Assert.Equal(3, (int)rows.Cell(2, 5).GetDouble());
+        Assert.Equal(1_000_000d, rows.Cell(2, 6).GetDouble(), 4);
+        // Row 3 = machine 11.
+        Assert.Equal("11", rows.Cell(3, 1).GetString());
+        Assert.Equal(500_000d, rows.Cell(3, 6).GetDouble(), 4);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    private const string XlsxContentType =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    // -------------------------------------------------------------------------
+    // Pareto CSV export
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ParetoCsv_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/pareto/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=product", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ParetoCsv_UnknownSource_Returns404()
+    {
+        var (authed, _) = await AuthedClientAsync("pareto-csv-unknown@nieweb.test");
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.csv?sourceId=nope&startUtc={StartUtc}&endUtc={EndUtc}&axis=product", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        authed.Dispose();
+    }
+
+    [Fact]
+    public async Task ParetoCsv_MissingAxis_Returns400()
+    {
+        var fake = new FakeAoiSource(_postDescriptor);
+        var (authed, factory) = await AuthedClientAsync("pareto-csv-missing-axis@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Boss's scenario expressed as CSV export: rank 1 MUST be Product A
+    /// even though Product B has the higher DPMO. Volume-weighted Pareto
+    /// invariant preserved end-to-end from HTTP to file bytes.
+    /// </summary>
+    [Fact]
+    public async Task ParetoCsv_BossScenario_ProductARanksFirstAndOthersRowAbsent()
+    {
+        var objects = new List<TestedObjectRow>(120);
+        for (var i = 0; i < 100; i++)
+        {
+            var hasDefect = i < 10;
+            objects.Add(Obj(10, WindowStartEpoch + 60 + i,
+                objectId: 10_000 + i,
+                objectTypeId: ComponentType,
+                errorTable: hasDefect ? BitObjectMissing : 0,
+                errorTableAr: hasDefect ? BitObjectMissing : 0,
+                productId: 100));
+        }
+        for (var i = 0; i < 20; i++)
+        {
+            var hasDefect = i < 5;
+            objects.Add(Obj(10, WindowStartEpoch + 60 + i,
+                objectId: 20_000 + i,
+                objectTypeId: ComponentType,
+                errorTable: hasDefect ? BitObjectMissing : 0,
+                errorTableAr: hasDefect ? BitObjectMissing : 0,
+                productId: 200));
+        }
+
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects = objects,
+            SeededProducts =
+            [
+                new Product(100, "Product A", null, null),
+                new Product(200, "Product B", null, null),
+            ],
+        };
+
+        var (authed, factory) = await AuthedClientAsync("pareto-csv-boss@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=product", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            "pareto-postreflow-Product-20260101-20260102.csv",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var csv = await response.Content.ReadAsStringAsync();
+        var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(3, lines.Length); // header + 2 product rows, no OTHERS
+        Assert.Equal(
+            "SourceId,SourceName,WindowStartUtc,WindowEndUtc,Axis,Numerator,Opportunity,Weight,Rank,GroupKey,GroupName,DefectCount,WeightedScore,OpportunityCount,OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew",
+            lines[0]);
+        // Rank 1 = Product A (higher DefectCount despite lower DPMO).
+        Assert.Contains(",Product,Real,All,Count,1,100,Product A,10,10,100,", lines[1], StringComparison.Ordinal);
+        // Rank 2 = Product B.
+        Assert.Contains(",Product,Real,All,Count,2,200,Product B,5,5,20,", lines[2], StringComparison.Ordinal);
+        Assert.DoesNotContain(",OTHERS,", csv, StringComparison.Ordinal);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ParetoCsv_TopN_AppendsOthersRow()
+    {
+        var objects = new List<TestedObjectRow>();
+        AddProduct(objects, productId: 1, defectiveCount: 10);
+        AddProduct(objects, productId: 2, defectiveCount: 8);
+        AddProduct(objects, productId: 3, defectiveCount: 6);
+        AddProduct(objects, productId: 4, defectiveCount: 4);
+        AddProduct(objects, productId: 5, defectiveCount: 2);
+
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects = objects,
+            SeededProducts =
+            [
+                new Product(1, "P1", null, null),
+                new Product(2, "P2", null, null),
+                new Product(3, "P3", null, null),
+                new Product(4, "P4", null, null),
+                new Product(5, "P5", null, null),
+            ],
+        };
+
+        var (authed, factory) = await AuthedClientAsync("pareto-csv-topn@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=product&topN=3", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var csv = await response.Content.ReadAsStringAsync();
+        var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        // header + 3 rows + 1 OTHERS row = 5 lines.
+        Assert.Equal(5, lines.Length);
+        Assert.Contains(",OTHERS,", lines[4], StringComparison.Ordinal);
+        // Others aggregates 4 + 2 = 6 defect bits.
+        Assert.Contains(",6,6,", lines[4], StringComparison.Ordinal);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // Pareto XLSX export
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task ParetoXlsx_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/pareto/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=product", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ParetoXlsx_ReturnsThreeSheetsWithAppliedFiltersEchoed()
+    {
+        var objects = new List<TestedObjectRow>();
+        // PN-A dominates when we drill by defect bit 1.
+        for (var i = 0; i < 5; i++)
+        {
+            objects.Add(Obj(10, WindowStartEpoch + 60 + i, 40_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, partNumberName: "PN-A"));
+        }
+        for (var i = 0; i < 2; i++)
+        {
+            objects.Add(Obj(10, WindowStartEpoch + 70 + i, 41_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, partNumberName: "PN-B"));
+        }
+
+        var fake = new FakeAoiSource(_postDescriptor) { SeededTestedObjects = objects };
+        var (authed, factory) = await AuthedClientAsync("pareto-xlsx-happy@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=part-number&defectBits=1", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(XlsxContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "pareto-postreflow-PartNumber-20260101-20260102.xlsx",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var ms = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(ms);
+
+        // Summary sheet.
+        var summary = workbook.Worksheet("Summary");
+        Assert.Equal("postreflow", summary.Cell("B3").GetString());
+        Assert.Equal("PartNumber", summary.Cell("B7").GetString());
+        Assert.Equal(7, (int)summary.Cell("B13").GetDouble()); // Tested Objects
+        Assert.Equal(7, (int)summary.Cell("B15").GetDouble()); // Defect Bits (all defective)
+
+        // Applied Filters sheet: DefectBits row must echo "1".
+        var filters = workbook.Worksheet("Applied Filters");
+        Assert.Equal("Filter", filters.Cell(1, 1).GetString());
+        // Row order: Machine, Product, Recipe, DefectBits, Topologies, PartNumbers, JedecNames.
+        Assert.Equal("DefectBits", filters.Cell(5, 1).GetString());
+        Assert.Equal("1", filters.Cell(5, 2).GetString());
+
+        // Rows sheet: PN-A first (5), PN-B second (2).
+        var rows = workbook.Worksheet("Rows");
+        Assert.Equal("Rank", rows.Cell(1, 1).GetString());
+        Assert.Equal("1", rows.Cell(2, 1).GetString());
+        Assert.Equal("PN-A", rows.Cell(2, 2).GetString());
+        Assert.Equal(5, (int)rows.Cell(2, 4).GetDouble());
+        Assert.Equal("2", rows.Cell(3, 1).GetString());
+        Assert.Equal("PN-B", rows.Cell(3, 2).GetString());
+        Assert.Equal(2, (int)rows.Cell(3, 4).GetDouble());
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
 }
