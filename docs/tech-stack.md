@@ -251,8 +251,7 @@ Provisional choice: **SkiaSharp** for pixel manipulation + PNG output,
 served through a caching layer that keys on file hash so line engineers
 who reload a Review screen 50 times don't hammer the disk.
 
-This will get its own design doc — see the *sketch .otr/.ois image
-pipeline* task in the plan.
+This has its own design doc — see [docs/design/image-pipeline.md](design/image-pipeline.md).
 
 ---
 
