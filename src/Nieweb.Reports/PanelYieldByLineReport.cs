@@ -24,20 +24,43 @@ namespace Nieweb.Reports;
 /// count-first / divide-last so this report cannot repeat legacy Vieweb
 /// bug #12421 (weekly totals disagreeing with the sum of daily totals).
 /// </para>
+/// <para>
+/// Since RI1 the report is an <see cref="IReport{TInput, TOutput}"/>
+/// implementation. Call it through the <see cref="Instance"/> singleton
+/// or resolve it from DI as
+/// <c>IReport&lt;PanelYieldFilter, PanelYieldResult&gt;</c>.
+/// </para>
 /// </remarks>
-public static class PanelYieldByLineReport
+public sealed class PanelYieldByLineReport : IReport<PanelYieldFilter, PanelYieldResult>
 {
     /// <summary>
-    /// Runs the report against <paramref name="source"/> using
-    /// <paramref name="filter"/>.
+    /// The stable metadata for this report. Exposed statically so it
+    /// can be referenced from tests and the report catalogue without
+    /// having to instantiate the report class.
     /// </summary>
-    /// <param name="source">The AOI data source to query.</param>
-    /// <param name="filter">Window + optional dimension filters.</param>
-    /// <param name="ct">Cancellation token propagated to every DB call.</param>
-    public static async Task<PanelYieldResult> RunAsync(
+    public static readonly ReportDescriptor ReportDescriptor = new(
+        Id: "panel-yield-by-line",
+        DisplayName: "Panel yield by line",
+        Category: ReportCategory.Table,
+        Description: "Panel-level FPY per AOI machine over a UTC window.");
+
+    /// <summary>
+    /// Stateless singleton. The report holds no mutable fields, so a
+    /// single instance is safe to share across all callers.
+    /// </summary>
+    public static readonly PanelYieldByLineReport Instance = new();
+
+    /// <inheritdoc />
+    public ReportDescriptor Descriptor => ReportDescriptor;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The class-level remarks describe the aggregation contract.
+    /// </remarks>
+    public async Task<PanelYieldResult> RunAsync(
         IAoiSource source,
         PanelYieldFilter filter,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(filter);
@@ -54,7 +77,7 @@ public static class PanelYieldByLineReport
         var overall = new Accumulator();
         var perMachine = new Dictionary<int, Accumulator>();
 
-        await foreach (var panel in source.StreamPanelsAsync(query, ct).ConfigureAwait(false))
+        await foreach (var panel in source.StreamPanelsAsync(query, cancellationToken).ConfigureAwait(false))
         {
             overall.Add(panel.PanelStatus);
 
@@ -69,7 +92,7 @@ public static class PanelYieldByLineReport
         // Machine catalogue lookup is one small round trip; do it after
         // the streaming pass so the DB does not have to hold two
         // cursors open at once.
-        var machines = await source.ListMachinesAsync(ct).ConfigureAwait(false);
+        var machines = await source.ListMachinesAsync(cancellationToken).ConfigureAwait(false);
         var machineNames = machines.ToDictionary(m => m.MachineId, m => m.MachineName);
 
         var byMachine = perMachine

@@ -3,23 +3,32 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Xunit;
 
-namespace Nieweb.Reports.Tests.Snapshots;
+namespace Nieweb.Reports.TestKit;
 
 /// <summary>
-/// Minimal snapshot testing helper. Serializes the actual value as
-/// indented JSON, compares byte-for-byte to a file that lives next to
-/// the test source (under a <c>Snapshots</c> subdirectory), and either
-/// writes the file on first run / when <c>UPDATE_SNAPSHOTS=1</c> is
-/// set, or writes an <c>.actual.json</c> diff sibling and fails the
-/// test otherwise.
+/// Minimal snapshot testing helper shared across every Nieweb report
+/// test project. Serializes the actual value as indented JSON, compares
+/// byte-for-byte to a file that lives next to the test source (under a
+/// <c>Snapshots</c> subdirectory), and either writes the file on first
+/// run / when <c>UPDATE_SNAPSHOTS=1</c> is set, or writes an
+/// <c>.actual.json</c> diff sibling and fails the test otherwise.
 /// </summary>
 /// <remarks>
-/// We serialize with <see cref="JsonNamingPolicy.CamelCase"/> so
-/// snapshots resemble the eventual REST payload from the /api/reports
-/// endpoint (R3), which lets the same fixtures double as documentation
-/// for front-end consumers.
+/// <para>
+/// The serializer uses <see cref="JsonNamingPolicy.CamelCase"/> so
+/// snapshots resemble the eventual REST payload from the
+/// <c>/api/reports</c> endpoint, which lets the same fixtures double as
+/// documentation for front-end consumers.
+/// </para>
+/// <para>
+/// Snapshot files ship in the test project's source tree — they are
+/// resolved via <see cref="CallerFilePathAttribute"/> so the helper
+/// finds the correct <c>Snapshots</c> folder no matter which test
+/// project calls it. This is the "snapshot-test scaffold" component
+/// of RI1 (docs/phase-2.md §7.1).
+/// </para>
 /// </remarks>
-internal static class SnapshotAssert
+public static class SnapshotAssert
 {
     private static readonly JsonSerializerOptions _serializerOptions = new(JsonSerializerDefaults.Web)
     {

@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!--
+      This is a shared test-support library, not a test project of its
+      own. Setting IsTestProject=false stops the VS test explorer from
+      trying to enumerate tests inside it, and lets it be referenced by
+      any downstream Nieweb.*.Tests project without pulling in a
+      duplicate test host.
+    -->
+    <IsTestProject>false</IsTestProject>
+    <!--
+      The public types in this library live under the
+      Nieweb.Reports.TestKit namespace and are documented, but we don't
+      require XML docs on every member (the base class inherits the
+      xUnit facts already).
+    -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      xunit.v3.assert provides Xunit.Assert without dragging in the
+      test host / MSBuild targets that would try to turn this project
+      into a runnable test executable. Downstream test projects bring
+      xunit.v3 + Microsoft.NET.Test.Sdk themselves.
+    -->
+    <PackageReference Include="xunit.v3.assert" Version="3.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nieweb.DataSources\Nieweb.DataSources.csproj" />
+    <ProjectReference Include="..\..\src\Nieweb.Reports\Nieweb.Reports.csproj" />
+  </ItemGroup>
+
+</Project>

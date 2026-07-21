@@ -17,6 +17,7 @@
     <Project Path="tests/Nieweb.Identity.Tests/Nieweb.Identity.Tests.csproj" />
     <Project Path="tests/Nieweb.Api.Tests/Nieweb.Api.Tests.csproj" />
     <Project Path="tests/Nieweb.DataSources.Sql.Tests/Nieweb.DataSources.Sql.Tests.csproj" />
+    <Project Path="tests/Nieweb.Reports.TestKit/Nieweb.Reports.TestKit.csproj" />
     <Project Path="tests/Nieweb.Reports.Tests/Nieweb.Reports.Tests.csproj" />
   </Folder>
 </Solution>

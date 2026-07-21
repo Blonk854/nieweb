@@ -91,7 +91,7 @@ public static partial class ReportEndpoints
         }
 
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
-        var result = await PanelYieldByLineReport
+        var result = await PanelYieldByLineReport.Instance
             .RunAsync(built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
         return Results.Ok(result);
@@ -136,7 +136,7 @@ public static partial class ReportEndpoints
         }
 
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
-        var result = await PanelYieldByLineReport
+        var result = await PanelYieldByLineReport.Instance
             .RunAsync(built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
 
@@ -249,7 +249,7 @@ public static partial class ReportEndpoints
         }
 
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
-        var result = await PanelYieldByLineReport
+        var result = await PanelYieldByLineReport.Instance
             .RunAsync(built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
 

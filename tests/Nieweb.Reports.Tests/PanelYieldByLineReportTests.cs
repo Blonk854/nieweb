@@ -1,6 +1,6 @@
 using Nieweb.DataSources;
+using Nieweb.Reports.TestKit;
 using Nieweb.Reports.Tests.Fakes;
-using Nieweb.Reports.Tests.Snapshots;
 using Xunit;
 
 namespace Nieweb.Reports.Tests;
@@ -38,7 +38,7 @@ public sealed class PanelYieldByLineReportTests
         var source = new FakeAoiSource(_postReflow);
         var filter = new PanelYieldFilter(_oneDay);
 
-        var result = await PanelYieldByLineReport.RunAsync(source, filter, TestContext.Current.CancellationToken);
+        var result = await PanelYieldByLineReport.Instance.RunAsync(source, filter, TestContext.Current.CancellationToken);
 
         Assert.Equal(_postReflow, result.Source);
         Assert.Equal(_oneDay, result.Window);
@@ -81,7 +81,7 @@ public sealed class PanelYieldByLineReportTests
         };
         var filter = new PanelYieldFilter(_oneDay);
 
-        var result = await PanelYieldByLineReport.RunAsync(source, filter, TestContext.Current.CancellationToken);
+        var result = await PanelYieldByLineReport.Instance.RunAsync(source, filter, TestContext.Current.CancellationToken);
 
         Assert.Equal(9, result.Overall.TotalPanels);
         Assert.Equal(8, result.Overall.InspectedPanels);
@@ -132,7 +132,7 @@ public sealed class PanelYieldByLineReportTests
         };
         var filter = new PanelYieldFilter(_oneDay);
 
-        var result = await PanelYieldByLineReport.RunAsync(source, filter, TestContext.Current.CancellationToken);
+        var result = await PanelYieldByLineReport.Instance.RunAsync(source, filter, TestContext.Current.CancellationToken);
 
         // Statuses: {3, 1, -2, 2, 0} -> good {3,1,2}=3, faulty {-2}=1, not-inspected {0}=1.
         // FPY = 3 / 4 = 75%.
@@ -174,7 +174,7 @@ public sealed class PanelYieldByLineReportTests
         };
         var filter = new PanelYieldFilter(_oneDay, MachineIds: [30]);
 
-        var result = await PanelYieldByLineReport.RunAsync(source, filter, TestContext.Current.CancellationToken);
+        var result = await PanelYieldByLineReport.Instance.RunAsync(source, filter, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, result.Overall.TotalPanels);
         Assert.Equal(2, result.Overall.GoodPanels);

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nieweb.DataSources\Nieweb.DataSources.csproj" />
     <ProjectReference Include="..\..\src\Nieweb.Reports\Nieweb.Reports.csproj" />
+    <ProjectReference Include="..\Nieweb.Reports.TestKit\Nieweb.Reports.TestKit.csproj" />
   </ItemGroup>
 
   <ItemGroup>
