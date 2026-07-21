@@ -1,8 +1,8 @@
-# Nieweb tech-stack proposal (for sign-off)
+# Nieweb tech-stack proposal
 
 _Author: architecture pairing session, July 2026._
-_Status: **DRAFT — awaiting sign-off**. Nothing below is set in stone; every
-section has an "Alternatives considered" block so we can revisit._
+_Status: **SIGNED-OFF 2026-07-20**. All eight open questions resolved (see
+§14). Alternatives blocks retained so future revisits have full context._
 
 The goal of this document is to lock in the stack **before** we start
 building the first user-facing feature. Every downstream choice (repo
@@ -184,9 +184,9 @@ before Sprint 1 starts** to avoid churn.
 
 ## 6. Auth & authorization
 
-**Recommendation: OpenID Connect against corporate Entra ID / AD FS,
-with local username/password as a fallback for machines that live on the
-line network without domain access.**
+**Locked: OpenID Connect against corporate Entra ID / AD FS, with local
+username/password as a fallback for machines that live on the line network
+without domain access.**
 
 - ASP.NET Core `Microsoft.Identity.Web` package for the OIDC flow.
 - Local accounts stored in the internal DB via **ASP.NET Core Identity**
@@ -196,6 +196,24 @@ line network without domain access.**
   3 land, matching Sigmalink).
 - Cookie auth for the browser session, JWT bearer for API-to-API and
   eventual mobile clients.
+
+**Admin UI — account management.** The `Admin` role gets a full account
+management screen in Nieweb itself:
+
+- **Local accounts (full CRUD).** Create user (username, email, initial
+  password OR emailed invitation link), reset password, force password
+  change on next login, enable / disable, delete, assign & revoke roles,
+  view last login + session history.
+- **OIDC accounts (Nieweb-side role management only).** Users are
+  auto-provisioned as `Reader` on first successful Entra sign-in. The
+  admin UI lists all provisioned OIDC users, lets admins assign / revoke
+  roles, and lets admins disable an identity within Nieweb (blocks sign-in
+  without touching Entra). Password reset, MFA, and account lockout live
+  in Entra — Nieweb shows a "Reset your password in Entra ID →" link.
+- **Cross-cutting.** Password policy (min length, complexity, optional
+  rotation) configurable per install; every account action written to an
+  audit log table (`who / what / when / from-IP`); passwords hashed with
+  Argon2id and never logged, never emailed in plaintext.
 
 **Explicitly not doing:** carrying over Sigmalink's hard-coded
 `admin/admin` default account or its plain-text `parameters.properties`
@@ -309,27 +327,18 @@ pipeline* task in the plan.
 
 ---
 
-## 14. Open questions for sign-off
+## 14. Resolved decisions (signed off 2026-07-20)
 
-Please react to each of these — nothing below moves without a decision:
+| # | Question | Decision |
+|---|---|---|
+| 1 | Frontend framework | **React 19 + TypeScript + Vite** with TanStack Router + TanStack Query + Zustand. |
+| 2 | UI kit | **Mantine v7**. |
+| 3 | Internal DB | **PostgreSQL 16** with EF Core 10 in prod; SQLite in `appsettings.Development.json` for zero-infra dev. |
+| 4 | Auth | **OIDC against corporate Entra ID / AD FS**, with local username / password fallback. Full account-management UI for admins (see §6). Ops must provision an Entra app registration before Phase 1 auth work starts. |
+| 5 | i18n scope in Phase 1 | **EN + FR** — both scaffolded from day one, EN strings filled first, FR filled iteratively. DE / ES / ZH added in Phase 3 alongside Sigmalink absorption. |
+| 6 | Deployment target | **Kestrel as a Windows service** via `Microsoft.Extensions.Hosting.WindowsServices`. IIS reverse-proxy remains available for ops but is not the primary path. |
+| 7 | Frontend routing | **Client-side SPA** — single bundle served under `/app`, API under `/api`, no SSR. |
+| 8 | Line-engineer design partners | **Recruit 2 now**, before Phase 1 sprint 1. Weekly 30-minute sessions during MVP development. |
 
-1. **Frontend framework** — React (recommended) or Blazor United? Big
-   ergonomic difference; picking React unlocks the ECharts + Mantine
-   ecosystem.
-2. **UI kit** — Mantine v7 or MUI v6?
-3. **Internal DB** — PostgreSQL 16 (recommended) or reuse the on-site
-   SQL Server instance despite the confusion risk?
-4. **Auth** — OIDC against corporate Entra ID / AD FS (recommended) or
-   local accounts only? If OIDC, ops need to provision an app
-   registration.
-5. **i18n scope in Phase 1** — EN only, EN+FR, or all five (EN/FR/DE/ES/
-   ZH)?
-6. **Deployment target for Phase 1** — Windows service under Kestrel
-   (recommended) or IIS-hosted?
-7. **Frontend routing** — client-side (recommended, single SPA bundle) or
-   server-rendered pages per report?
-8. **Line-engineer preview** — do we recruit two line engineers now as
-   design partners for the MVP, or wait until Phase 1 is demo-able?
-
-Once these eight are green-lit, the tech stack is frozen and I'll turn the
-**Phase 1 MVP vertical slice** into a concrete backlog.
+Stack is now frozen. Further changes require an explicit revisit note in a
+new section, not an in-place edit.
