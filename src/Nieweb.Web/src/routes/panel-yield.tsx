@@ -17,7 +17,7 @@ import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { IconAlertTriangle, IconDownload } from "@tabler/icons-react";
+import { IconAlertTriangle, IconDownload, IconPrinter } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 import {
     fetchMachines,
@@ -301,13 +301,22 @@ export function PanelYieldRoute() {
                         </Text>
                     )}
 
-                    <Group justify="space-between">
+                    <Group justify="space-between" className="no-print">
                         <Group>
                             <Button type="submit" disabled={!canSubmit}>
                                 {t("panelYield.filters.submit")}
                             </Button>
                             <Button variant="subtle" onClick={handleReset} type="button">
                                 {t("panelYield.filters.reset")}
+                            </Button>
+                            <Button
+                                variant="default"
+                                leftSection={<IconPrinter size={16} />}
+                                onClick={() => window.print()}
+                                type="button"
+                                disabled={!reportEnabled}
+                            >
+                                {t("panelYield.filters.print")}
                             </Button>
                             <SavedViewsMenu<PanelYieldSearch>
                                 reportKey="panel-yield"

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MantineProvider } from "@mantine/core";
 import { I18nextProvider } from "react-i18next";
@@ -169,5 +169,34 @@ describe("DataTable", () => {
         );
         const body = document.querySelector("tbody") as HTMLElement;
         expect(within(body).getByText(/No rows to display/i)).toBeInTheDocument();
+    });
+
+    it("expands to show every sorted row when the browser fires 'beforeprint'", () => {
+        const many: Row[] = Array.from({ length: 30 }, (_, i) => ({
+            id: i + 1,
+            name: `M${(i + 1).toString().padStart(2, "0")}`,
+            fpy: 99,
+        }));
+        render(
+            <DataTable
+                columns={cols}
+                rows={many}
+                rowKey={(r) => r.id}
+                initialPageSize={10}
+                pageSizes={[10, 25]}
+            />,
+            { wrapper },
+        );
+        expect(document.querySelectorAll("tbody tr").length).toBe(10);
+
+        act(() => {
+            window.dispatchEvent(new Event("beforeprint"));
+        });
+        expect(document.querySelectorAll("tbody tr").length).toBe(30);
+
+        act(() => {
+            window.dispatchEvent(new Event("afterprint"));
+        });
+        expect(document.querySelectorAll("tbody tr").length).toBe(10);
     });
 });

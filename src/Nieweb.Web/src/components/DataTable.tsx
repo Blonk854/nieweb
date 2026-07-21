@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     ActionIcon,
     Group,
@@ -101,6 +101,21 @@ export function DataTable<T>(props: DataTableProps<T>) {
     const [pageSize, setPageSize] = useState<number>(initialPageSize);
     const [page, setPage] = useState<number>(1);
     const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
+    // When the browser is preparing a print, expand the tbody to every
+    // sorted row so the paper output isn't truncated to the current
+    // pagination window. Reverts on afterprint / print-dialog cancel.
+    const [isPrinting, setIsPrinting] = useState<boolean>(false);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const before = () => setIsPrinting(true);
+        const after = () => setIsPrinting(false);
+        window.addEventListener("beforeprint", before);
+        window.addEventListener("afterprint", after);
+        return () => {
+            window.removeEventListener("beforeprint", before);
+            window.removeEventListener("afterprint", after);
+        };
+    }, []);
 
     const visibleColumns = useMemo(
         () => columns.filter((c) => !hiddenKeys.has(c.key)),
@@ -135,9 +150,10 @@ export function DataTable<T>(props: DataTableProps<T>) {
     // Clamp page in case data shrunk.
     const currentPage = Math.min(page, totalPages);
     const pagedRows = useMemo(() => {
+        if (isPrinting) return sortedRows;
         const start = (currentPage - 1) * pageSize;
         return sortedRows.slice(start, start + pageSize);
-    }, [sortedRows, currentPage, pageSize]);
+    }, [sortedRows, currentPage, pageSize, isPrinting]);
 
     function toggleSort(key: string) {
         setSort((prev) => {
@@ -164,7 +180,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
         <div>
             <Group justify="space-between" mb="xs">
                 {caption ? <Text fw={500}>{caption}</Text> : <span />}
-                <Group gap="xs">
+                <Group gap="xs" className="no-print">
                     {onExportCsv ? (
                         <ActionIcon
                             variant="subtle"
@@ -283,7 +299,7 @@ export function DataTable<T>(props: DataTableProps<T>) {
                     {t("table.rowCount", { count: sortedRows.length })}
                 </Text>
                 {showPagination ? (
-                    <Group gap="sm">
+                    <Group gap="sm" className="no-print">
                         <Select
                             aria-label={t("table.pageSize")}
                             size="xs"

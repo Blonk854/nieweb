@@ -15,3 +15,95 @@ body {
 * {
     box-sizing: border-box;
 }
+
+/*
+ * F9 - Print layout.
+ *
+ *  - `.no-print`  : hidden on paper (interactive chrome: buttons,
+ *                   menus, pagination controls, export links).
+ *  - `.print-only`: hidden on screen, visible on paper.
+ *  - The Mantine AppShell header/navbar and TanStack devtools are
+ *    hidden globally so any report route prints as pure content.
+ *  - Page size defaults to A4 with generous margins; users can still
+ *    override in the print dialog.
+ *  - `print-color-adjust: exact` forces coloured KPI cards, chart
+ *    bars, and threshold lines to render even in "background graphics
+ *    off" mode.
+ */
+@media print {
+    @page {
+        size: A4;
+        margin: 12mm;
+    }
+
+    html,
+    body {
+        background: white !important;
+        color: black !important;
+        color-scheme: only light;
+    }
+
+    body,
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .no-print,
+    .no-print * {
+        display: none !important;
+    }
+
+    .print-only {
+        display: initial !important;
+    }
+
+    /* Collapse the Mantine AppShell chrome so the printed page shows
+       only the report content, edge-to-edge within the @page margins. */
+    .mantine-AppShell-header,
+    .mantine-AppShell-navbar {
+        display: none !important;
+    }
+    .mantine-AppShell-main {
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 0 !important;
+    }
+    .mantine-AppShell-root {
+        display: block !important;
+        min-height: 0 !important;
+    }
+    .mantine-Container-root {
+        max-width: 100% !important;
+        padding: 0 !important;
+    }
+
+    /* Cards, tables, and charts shouldn't split awkwardly across pages. */
+    .mantine-Card-root,
+    .mantine-Table-table,
+    .mantine-Modal-root {
+        break-inside: avoid;
+    }
+    tr,
+    thead,
+    tfoot {
+        break-inside: avoid;
+    }
+    thead {
+        display: table-header-group;
+    }
+
+    /* Modals, popovers, tooltips have no meaning on paper. */
+    .mantine-Modal-root,
+    .mantine-Popover-dropdown,
+    .mantine-Tooltip-tooltip,
+    .mantine-Menu-dropdown {
+        display: none !important;
+    }
+}
+
+.print-only {
+    display: none;
+}

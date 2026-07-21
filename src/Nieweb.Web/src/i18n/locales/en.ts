@@ -55,6 +55,7 @@ export const en: TranslationBundle = {
             exportXlsx: "Export XLSX",
             emptyPrompt: "Pick a source and date window, then run the report.",
             missingRequired: "Source, From, and To are required.",
+            print: "Print",
         },
         results: {
             heading: "Results",

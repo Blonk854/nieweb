@@ -52,6 +52,7 @@ export const fr: TranslationBundle = {
             emptyPrompt:
                 "Choisissez une source et une fenêtre temporelle, puis lancez le rapport.",
             missingRequired: "Source, Du et Au sont obligatoires.",
+            print: "Imprimer",
         },
         results: {
             heading: "Résultats",

@@ -48,6 +48,7 @@ export type TranslationBundle = {
             exportXlsx: string;
             emptyPrompt: string;
             missingRequired: string;
+            print: string;
         };
         results: {
             heading: string;
