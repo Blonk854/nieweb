@@ -72,3 +72,23 @@ export function changePassword(request: ChangePasswordRequest): Promise<void> {
         body: JSON.stringify(request),
     });
 }
+
+/**
+ * Public discovery shape returned by `GET /auth/config`. Used by the
+ * login page to decide whether to render the "Sign in with SSO"
+ * button. When `oidcEnabled` is false the other two fields are empty
+ * strings and the button must be hidden.
+ */
+export type AuthConfigResponse = {
+    oidcEnabled: boolean;
+    oidcButtonLabel: string;
+    oidcChallengePath: string;
+};
+
+/**
+ * Fetches the public auth configuration for this Nieweb host.
+ * Anonymous - safe to call before the user is signed in.
+ */
+export function getAuthConfig(): Promise<AuthConfigResponse> {
+    return apiFetch<AuthConfigResponse>("/auth/config");
+}

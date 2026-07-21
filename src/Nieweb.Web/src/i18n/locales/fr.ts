@@ -109,6 +109,14 @@ export const fr: TranslationBundle = {
             passwordRequired: "Le mot de passe est requis.",
             invalidCredentials: "Adresse e-mail ou mot de passe incorrect.",
             unexpectedError: "Échec de la connexion. Veuillez réessayer.",
+            ssoDivider: "ou",
+            ssoButton: "Se connecter avec {{provider}}",
+            ssoError: "Échec de l'authentification unique.",
+            ssoErrorLocalConflict:
+                "Cet e-mail est déjà associé à un compte local. "
+                + "Demandez à un administrateur de le convertir en SSO.",
+            ssoUnknownError:
+                "Erreur inattendue d'authentification unique : {{message}}",
         },
     },
     account: {

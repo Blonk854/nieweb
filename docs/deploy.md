@@ -320,3 +320,96 @@ npm ci  # first run only
 npx playwright install chromium  # first run only
 npm run test:e2e
 ```
+
+---
+
+## 11. OpenID Connect / Entra ID single sign-on (optional)
+
+Nieweb ships with an **inactive** OIDC handler. Local username +
+password sign-in works out of the box; OIDC only comes online when
+an operator explicitly configures `Nieweb:Auth:Oidc:Enabled=true`
+and supplies a real authority + client credentials. Until then,
+the challenge and callback endpoints return `404` and the SPA login
+page hides the SSO button (both are gated by the same `/auth/config`
+flag).
+
+### 11.1 Settings
+
+| Setting                                             | Env-var override                                  | Purpose                                                                                                                                     |
+| --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Nieweb:Auth:Oidc:Enabled`                          | `NIEWEB__AUTH__OIDC__ENABLED`                     | `true` to wire the OpenID Connect handler and expose the SSO button.                                                                        |
+| `Nieweb:Auth:Oidc:Authority`                        | `NIEWEB__AUTH__OIDC__AUTHORITY`                   | OIDC discovery URL. Entra: `https://login.microsoftonline.com/<tenant-id>/v2.0`.                                                            |
+| `Nieweb:Auth:Oidc:ClientId`                         | `NIEWEB__AUTH__OIDC__CLIENTID`                    | Application (client) ID registered with the identity provider.                                                                              |
+| `Nieweb:Auth:Oidc:ClientSecret`                     | `NIEWEB__AUTH__OIDC__CLIENTSECRET`                | Client secret. **Put this in `.env` only** — never commit it, never paste it into chat.                                                     |
+| `Nieweb:Auth:Oidc:Scopes`                           | `NIEWEB__AUTH__OIDC__SCOPES`                      | Space-separated scope list. Default `openid profile email`. Include additional scopes only when the provider requires them.                 |
+| `Nieweb:Auth:Oidc:CallbackPath`                     | `NIEWEB__AUTH__OIDC__CALLBACKPATH`                | Path the IdP redirects to after authentication. Default `/signin-oidc`.                                                                     |
+| `Nieweb:Auth:Oidc:SignedOutCallbackPath`            | `NIEWEB__AUTH__OIDC__SIGNEDOUTCALLBACKPATH`       | Path the IdP redirects to after a federated sign-out. Default `/signout-callback-oidc`.                                                     |
+| `Nieweb:Auth:Oidc:DefaultRole`                      | `NIEWEB__AUTH__OIDC__DEFAULTROLE`                 | Role assigned to auto-provisioned users. Default `Reader`; an Admin can promote them later via `/app/admin/users`.                          |
+| `Nieweb:Auth:Oidc:ButtonLabel`                      | `NIEWEB__AUTH__OIDC__BUTTONLABEL`                 | Text shown on the SPA login button. Default `Single sign-on`. Set to your tenant name (e.g. `Contoso SSO`) for clarity.                     |
+
+When `Enabled=true`, Nieweb fails fast at startup if `Authority`,
+`ClientId`, or `ClientSecret` is missing.
+
+### 11.2 Registering the Entra ID application
+
+1. In the Entra admin centre, register a new **Web** application.
+2. Set the redirect URI to `https://<nieweb-host>/signin-oidc`.
+3. Under **Certificates & secrets**, create a client secret; copy the
+   *value* immediately.
+4. Under **API permissions**, ensure `openid`, `profile`, and `email`
+   are granted (delegated).
+5. Under **Token configuration**, add the `email` optional claim if
+   your tenant does not emit it by default.
+6. Copy the **Application (client) ID** and the **Directory (tenant)
+   ID**.
+
+Then extend `.env` on the target box:
+
+```env
+NIEWEB__AUTH__OIDC__ENABLED=true
+NIEWEB__AUTH__OIDC__AUTHORITY=https://login.microsoftonline.com/<tenant-id>/v2.0
+NIEWEB__AUTH__OIDC__CLIENTID=<application-id>
+NIEWEB__AUTH__OIDC__CLIENTSECRET=<client-secret-value>
+NIEWEB__AUTH__OIDC__BUTTONLABEL=Contoso SSO
+```
+
+Restart the service and reload `/login` — the SSO button now
+appears below the local form.
+
+### 11.3 Provisioning rules
+
+First-time SSO sign-in walks four ordered paths before deciding
+what to do:
+
+1. **Existing external login binding** — the user has signed in
+   with this provider before. Sign them in.
+2. **Existing Nieweb user with matching email + already
+   OIDC-provisioned** — attach the new external-login binding, then
+   sign in. This is the "same person, second IdP session" case.
+3. **Existing Nieweb user with matching email + local account** —
+   **refused** with `LocalAccountConflict`. This is the anti-hijack
+   guard: an admin must either delete the local account, or migrate
+   it explicitly. The user sees a localised error on
+   `/app/oidc-return`.
+4. **No matching user** — auto-provisioned as `DefaultRole`
+   (`Reader`), email confirmed, no forced password rotation, and
+   the new external-login binding is attached.
+
+Disabled Nieweb users are also refused (same `LocalAccountConflict`
+code path) regardless of the external login state.
+
+### 11.4 Handoff & security notes
+
+- The JWT is delivered to the SPA via the URL **fragment**
+  (`#accessToken=...`) so it never appears in server access logs or
+  browser history stores. The SPA parses the fragment, hydrates the
+  session store, then calls `history.replaceState` to scrub it.
+- `returnUrl` is validated server-side — only `/app/*` paths are
+  accepted; anything else (`https://`, `//`, `\\`, `/api/*`) is
+  rewritten to `/app/`.
+- The intermediate cookie scheme (`nieweb.oidc-handoff`) has a
+  five-minute expiry and is deleted immediately after the JWT is
+  issued.
+- When OIDC is disabled, `/auth/oidc/challenge` and
+  `/auth/oidc/callback-return` return `404` (not `501`) so scanners
+  cannot fingerprint the feature.

@@ -13,12 +13,12 @@ import {
     Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { IconAlertCircle, IconLogout } from "@tabler/icons-react";
 import { Trans, useTranslation } from "react-i18next";
 
-import { login, whoami } from "../api/auth";
+import { getAuthConfig, login, whoami } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useSessionStore } from "../state/session";
 import type { LoginSearch } from "./login.search";
@@ -53,6 +53,18 @@ export function LoginRoute() {
     const [errorKey, setErrorKey] = useState<
         "login.form.invalidCredentials" | "login.form.unexpectedError" | null
     >(null);
+
+    // Public SSO discovery. Cached for the session — the answer only
+    // ever changes across restarts. When OIDC is disabled we render
+    // the local form on its own; otherwise we add a "Sign in with ..."
+    // button beneath the divider. React-Query gives us stale-while-
+    // revalidate + retry semantics for free.
+    const authConfig = useQuery({
+        queryKey: ["auth", "config"],
+        queryFn: getAuthConfig,
+        staleTime: 5 * 60 * 1000,
+        retry: 1,
+    });
 
     // Signed in with a pending redirect? Send them there once the
     // route mounts. Guarded by the effect so the initial render is
@@ -225,6 +237,40 @@ export function LoginRoute() {
                                     : t("login.form.submit")}
                             </Button>
                         </Group>
+                        {authConfig.data?.oidcEnabled && (
+                            <>
+                                <Divider
+                                    my="xs"
+                                    label={t("login.form.ssoDivider")}
+                                    labelPosition="center"
+                                />
+                                <Button
+                                    variant="default"
+                                    component="a"
+                                    // Top-level navigation (not a fetch)
+                                    // is required so the browser follows
+                                    // the OIDC redirect to the IdP.
+                                    // returnUrl is the FULL site path
+                                    // (starts with /app) because the
+                                    // server-side open-redirect guard
+                                    // insists on it; OidcReturnRoute
+                                    // strips the /app prefix before
+                                    // handing back to the router.
+                                    href={
+                                        authConfig.data.oidcChallengePath +
+                                        "?returnUrl=" +
+                                        encodeURIComponent(
+                                            "/app" + (redirectTarget ?? "/"),
+                                        )
+                                    }
+                                    fullWidth
+                                >
+                                    {t("login.form.ssoButton", {
+                                        provider: authConfig.data.oidcButtonLabel,
+                                    })}
+                                </Button>
+                            </>
+                        )}
                     </Stack>
                 </form>
             </Card>

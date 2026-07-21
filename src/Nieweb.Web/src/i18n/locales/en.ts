@@ -112,6 +112,13 @@ export const en: TranslationBundle = {
             passwordRequired: "Password is required.",
             invalidCredentials: "Invalid email or password.",
             unexpectedError: "Sign-in failed. Please try again.",
+            ssoDivider: "or",
+            ssoButton: "Sign in with {{provider}}",
+            ssoError: "Single sign-on failed.",
+            ssoErrorLocalConflict:
+                "That email is already registered as a local account. "
+                + "Ask an administrator to convert it to SSO.",
+            ssoUnknownError: "Unexpected single sign-on error: {{message}}",
         },
     },
     account: {

@@ -11,6 +11,7 @@ import { PanelYieldRoute } from "../routes/panel-yield";
 import { validatePanelYieldSearch } from "../routes/panel-yield.search";
 import { LoginRoute } from "../routes/login";
 import { validateLoginSearch } from "../routes/login.search";
+import { OidcReturnRoute } from "../routes/oidc-return";
 import { AdminUsersRoute } from "../routes/admin-users";
 import { ChangePasswordRoute } from "../routes/change-password";
 import { useSessionStore } from "../state/session";
@@ -40,6 +41,16 @@ const loginRoute = createRoute({
     path: "/login",
     component: LoginRoute,
     validateSearch: validateLoginSearch,
+});
+
+// Landing page for the OIDC redirect handshake. The URL fragment
+// carries the JWT and returnUrl; the route parses them, hydrates the
+// session store, and bounces onward. Anonymous by design — the
+// fragment IS the credential.
+const oidcReturnRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/oidc-return",
+    component: OidcReturnRoute,
 });
 
 const adminUsersRoute = createRoute({
@@ -79,6 +90,7 @@ const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
     loginRoute,
+    oidcReturnRoute,
     adminUsersRoute,
     changePasswordRoute,
 ]);

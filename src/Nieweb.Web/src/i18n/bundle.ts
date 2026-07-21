@@ -107,6 +107,11 @@ export type TranslationBundle = {
             passwordRequired: string;
             invalidCredentials: string;
             unexpectedError: string;
+            ssoDivider: string;
+            ssoButton: string;
+            ssoError: string;
+            ssoErrorLocalConflict: string;
+            ssoUnknownError: string;
         };
     };
     account: {

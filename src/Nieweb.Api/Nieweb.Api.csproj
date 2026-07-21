@@ -42,6 +42,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <!--
       Design-time only: required by the dotnet-ef tool for the startup

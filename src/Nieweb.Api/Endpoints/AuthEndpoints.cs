@@ -37,7 +37,42 @@ public static partial class AuthEndpoints
             .RequireAuthorization()
             .WithName("AuthChangePassword");
 
+        // Public discovery endpoint used by the SPA to decide whether to
+        // render the "Sign in with SSO" button on the login page (I2).
+        // Kept anonymous so the login screen can render before any
+        // credentials are supplied.
+        group.MapGet("/config", GetConfig)
+            .AllowAnonymous()
+            .WithName("AuthConfig");
+
         return routes;
+    }
+
+    /// <summary>Public auth configuration for the SPA (see <c>GET /auth/config</c>).</summary>
+    /// <param name="OidcEnabled">
+    /// True when <see cref="Nieweb.Api.Auth.OidcOptions.Enabled"/> is set
+    /// AND the required OIDC settings are populated. When false the SPA
+    /// hides the SSO button entirely.
+    /// </param>
+    /// <param name="OidcButtonLabel">Human-readable label to render on the SSO button.</param>
+    /// <param name="OidcChallengePath">Path the SPA should navigate to (top-level, not a fetch) to start the OIDC flow.</param>
+    public sealed record AuthConfigResponse(
+        bool OidcEnabled,
+        string OidcButtonLabel,
+        string OidcChallengePath);
+
+    private static IResult GetConfig(
+        Microsoft.Extensions.Options.IOptionsMonitor<Nieweb.Api.Auth.OidcOptions> oidc)
+    {
+        ArgumentNullException.ThrowIfNull(oidc);
+        var opts = oidc.CurrentValue;
+        var enabled = opts.Enabled
+            && !string.IsNullOrWhiteSpace(opts.Authority)
+            && !string.IsNullOrWhiteSpace(opts.ClientId);
+        return Results.Ok(new AuthConfigResponse(
+            OidcEnabled: enabled,
+            OidcButtonLabel: enabled ? opts.ButtonLabel : string.Empty,
+            OidcChallengePath: enabled ? "/auth/oidc/challenge" : string.Empty));
     }
 
     /// <summary>Login request body.</summary>

@@ -91,6 +91,22 @@ function stubFetch(
         body: unknown;
     }>,
 ) {
+    // Every test transparently gets a default /auth/config response
+    // reporting SSO disabled so we don't have to duplicate the fixture
+    // in every case. Explicit stubs override it because they match
+    // first (findIndex before the default).
+    const effective = [
+        ...responses,
+        {
+            match: (u: string) => u.endsWith("/auth/config"),
+            status: 200,
+            body: {
+                oidcEnabled: false,
+                oidcButtonLabel: "",
+                oidcChallengePath: "",
+            },
+        },
+    ];
     const fetchMock = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
         const asString =
             typeof url === "string"
@@ -98,7 +114,7 @@ function stubFetch(
                 : url instanceof URL
                     ? url.toString()
                     : url.url;
-        const hit = responses.find((r) => r.match(asString, init));
+        const hit = effective.find((r) => r.match(asString, init));
         if (!hit) {
             throw new Error(`Unexpected fetch: ${asString}`);
         }
@@ -193,10 +209,21 @@ describe("LoginRoute", () => {
             expect(state.user?.roles).toEqual(["Admin"]);
         });
 
-        // Two calls: /auth/login then /auth/whoami with Bearer header.
-        expect(fetchMock).toHaveBeenCalledTimes(2);
-        const whoamiCall = fetchMock.mock.calls[1];
-        const init = whoamiCall[1] as RequestInit;
+        // Three calls: /auth/config (rendered on mount), /auth/login,
+        // then /auth/whoami with Bearer header. Only the last two are
+        // ordered relative to each other; auth/config may fire before
+        // or during the login mutation.
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        const nonConfigCalls = fetchMock.mock.calls.filter((c) => {
+            const url = typeof c[0] === "string" ? c[0] : (c[0] as URL).toString();
+            return !url.endsWith("/auth/config");
+        });
+        const whoamiCall = nonConfigCalls.find((c) => {
+            const url = typeof c[0] === "string" ? c[0] : (c[0] as URL).toString();
+            return url.endsWith("/auth/whoami");
+        });
+        expect(whoamiCall).toBeDefined();
+        const init = whoamiCall![1] as RequestInit;
         const headers = new Headers(init.headers);
         expect(headers.get("Authorization")).toBe("Bearer jwt-token-abc");
     });
@@ -361,5 +388,47 @@ describe("LoginRoute", () => {
         expect(
             await screen.findByTestId("change-password-stub"),
         ).toBeInTheDocument();
+    });
+
+    it("renders the SSO button when /auth/config reports oidcEnabled", async () => {
+        // Explicit stub for auth/config that OVERRIDES the default
+        // disabled one. Since findIndex matches the first hit and our
+        // explicit responses land before the default, an explicit
+        // /auth/config here wins.
+        stubFetch([
+            {
+                match: (u) => u.endsWith("/auth/config"),
+                status: 200,
+                body: {
+                    oidcEnabled: true,
+                    oidcButtonLabel: "Contoso SSO",
+                    oidcChallengePath: "/auth/oidc/challenge",
+                },
+            },
+        ]);
+        renderLogin("/login?redirect=%2Freport%2Fpanel-yield");
+
+        const ssoButton = await screen.findByRole("link", {
+            name: /contoso sso/i,
+        });
+        // Verify the href carries a /app-prefixed returnUrl (open-
+        // redirect defence on the server insists on it).
+        const href = ssoButton.getAttribute("href");
+        expect(href).toContain("/auth/oidc/challenge?returnUrl=");
+        expect(href).toContain(
+            encodeURIComponent("/app/report/panel-yield"),
+        );
+    });
+
+    it("hides the SSO button when /auth/config reports oidcEnabled=false", async () => {
+        // Default stub already reports disabled.
+        stubFetch([]);
+        renderLogin();
+
+        await screen.findByRole("button", { name: /sign in/i });
+        // No SSO button rendered when disabled.
+        expect(
+            screen.queryByRole("link", { name: /sso|single sign-on/i }),
+        ).toBeNull();
     });
 });

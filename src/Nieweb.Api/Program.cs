@@ -144,9 +144,76 @@ try
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<IJwtTokenIssuer, JwtTokenIssuer>();
 
-    builder.Services
+    // OIDC / SSO configuration (I2). Bind unconditionally so
+    // /auth/config can inspect it; the actual OpenID Connect handler
+    // is only registered when Nieweb:Auth:Oidc:Enabled=true, keeping
+    // the SPA "Sign in with SSO" button hidden on hosts without an
+    // Entra registration.
+    var oidcSection = builder.Configuration.GetSection("Nieweb:Auth:Oidc");
+    builder.Services.Configure<OidcOptions>(oidcSection);
+    var oidcOpts = oidcSection.Get<OidcOptions>() ?? new OidcOptions();
+    builder.Services.AddScoped<OidcUserProvisioner>();
+
+    var authBuilder = builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer();
+
+    if (oidcOpts.Enabled)
+    {
+        // Fail loud at boot rather than at first sign-in.
+        if (string.IsNullOrWhiteSpace(oidcOpts.Authority)
+            || string.IsNullOrWhiteSpace(oidcOpts.ClientId)
+            || string.IsNullOrWhiteSpace(oidcOpts.ClientSecret))
+        {
+            throw new InvalidOperationException(
+                "Nieweb:Auth:Oidc:Enabled=true but Authority / ClientId / "
+                + "ClientSecret are not all populated. Supply the three via "
+                + "environment variables (NIEWEB__AUTH__OIDC__CLIENTSECRET etc.) "
+                + "or a secret store, or set Enabled=false to disable SSO.");
+        }
+
+        // Cookie scheme is used ONLY as a short-lived handoff channel:
+        // the OIDC middleware writes the sign-in principal there, our
+        // /auth/oidc/callback-return endpoint reads it once, provisions
+        // the user, issues a JWT, and immediately SignOutAsync-s the
+        // cookie. Nothing else on the API relies on the cookie so it
+        // never bleeds into other endpoints.
+        authBuilder
+            .AddCookie(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme,
+                cookie =>
+                {
+                    cookie.Cookie.Name = "nieweb.oidc-handoff";
+                    cookie.Cookie.HttpOnly = true;
+                    cookie.Cookie.SameSite = SameSiteMode.Lax;
+                    cookie.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                    cookie.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+                    cookie.SlidingExpiration = false;
+                })
+            .AddOpenIdConnect(oidc =>
+            {
+                oidc.Authority = oidcOpts.Authority;
+                oidc.ClientId = oidcOpts.ClientId;
+                oidc.ClientSecret = oidcOpts.ClientSecret;
+                oidc.CallbackPath = oidcOpts.CallbackPath;
+                oidc.SignedOutCallbackPath = oidcOpts.SignedOutCallbackPath;
+                oidc.ResponseType = "code";
+                oidc.UsePkce = true;
+                oidc.SaveTokens = false;
+                oidc.GetClaimsFromUserInfoEndpoint = true;
+                oidc.SignInScheme = Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme;
+                oidc.Scope.Clear();
+                foreach (var scope in oidcOpts.Scopes.Split(' ',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    oidc.Scope.Add(scope);
+                }
+                oidc.TokenValidationParameters = new TokenValidationParameters
+                {
+                    NameClaimType = "name",
+                    RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+                };
+            });
+    }
 
     builder.Services
         .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -271,6 +338,7 @@ try
     app.UseAuthorization();
 
     app.MapAuthEndpoints();
+    app.MapOidcEndpoints();
     app.MapSourceEndpoints();
     app.MapReportEndpoints();
     app.MapSavedViewEndpoints();
