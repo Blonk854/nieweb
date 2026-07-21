@@ -150,6 +150,11 @@ try
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddScoped<Nieweb.Api.Audit.IAuditLog, Nieweb.Api.Audit.EfAuditLog>();
 
+    // App parameters (RI3). Backs /api/admin/parameters and is the
+    // canonical source for tolerance intervals, MSA constants, and the
+    // batch master switch.
+    builder.Services.AddScoped<Nieweb.Api.Parameters.IAppParameters, Nieweb.Api.Parameters.EfAppParameters>();
+
     // OIDC / SSO configuration (I2). Bind unconditionally so
     // /auth/config can inspect it; the actual OpenID Connect handler
     // is only registered when Nieweb:Auth:Oidc:Enabled=true, keeping
@@ -349,6 +354,7 @@ try
     app.MapReportEndpoints();
     app.MapSavedViewEndpoints();
     app.MapAdminUsersEndpoints();
+    app.MapAdminParametersEndpoints();
     app.MapAuditEndpoints();
     app.MapHealthEndpoints();
 

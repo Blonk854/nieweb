@@ -43,6 +43,12 @@ public sealed class NiewebDbContext : IdentityDbContext<
     /// </summary>
     public DbSet<SavedView> SavedViews => Set<SavedView>();
 
+    /// <summary>
+    /// Typed key/value knobs surfaced under the "Application parameters"
+    /// admin page. See <see cref="AppParameter"/>.
+    /// </summary>
+    public DbSet<AppParameter> AppParameters => Set<AppParameter>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -97,6 +103,24 @@ public sealed class NiewebDbContext : IdentityDbContext<
             b.Property(v => v.LastModifiedUtc).IsRequired();
             b.HasIndex(v => new { v.OwnerUserId, v.ReportKey });
             b.HasIndex(v => v.ReportKey);
+        });
+
+        builder.Entity<AppParameter>(b =>
+        {
+            b.ToTable("AppParameters");
+            // Key is the natural PK - short, dotted, immutable strings
+            // like "msa.gr_r" or "batch.enabled". Bounded at 128 so
+            // provider-agnostic indexes fit inside default limits.
+            b.HasKey(p => p.Key);
+            b.Property(p => p.Key).HasMaxLength(128).IsRequired();
+            b.Property(p => p.ValueType).HasMaxLength(16).IsRequired();
+            // Value is stored as invariant-culture text; long enough for
+            // JSON blobs or path lists if a future report needs them.
+            b.Property(p => p.Value).HasMaxLength(2048).IsRequired();
+            b.Property(p => p.Description).HasMaxLength(500);
+            b.Property(p => p.CreatedUtc).IsRequired();
+            b.Property(p => p.LastModifiedUtc).IsRequired();
+            b.HasIndex(p => p.IsSystem);
         });
     }
 }

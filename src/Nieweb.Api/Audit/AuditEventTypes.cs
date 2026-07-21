@@ -39,6 +39,15 @@ public static class AuditEventTypes
 
     /// <summary>User changed their own password.</summary>
     public const string AuthPasswordChanged = "auth.password.changed";
+
+    /// <summary>Admin created an application parameter row.</summary>
+    public const string AppParameterCreated = "app.parameter.created";
+
+    /// <summary>Admin updated an application parameter value or description.</summary>
+    public const string AppParameterUpdated = "app.parameter.updated";
+
+    /// <summary>Admin deleted a non-system application parameter row.</summary>
+    public const string AppParameterDeleted = "app.parameter.deleted";
 }
 
 /// <summary>
@@ -49,4 +58,5 @@ public static class AuditTargetTypes
     public const string User = "User";
     public const string Session = "Session";
     public const string SavedView = "SavedView";
+    public const string AppParameter = "AppParameter";
 }

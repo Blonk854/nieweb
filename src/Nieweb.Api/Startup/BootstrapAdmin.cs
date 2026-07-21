@@ -65,6 +65,13 @@ public static partial class BootstrapAdmin
         var db = sp.GetRequiredService<NiewebDbContext>();
         await db.Database.MigrateAsync(cancellationToken).ConfigureAwait(false);
 
+        // Seed default app parameters right after migrations so
+        // downstream reports (Cp / GR&R / Deviation) and the batch
+        // scheduler always find the expected keys, even on a brand
+        // new database.
+        var appParams = sp.GetRequiredService<Nieweb.Api.Parameters.IAppParameters>();
+        await appParams.EnsureSeededAsync(cancellationToken).ConfigureAwait(false);
+
         var roleManager = sp.GetRequiredService<RoleManager<NiewebRole>>();
         foreach (var name in new[] { RoleReader, RoleAuthor, RoleAdmin })
         {
