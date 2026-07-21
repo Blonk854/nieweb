@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
+using ClosedXML.Excel;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 
@@ -43,6 +44,9 @@ public static partial class ReportEndpoints
 
         group.MapGet("/panel-yield/export.csv", ExportPanelYieldCsvAsync)
             .WithName("ReportsPanelYieldExportCsv");
+
+        group.MapGet("/panel-yield/export.xlsx", ExportPanelYieldXlsxAsync)
+            .WithName("ReportsPanelYieldExportXlsx");
 
         return routes;
     }
@@ -205,6 +209,150 @@ public static partial class ReportEndpoints
         writer.Advance(written);
         await writer.FlushAsync(ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// <c>GET /api/reports/panel-yield/export.xlsx</c>.
+    /// Same shape as the CSV export but as an Excel 2007+ (.xlsx) workbook
+    /// authored with ClosedXML. Contains two sheets:
+    /// <list type="bullet">
+    ///   <item><description><c>Summary</c> - source / window metadata and the overall KPI row.</description></item>
+    ///   <item><description><c>By Machine</c> - one row per machine with typed numeric cells so pivot tables and
+    ///     Excel formulas work without a re-parse step.</description></item>
+    /// </list>
+    /// The workbook is written to a pooled <see cref="MemoryStream"/> then
+    /// copied to the response - ClosedXML does not support forward-only
+    /// streaming, and Open-XML packages are ZIP archives so they cannot be
+    /// serialized as a pure forward-only stream anyway.
+    /// </summary>
+    private static async Task ExportPanelYieldXlsxAsync(
+        HttpContext context,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        string? productIds,
+        string? recipeIds,
+        bool? onlyLastInspection,
+        IEnumerable<IAoiSource> sources,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var built = TryBuildPanelYieldRequest(
+            sourceId, startUtc, endUtc, machineIds, productIds, recipeIds,
+            onlyLastInspection, sources);
+        if (built.Error is not null)
+        {
+            await built.Error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
+        var result = await PanelYieldByLineReport
+            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        var filename = string.Create(CultureInfo.InvariantCulture,
+            $"panel-yield-{built.Source.Descriptor.Id}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}.xlsx");
+
+        // ClosedXML must fully materialize the workbook before we can hand
+        // it off - Open-XML packages are ZIP archives. We buffer into a
+        // MemoryStream then stream the bytes to the response.
+        using var buffer = new MemoryStream(16 * 1024);
+        BuildPanelYieldWorkbook(result, buffer);
+        buffer.Position = 0;
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = XlsxContentType;
+        context.Response.ContentLength = buffer.Length;
+        context.Response.Headers.ContentDisposition = $"attachment; filename=\"{filename}\"";
+
+        await buffer.CopyToAsync(context.Response.Body, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Writes the panel-yield workbook (Summary + By Machine sheets) into <paramref name="destination"/>.</summary>
+    private static void BuildPanelYieldWorkbook(PanelYieldResult result, Stream destination)
+    {
+        using var workbook = new XLWorkbook();
+
+        // ---- Summary sheet ----
+        var summary = workbook.Worksheets.Add("Summary");
+        summary.Cell("A1").Value = "Nieweb - Panel Yield by Line";
+        summary.Cell("A1").Style.Font.Bold = true;
+        summary.Cell("A1").Style.Font.FontSize = 14;
+        summary.Range("A1:B1").Merge();
+
+        summary.Cell("A3").Value = "Source Id";
+        summary.Cell("B3").Value = result.Source.Id;
+        summary.Cell("A4").Value = "Source Name";
+        summary.Cell("B4").Value = result.Source.DisplayName;
+        summary.Cell("A5").Value = "Window Start (UTC)";
+        summary.Cell("B5").Value = result.Window.StartUtc.UtcDateTime;
+        summary.Cell("B5").Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+        summary.Cell("A6").Value = "Window End (UTC, exclusive)";
+        summary.Cell("B6").Value = result.Window.EndUtcExclusive.UtcDateTime;
+        summary.Cell("B6").Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+
+        summary.Cell("A8").Value = "Metric";
+        summary.Cell("B8").Value = "Value";
+        summary.Range("A8:B8").Style.Font.Bold = true;
+        summary.Cell("A9").Value = "Total Panels";
+        summary.Cell("B9").Value = result.Overall.TotalPanels;
+        summary.Cell("A10").Value = "Inspected Panels";
+        summary.Cell("B10").Value = result.Overall.InspectedPanels;
+        summary.Cell("A11").Value = "Good Panels";
+        summary.Cell("B11").Value = result.Overall.GoodPanels;
+        summary.Cell("A12").Value = "Faulty Panels";
+        summary.Cell("B12").Value = result.Overall.FaultyPanels;
+        summary.Cell("A13").Value = "Not-Inspected Panels";
+        summary.Cell("B13").Value = result.Overall.NotInspectedPanels;
+        summary.Cell("A14").Value = "FPY (%)";
+        summary.Cell("B14").Value = result.Overall.FpyPercent;
+        summary.Cell("B14").Style.NumberFormat.Format = "0.####";
+        summary.Columns("A:B").AdjustToContents();
+
+        // ---- By Machine sheet ----
+        var by = workbook.Worksheets.Add("By Machine");
+        string[] headers =
+        [
+            "MachineId", "MachineName",
+            "TotalPanels", "InspectedPanels", "GoodPanels",
+            "FaultyPanels", "NotInspectedPanels", "FpyPercent",
+        ];
+        for (var i = 0; i < headers.Length; i++)
+        {
+            by.Cell(1, i + 1).Value = headers[i];
+        }
+        by.Range(1, 1, 1, headers.Length).Style.Font.Bold = true;
+
+        var row = 2;
+        foreach (var m in result.ByMachine)
+        {
+            by.Cell(row, 1).Value = m.MachineId;
+            by.Cell(row, 2).Value = m.MachineName ?? string.Empty;
+            by.Cell(row, 3).Value = m.Kpi.TotalPanels;
+            by.Cell(row, 4).Value = m.Kpi.InspectedPanels;
+            by.Cell(row, 5).Value = m.Kpi.GoodPanels;
+            by.Cell(row, 6).Value = m.Kpi.FaultyPanels;
+            by.Cell(row, 7).Value = m.Kpi.NotInspectedPanels;
+            by.Cell(row, 8).Value = m.Kpi.FpyPercent;
+            by.Cell(row, 8).Style.NumberFormat.Format = "0.####";
+            row++;
+        }
+
+        if (result.ByMachine.Count > 0)
+        {
+            by.Range(1, 1, result.ByMachine.Count + 1, headers.Length)
+              .SetAutoFilter();
+        }
+        by.Columns(1, headers.Length).AdjustToContents();
+
+        workbook.SaveAs(destination);
+    }
+
+    private const string XlsxContentType =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     /// <summary>
     /// RFC-4180 CSV field escaping: wrap in double-quotes and double any

@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using ClosedXML.Excel;
+
 using Microsoft.AspNetCore.Identity;
 
 using Nieweb.Api.Endpoints;
@@ -407,6 +409,175 @@ public sealed class ReportEndpointsTests : IClassFixture<NiewebApiFactory>
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(2, lines.Length);
         Assert.Contains(",500,AOI-500,", lines[1], StringComparison.Ordinal);
+    }
+
+    // -------------------------------------------------------------------------
+    // XLSX export endpoint (R5): /api/reports/panel-yield/export.xlsx
+    // -------------------------------------------------------------------------
+
+    private const string XlsxContentType =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    [Fact]
+    public async Task PanelYieldXlsx_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PanelYieldXlsx_UnknownSource_Returns404()
+    {
+        using var client = _factory.CreateClient();
+        var token = await IssueTokenAsync(client, "yield-xlsx-unknown@nieweb.test");
+
+        using var authed = _factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.xlsx?sourceId=does-not-exist&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PanelYieldXlsx_InvalidWindow_Returns400()
+    {
+        var fake = new FakeAoiSource(_postDescriptor);
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(fake)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "yield-xlsx-badwindow@nieweb.test");
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.xlsx?sourceId=postreflow&startUtc={EndUtc}&endUtc={StartUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PanelYieldXlsx_SeededPanels_ReturnsExpectedWorkbook()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededPanels =
+            [
+                Panel(1, 100, WindowStartEpoch + 60, 1),
+                Panel(2, 100, WindowStartEpoch + 120, 1),
+                Panel(3, 100, WindowStartEpoch + 180, 2),
+                Panel(4, 200, WindowStartEpoch + 60, 1),
+                Panel(5, 200, WindowStartEpoch + 120, -1),
+                Panel(6, 200, WindowStartEpoch + 180, 0),
+            ],
+            SeededMachines =
+            [
+                new Machine(100, 2, "AOI-100", "AOI"),
+                new Machine(200, 2, "AOI-200", "AOI"),
+            ],
+        };
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(fake)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "yield-xlsx-happy@nieweb.test");
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(XlsxContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "panel-yield-postreflow-20260101-20260102.xlsx",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length > 500, "XLSX payload should be a non-trivial ZIP package.");
+        // .xlsx files are ZIP archives - PK\x03\x04 magic.
+        Assert.Equal((byte)'P', bytes[0]);
+        Assert.Equal((byte)'K', bytes[1]);
+        Assert.Equal(0x03, bytes[2]);
+        Assert.Equal(0x04, bytes[3]);
+
+        using var ms = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(ms);
+
+        var summary = workbook.Worksheet("Summary");
+        Assert.Equal("postreflow", summary.Cell("B3").GetString());
+        Assert.Equal("Post-reflow AOI", summary.Cell("B4").GetString());
+        // Overall block - total panels row is A9/B9.
+        Assert.Equal("Total Panels", summary.Cell("A9").GetString());
+        Assert.Equal(6, (int)summary.Cell("B9").GetDouble());
+        Assert.Equal("FPY (%)", summary.Cell("A14").GetString());
+        // Overall FPY: 4 good / 5 inspected = 80%.
+        Assert.Equal(80d, summary.Cell("B14").GetDouble(), 4);
+
+        var by = workbook.Worksheet("By Machine");
+        Assert.Equal("MachineId", by.Cell(1, 1).GetString());
+        Assert.Equal("FpyPercent", by.Cell(1, 8).GetString());
+        // Row 2: machine 100 - 3/3/3/0/0/100
+        Assert.Equal(100, (int)by.Cell(2, 1).GetDouble());
+        Assert.Equal("AOI-100", by.Cell(2, 2).GetString());
+        Assert.Equal(3, (int)by.Cell(2, 3).GetDouble());
+        Assert.Equal(3, (int)by.Cell(2, 4).GetDouble());
+        Assert.Equal(3, (int)by.Cell(2, 5).GetDouble());
+        Assert.Equal(0, (int)by.Cell(2, 6).GetDouble());
+        Assert.Equal(0, (int)by.Cell(2, 7).GetDouble());
+        Assert.Equal(100d, by.Cell(2, 8).GetDouble(), 4);
+        // Row 3: machine 200 - 3/2/1/1/1/50
+        Assert.Equal(200, (int)by.Cell(3, 1).GetDouble());
+        Assert.Equal("AOI-200", by.Cell(3, 2).GetString());
+        Assert.Equal(3, (int)by.Cell(3, 3).GetDouble());
+        Assert.Equal(2, (int)by.Cell(3, 4).GetDouble());
+        Assert.Equal(1, (int)by.Cell(3, 5).GetDouble());
+        Assert.Equal(1, (int)by.Cell(3, 6).GetDouble());
+        Assert.Equal(1, (int)by.Cell(3, 7).GetDouble());
+        Assert.Equal(50d, by.Cell(3, 8).GetDouble(), 4);
+    }
+
+    [Fact]
+    public async Task PanelYieldXlsx_MachineIdsFilterHonoured()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededPanels =
+            [
+                Panel(1, 700, WindowStartEpoch + 60, 1),
+                Panel(2, 700, WindowStartEpoch + 120, 1),
+                Panel(3, 701, WindowStartEpoch + 60, -1),
+            ],
+            SeededMachines =
+            [
+                new Machine(700, 2, "AOI-700", "AOI"),
+                new Machine(701, 2, "AOI-701", "AOI"),
+            ],
+        };
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(fake)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "yield-xlsx-filter@nieweb.test");
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&machineIds=700", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var ms = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(ms);
+        var by = workbook.Worksheet("By Machine");
+        // Only one data row (header at row 1, machine 700 at row 2, row 3 empty).
+        Assert.Equal(700, (int)by.Cell(2, 1).GetDouble());
+        Assert.True(by.Cell(3, 1).IsEmpty(),
+            "Only the filtered machine should appear in the workbook.");
     }
 
     private static PanelRow Panel(int id, int machineId, int date, int status) =>
