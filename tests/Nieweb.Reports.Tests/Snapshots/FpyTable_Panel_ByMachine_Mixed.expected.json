@@ -1,0 +1,63 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "granularity": "Panel",
+  "groupBy": "AoiMachine",
+  "overall": {
+    "totalRows": 10,
+    "inspectedCount": 9,
+    "notInspectedCount": 1,
+    "faultyCount": 2,
+    "goodAoiCount": 3,
+    "goodDiagnosticCount": 6,
+    "goodAfterRepairCount": 7,
+    "fpyAoiPercent": 33.333333333333336,
+    "fpyDiagnosticPercent": 66.66666666666667,
+    "fpyAfterRepairPercent": 77.77777777777777
+  },
+  "rows": [
+    {
+      "groupKey": 11,
+      "groupName": "AOI-11",
+      "kpi": {
+        "totalRows": 4,
+        "inspectedCount": 4,
+        "notInspectedCount": 0,
+        "faultyCount": 1,
+        "goodAoiCount": 1,
+        "goodDiagnosticCount": 3,
+        "goodAfterRepairCount": 3,
+        "fpyAoiPercent": 25,
+        "fpyDiagnosticPercent": 75,
+        "fpyAfterRepairPercent": 75
+      }
+    },
+    {
+      "groupKey": 10,
+      "groupName": "AOI-10",
+      "kpi": {
+        "totalRows": 6,
+        "inspectedCount": 5,
+        "notInspectedCount": 1,
+        "faultyCount": 1,
+        "goodAoiCount": 2,
+        "goodDiagnosticCount": 3,
+        "goodAfterRepairCount": 4,
+        "fpyAoiPercent": 40,
+        "fpyDiagnosticPercent": 60,
+        "fpyAfterRepairPercent": 80
+      }
+    }
+  ]
+}

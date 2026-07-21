@@ -23,7 +23,11 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public IReadOnlyList<PanelRow> SeededPanels { get; init; } = [];
 
+    public IReadOnlyList<CardRow> SeededCards { get; init; } = [];
+
     public IReadOnlyList<Machine> SeededMachines { get; init; } = [];
+
+    public IReadOnlyList<Product> SeededProducts { get; init; } = [];
 
     public Task<DateTime?> GetLatestPanelUtcAsync(CancellationToken ct)
         => Task.FromResult<DateTime?>(null);
@@ -70,11 +74,40 @@ internal sealed class FakeAoiSource : IAoiSource
         }
     }
 
+    public async IAsyncEnumerable<CardRow> StreamCardsAsync(
+        CardQuery query,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        foreach (var card in SeededCards)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (card.PanelNumericDate < query.Window.StartEpochSeconds)
+            {
+                continue;
+            }
+            if (card.PanelNumericDate >= query.Window.EndEpochSecondsExclusive)
+            {
+                continue;
+            }
+            if (query.MachineIds is { Count: > 0 } && !query.MachineIds.Contains(card.MachineId))
+            {
+                continue;
+            }
+            if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(card.ProductId))
+            {
+                continue;
+            }
+            yield return card;
+            await Task.Yield();
+        }
+    }
+
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(SeededMachines);
 
     public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct)
-        => Task.FromResult<IReadOnlyList<Product>>([]);
+        => Task.FromResult(SeededProducts);
 
     public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct)
         => Task.FromResult<IReadOnlyList<Recipe>>([]);

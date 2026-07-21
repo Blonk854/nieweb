@@ -1,0 +1,47 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "granularity": "Board",
+  "groupBy": "AoiMachine",
+  "overall": {
+    "totalRows": 3,
+    "inspectedCount": 3,
+    "notInspectedCount": 0,
+    "faultyCount": 1,
+    "goodAoiCount": 2,
+    "goodDiagnosticCount": 2,
+    "goodAfterRepairCount": 2,
+    "fpyAoiPercent": 66.66666666666667,
+    "fpyDiagnosticPercent": 66.66666666666667,
+    "fpyAfterRepairPercent": 66.66666666666667
+  },
+  "rows": [
+    {
+      "groupKey": 10,
+      "groupName": "AOI-10",
+      "kpi": {
+        "totalRows": 3,
+        "inspectedCount": 3,
+        "notInspectedCount": 0,
+        "faultyCount": 1,
+        "goodAoiCount": 2,
+        "goodDiagnosticCount": 2,
+        "goodAfterRepairCount": 2,
+        "fpyAoiPercent": 66.66666666666667,
+        "fpyDiagnosticPercent": 66.66666666666667,
+        "fpyAfterRepairPercent": 66.66666666666667
+      }
+    }
+  ]
+}

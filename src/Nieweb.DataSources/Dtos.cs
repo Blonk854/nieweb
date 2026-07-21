@@ -29,6 +29,13 @@ public sealed record PanelRow(
     int ProductId,
     int RecipeId);
 
+/// <summary>
+/// One row of the <c>CARDS</c> (sub-panel) table. <see cref="MachineId"/>
+/// and <see cref="ProductId"/> are copied from the parent <c>PANELS</c>
+/// row so board-level reports (FPY table, DPMO table) can group and
+/// filter without a second query — the SQL adapters join to
+/// <c>dbo.PANELS</c> when materialising this shape.
+/// </summary>
 public sealed record CardRow(
     long PanelId,
     int CardIdOnPanel,
@@ -36,7 +43,10 @@ public sealed record CardRow(
     long AnomalyBr,
     long AnomalyAr,
     int NbOfTestedObject,
-    int NbOfErrorObject);
+    int NbOfErrorObject,
+    int MachineId,
+    int ProductId,
+    int PanelNumericDate);
 
 public sealed record TestedObjectRow(
     long PanelId,

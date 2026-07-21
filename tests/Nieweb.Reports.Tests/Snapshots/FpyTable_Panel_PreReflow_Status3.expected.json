@@ -1,0 +1,47 @@
+{
+  "source": {
+    "id": "prereflow",
+    "displayName": "Pre-reflow AOI",
+    "schemaVersion": "4.3.1",
+    "caps": "PastePrintMetrics, FeederAnalytics"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "granularity": "Panel",
+  "groupBy": "AoiMachine",
+  "overall": {
+    "totalRows": 3,
+    "inspectedCount": 3,
+    "notInspectedCount": 0,
+    "faultyCount": 1,
+    "goodAoiCount": 1,
+    "goodDiagnosticCount": 1,
+    "goodAfterRepairCount": 2,
+    "fpyAoiPercent": 33.333333333333336,
+    "fpyDiagnosticPercent": 33.333333333333336,
+    "fpyAfterRepairPercent": 66.66666666666667
+  },
+  "rows": [
+    {
+      "groupKey": 20,
+      "groupName": "AOI-20",
+      "kpi": {
+        "totalRows": 3,
+        "inspectedCount": 3,
+        "notInspectedCount": 0,
+        "faultyCount": 1,
+        "goodAoiCount": 1,
+        "goodDiagnosticCount": 1,
+        "goodAfterRepairCount": 2,
+        "fpyAoiPercent": 33.333333333333336,
+        "fpyDiagnosticPercent": 33.333333333333336,
+        "fpyAfterRepairPercent": 66.66666666666667
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "granularity": "Panel",
+  "groupBy": "Product",
+  "overall": {
+    "totalRows": 6,
+    "inspectedCount": 6,
+    "notInspectedCount": 0,
+    "faultyCount": 2,
+    "goodAoiCount": 4,
+    "goodDiagnosticCount": 4,
+    "goodAfterRepairCount": 4,
+    "fpyAoiPercent": 66.66666666666667,
+    "fpyDiagnosticPercent": 66.66666666666667,
+    "fpyAfterRepairPercent": 66.66666666666667
+  },
+  "rows": [
+    {
+      "groupKey": 500,
+      "groupName": "Prod-A",
+      "kpi": {
+        "totalRows": 2,
+        "inspectedCount": 2,
+        "notInspectedCount": 0,
+        "faultyCount": 1,
+        "goodAoiCount": 1,
+        "goodDiagnosticCount": 1,
+        "goodAfterRepairCount": 1,
+        "fpyAoiPercent": 50,
+        "fpyDiagnosticPercent": 50,
+        "fpyAfterRepairPercent": 50
+      }
+    },
+    {
+      "groupKey": 501,
+      "groupName": "Prod-B",
+      "kpi": {
+        "totalRows": 4,
+        "inspectedCount": 4,
+        "notInspectedCount": 0,
+        "faultyCount": 1,
+        "goodAoiCount": 3,
+        "goodDiagnosticCount": 3,
+        "goodAfterRepairCount": 3,
+        "fpyAoiPercent": 75,
+        "fpyDiagnosticPercent": 75,
+        "fpyAfterRepairPercent": 75
+      }
+    }
+  ]
+}

@@ -104,7 +104,7 @@ public sealed class FakeAoiSource : IAoiSource
     }
 
     public Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct)
-        => Task.FromResult(new Page<CardRow, CardCursor>([], NextCursor: null, HasMore: false));
+        => Task.FromResult(new Page<CardRow, CardCursor>(FilterCards(query).ToList(), NextCursor: null, HasMore: false));
 
     public Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct)
         => Task.FromResult(new Page<TestedObjectRow, TestedObjectCursor>([], NextCursor: null, HasMore: false));
@@ -122,6 +122,19 @@ public sealed class FakeAoiSource : IAoiSource
         }
     }
 
+    public async IAsyncEnumerable<CardRow> StreamCardsAsync(
+        CardQuery query,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        foreach (var card in FilterCards(query))
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return card;
+            await Task.Yield();
+        }
+    }
+
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(_machines);
 
@@ -132,6 +145,56 @@ public sealed class FakeAoiSource : IAoiSource
         => Task.FromResult(_recipes);
 
     private IEnumerable<PanelRow> FilterPanels(PanelQuery query)
+    {
+        foreach (var panel in _panels)
+        {
+            if (panel.PanelNumericDate < query.Window.StartEpochSeconds)
+            {
+                continue;
+            }
+            if (panel.PanelNumericDate >= query.Window.EndEpochSecondsExclusive)
+            {
+                continue;
+            }
+            if (query.MachineIds is { Count: > 0 } && !query.MachineIds.Contains(panel.MachineId))
+            {
+                continue;
+            }
+            if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(panel.ProductId))
+            {
+                continue;
+            }
+            if (query.RecipeIds is { Count: > 0 } && !query.RecipeIds.Contains(panel.RecipeId))
+            {
+                continue;
+            }
+            yield return panel;
+        }
+    }
+
+    // Every fixture panel has exactly one card (matching the fake
+    // fixture's simple topology). Card status mirrors panel status so
+    // the board-level FPY table returns the same shape as the
+    // panel-level table on this source.
+    private IEnumerable<CardRow> FilterCards(CardQuery query)
+    {
+        foreach (var panel in FilterPanelsForCards(query))
+        {
+            yield return new CardRow(
+                PanelId: panel.PanelId,
+                CardIdOnPanel: 1,
+                CardStatus: panel.PanelStatus,
+                AnomalyBr: panel.AnomalyBr,
+                AnomalyAr: panel.AnomalyAr,
+                NbOfTestedObject: panel.NbOfTestedObject,
+                NbOfErrorObject: panel.NbOfErrorObject,
+                MachineId: panel.MachineId,
+                ProductId: panel.ProductId,
+                PanelNumericDate: panel.PanelNumericDate);
+        }
+    }
+
+    private IEnumerable<PanelRow> FilterPanelsForCards(BaseQuery query)
     {
         foreach (var panel in _panels)
         {

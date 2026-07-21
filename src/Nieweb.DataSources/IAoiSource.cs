@@ -22,6 +22,14 @@ public interface IAoiSource
     /// <summary>Stream all matching PANELS rows for exports. No paging.</summary>
     IAsyncEnumerable<PanelRow> StreamPanelsAsync(PanelQuery query, CancellationToken ct);
 
+    /// <summary>
+    /// Stream all matching CARDS rows for board-level aggregations
+    /// (e.g. board-flavour FPY / DPMO). Rows carry <c>MachineId</c> and
+    /// <c>ProductId</c> from the parent panel so the report layer can
+    /// group without an additional round-trip.
+    /// </summary>
+    IAsyncEnumerable<CardRow> StreamCardsAsync(CardQuery query, CancellationToken ct);
+
     Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
 
     Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct);

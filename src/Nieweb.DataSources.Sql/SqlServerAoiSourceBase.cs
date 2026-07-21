@@ -294,6 +294,37 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
     public abstract Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct);
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Default implementation loops <see cref="QueryCardsAsync"/> keyset
+    /// pages. Adapters that have a cheaper streaming path
+    /// (e.g. sqlclient <c>ExecuteReader</c> against a joined query)
+    /// override this.
+    /// </remarks>
+    public virtual async IAsyncEnumerable<CardRow> StreamCardsAsync(
+        CardQuery query, [EnumeratorCancellation] CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateWindow(query);
+        _ = ValidatePageSize(query.PageSize);
+
+        var current = query;
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var page = await QueryCardsAsync(current, ct).ConfigureAwait(false);
+            foreach (var row in page.Rows)
+            {
+                yield return row;
+            }
+            if (!page.HasMore || page.NextCursor is not CardCursor next)
+            {
+                yield break;
+            }
+            current = current with { Cursor = next };
+        }
+    }
+
     public abstract Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct);
 
     public abstract Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
