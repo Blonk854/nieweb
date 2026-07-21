@@ -1,0 +1,49 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "overall": {
+    "totalPanels": 9,
+    "inspectedPanels": 8,
+    "goodPanels": 5,
+    "faultyPanels": 3,
+    "notInspectedPanels": 1,
+    "fpyPercent": 62.5
+  },
+  "byMachine": [
+    {
+      "machineId": 10,
+      "machineName": "SPI-A",
+      "kpi": {
+        "totalPanels": 5,
+        "inspectedPanels": 4,
+        "goodPanels": 3,
+        "faultyPanels": 1,
+        "notInspectedPanels": 1,
+        "fpyPercent": 75
+      }
+    },
+    {
+      "machineId": 11,
+      "machineName": "AOI-B",
+      "kpi": {
+        "totalPanels": 4,
+        "inspectedPanels": 4,
+        "goodPanels": 2,
+        "faultyPanels": 2,
+        "notInspectedPanels": 0,
+        "fpyPercent": 50
+      }
+    }
+  ]
+}

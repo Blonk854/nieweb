@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!--
+      CA1707: xUnit method names use Method_Scenario_Expectation.
+      CS1591: test methods do not require XML docs.
+      xUnit1051: report tests don't take a CancellationToken; they run
+                 pure in-process aggregations against fake sources.
+    -->
+    <NoWarn>$(NoWarn);CA1707;CS1591;xUnit1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nieweb.DataSources\Nieweb.DataSources.csproj" />
+    <ProjectReference Include="..\..\src\Nieweb.Reports\Nieweb.Reports.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Snapshot files ship next to the test source so we can diff them
+      in code review. They are not embedded resources; the snapshot
+      helper resolves paths via [CallerFilePath] at test time.
+    -->
+    <None Update="Snapshots\*.expected.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
