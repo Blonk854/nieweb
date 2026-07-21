@@ -32,14 +32,16 @@ production-critical KPIs plus the two supporting types:
 |---|---|---|---|
 | `templatetable` (FPY / DPMO) | **FPY table** (per AOI / product; panel or board) + **DPMO table** (per AOI / defect / JEDEC / part number / product / reference designator) | `PANELS`, `CARDS`, `TESTED_OBJECT` | Quality reviews, morning meetings. |
 | `templategraph` (Error / Deviation / Trend) | **Pareto** error chart (top-N defects by day / shift / top-10), **Deviation** chart (X / Y / Z / surface / theta with ±tolerance / average / ±3σ overlays), **Trend** chart (Cp, Cpk, DPMO*, FPY* over 1h / 3h / 6h / 12h / shift / day / week / month) | `TESTED_OBJECT`, `PIN`, `PIN_MEASURE` (post-reflow only) | Line-side troubleshooting, drift detection. |
-| `templatemsa` (Capability / Repeatability / Reproducibility) | **MSA** report (Cp, Cpk, EV, %EV, GR&R) on `Reference Designator` or `Package` over Deviation X / Y / Theta | `PIN_MEASURE` on a dedicated MSA source | Machine acceptance, calibration audits. |
-| `templateprocesscapability` | **Process Capability** dashboard per production line (any of Cp/Cpk compo & paste, DPMO, FPY_Diag, Machine efficiency, Avg cycle duration, Nb inspections) | `PANELS`, `CARDS`, `TESTED_OBJECT` grouped by `PRODUCTION_LINE` | Weekly line reviews, Six-Sigma tracking. |
+| `templatemsa` (Capability / Repeatability / Reproducibility) | **Deferred** — MSA requires a dedicated Superviseur DB fed with empty-panel inspections that is not yet commissioned on site. Revisited when that DB is available. | — | — |
+| `templateprocesscapability` | **Process Capability** dashboard per production line (Cp/Cpk compo & paste rows use a placeholder when no MSA source is bound; DPMO, FPY_Diag, Machine efficiency, Avg cycle duration, Nb inspections always render) | `PANELS`, `CARDS`, `TESTED_OBJECT` grouped by `PRODUCTION_LINE` | Weekly line reviews, Six-Sigma tracking. |
 | `templatecomment` | **Comment block** entity (free-text, included in exports) | — | Report narration. |
 | `TracabilityEntity` | **Traceability** drill-down (panel-level → subpanel → tested object → pin, plus per-board views) | All PANELS / CARDS / TESTED_OBJECT / PIN | Genealogy questions ("where did this board go?"). |
 
 `TestEmptyMasterEntity` is intentionally out of scope: it requires a
 dedicated Superviseur DB fed with empty-panel inspections and no
-Nieweb user has asked for it in the design-partner interviews.
+Nieweb user has asked for it in the design-partner interviews. The
+MSA report shares that dedicated-DB requirement and is therefore
+deferred alongside it (see §10 Q1).
 
 ### 2.2 Cross-cutting features
 
@@ -53,8 +55,10 @@ Nieweb user has asked for it in the design-partner interviews.
   JEDEC / P&P machine / P&P sub-element 1–4 / part number / inspected
   object / repair status / default / repair comment / panel status /
   board status / AOI. `IN` uses `;` as separator.
-- **Locked reports.** Author can password-lock a report; anyone can
-  `Duplicate` a locked report to edit a copy.
+- **Locked reports.** Author can password-lock a report; the password
+  blocks editing / deletion only. **Anyone can `Duplicate` a locked
+  report without the password** (parity with Vieweb), and the copy is
+  owned by the duplicator with no lock inherited.
 - **Print.** Server renders a printable page (already done for
   Panel-Yield in F9); extend the same pattern to every entity.
 - **Excel export.** One tab per entity; skip comment entities. XLSX
@@ -62,16 +66,25 @@ Nieweb user has asked for it in the design-partner interviews.
 - **CSV export** per entity table (already done for Panel-Yield).
 - **PDF export.** New. Recommend **QuestPDF** — MIT, pure C#,
   render-server-side; wire the same layout data used by print CSS.
-- **Automatic treatments.** Daily / weekly / monthly scheduled runs of
-  a saved report; each run can email the Excel attachment via SMTP
-  and/or write it to a configured directory. Global master switch +
-  refresh frequency (Vieweb default 1440 min = 24 h). See §5.
-- **Application parameters.** MSA thresholds (Acceptable / Out for
-  Average, StdDev, 6σ, Cp, GR&R, EV, %EV on Deviation X / Y / Theta);
-  tolerance intervals (`ITx`, `ITy`, `ITS` for pads + components);
-  `GR_R` constant (default 4.33); confidence coefficient. Managed in
-  the admin UI; persisted in the Nieweb internal DB. See `aoi-quality-
-  metrics` skill for the formulas — do NOT re-derive.
+  Uses the **fixed corporate template** described in §11 (Nieweb
+  header logo + BSS Green Premium sub-brand under it, footer with
+  page N of M + generation timestamp + user). Vieweb's per-report
+  header/footer slot configuration is dropped.
+- **Automatic treatments.** Daily / weekly / monthly scheduled runs
+  of a saved report; each run can email the Excel attachment via SMTP
+  and/or write it to a configured directory. Two independent switches
+  (Vieweb only had the global one — we add the per-treatment flag as
+  the modern norm): a **global** `Nieweb:Batch:Enabled` master switch
+  (parity with Vieweb `batchIsOn`), plus a per-`AutomaticTreatment`
+  `IsEnabled` flag. A run fires only when both are on. Refresh
+  frequency default 1440 min = 24 h. See §5.
+- **Application parameters.** Tolerance intervals (`ITx`, `ITy`,
+  `ITS` for pads + components); `GR_R` constant (default 4.33);
+  confidence coefficient. Managed in the admin UI; persisted in the
+  Nieweb internal DB. See `aoi-quality-metrics` skill for the formulas
+  — do NOT re-derive. **MSA thresholds** (Acceptable / Out for
+  Average, StdDev, 6σ, Cp, GR&R, EV, %EV on Deviation X / Y / Theta)
+  are deferred with the MSA report itself.
 - **Production lines & shifts.** Admin-managed logical grouping of
   machines into production lines (with order + category + image), plus
   24-hour shift breakpoints (Vieweb `shiftunit`). Needed by Process
@@ -130,12 +143,11 @@ established in Phase 1.
 | Project | Purpose |
 |---|---|
 | `src/Nieweb.Reports/` | Grows to hold every report class. Each report is a pure function from `(IAoiSource, FilterDto, AppParameters)` → typed result DTO. |
-| `src/Nieweb.Reports.Msa/` (new) | MSA-specific arithmetic (Cp, Cpk, EV, %EV, GR&R). Split out because the formulas are shared between the MSA entity and the Deviation chart's `±3σ` overlay. |
 | `src/Nieweb.Reports.Traceability/` (new) | Panel → board → object → pin drill-down; kept separate because it exercises the optional `IPinLevelSource` capability and is post-reflow only. |
-| `src/Nieweb.Scheduling/` (new) | Automatic-treatment scheduler. Built on `Microsoft.Extensions.Hosting.BackgroundService`; persists next-run timestamps in the internal DB (`AutomaticTreatment` table). Skips runs when the master switch is off (parity with Vieweb `batchIsOn`). |
+| `src/Nieweb.Scheduling/` (new) | Automatic-treatment scheduler. Built on `Microsoft.Extensions.Hosting.BackgroundService`; persists next-run timestamps in the internal DB (`AutomaticTreatment` table). Skips runs when the master switch is off or the per-treatment `IsEnabled` flag is off (parity with Vieweb `batchIsOn` plus a modern per-row toggle). |
 | `src/Nieweb.Mail/` (new) | SMTP client wrapper around `MailKit`. Delivery is idempotent per `(treatmentId, runTimestamp)` — retries do not duplicate. |
-| `src/Nieweb.Pdf/` (new) | QuestPDF layout templates shared by every report type (header / footer / dynamic single vs. two-column). |
-| `src/Nieweb.Web/` | Grows: one route per report type plus admin pages for report groups, automatic treatments, production lines, shifts, MSA thresholds, tolerance intervals. |
+| `src/Nieweb.Pdf/` (new) | QuestPDF layout templates implementing the fixed corporate template described in §11 (header + sub-brand + footer). Shared across every report type. |
+| `src/Nieweb.Web/` | Grows: one route per report type plus admin pages for report groups, automatic treatments, production lines, shifts, tolerance intervals. |
 
 The internal-DB schema (`Nieweb.Data`) gains:
 
@@ -143,11 +155,13 @@ The internal-DB schema (`Nieweb.Data`) gains:
   report, referencing one of the six entity types via a discriminator).
 - `Filter` + `FilterValue` (multi-value IN / BETWEEN).
 - `AutomaticTreatment` (frequency, next-run, mail-flag, file-flag,
-  FK to `Report` and `User`, plus per-run audit rows).
+  `IsEnabled` per-treatment flag, FK to `Report` and `User`, plus
+  per-run audit rows).
 - `EmailRecipient` (m:n on `AutomaticTreatment`).
 - `ProductionLine` + `LineMachine` + `Shift`.
-- `AppParameter` (typed key/value; MSA thresholds, tolerance
-  intervals, GR\_R, confidence coefficient live here).
+- `AppParameter` (typed key/value; tolerance intervals, GR\_R,
+  confidence coefficient live here; MSA thresholds land alongside
+  them when the MSA report is undeferred).
 - `HomeReport` (per-user pinned subset).
 
 Every new entity is created via EF Core migrations (same dual-provider
@@ -159,7 +173,9 @@ Npgsql/Sqlite story as Phase 1).
 
 - **Trigger.** `BackgroundService` wakes every N minutes (default 5;
   configurable, matches the Vieweb minimum granularity). It runs any
-  treatment whose `NextRunUtc ≤ now && isEnabled`.
+  treatment whose `NextRunUtc ≤ now && isEnabled && globalBatchEnabled`.
+  Both switches must be on — the global switch is an ops kill-switch;
+  the per-treatment flag is the day-to-day owner control.
 - **Isolation.** Each run happens in its own scope with a fresh
   `NiewebDbContext`. Long-running SQL against the Superviseur DBs is
   guarded by the same `SqlServerAoiSourceBase` read-only discipline
@@ -174,7 +190,9 @@ Npgsql/Sqlite story as Phase 1).
   independent: a treatment may enable neither, either, or both.
 - **Master switch.** Global `Nieweb:Batch:Enabled` in the internal
   `AppParameter` table (parity with Vieweb `batchIsOn`). Admin UI
-  toggles it.
+  toggles it. In parallel, each `AutomaticTreatment` row carries
+  its own `IsEnabled` flag that the owning Author can toggle without
+  Admin rights.
 - **Concurrency.** Only one instance of a given treatment runs at a
   time (row-level lease with `SELECT ... FOR UPDATE SKIP LOCKED` on
   Postgres; equivalent guard on SQLite via a service-wide
@@ -195,7 +213,6 @@ flowchart LR
     K -->|/app/*| S[React SPA static bundle]
     K -->|/api/*| A[Nieweb.Api Minimal API]
     A --> R[Nieweb.Reports]
-    R --> MSA[Nieweb.Reports.Msa]
     R --> TR[Nieweb.Reports.Traceability]
     R -->|IAoiSource| DS[Nieweb.DataSources.Sql]
     DS -->|WITH NOLOCK| H[(HLYAOI2024)]
@@ -255,19 +272,21 @@ time — sequence matters more than clock estimates.
 - `CR3` — **Trend** chart with time-bucket decomposition; supports
   Cp, Cpk, DPMO\*, FPY\*, panel vs board. Reuse `RI2` bucketing.
 
-### 7.4 MSA + Process Capability (L)
+### 7.4 Process Capability (M)
 
-- `MSA1` — Cp / Cpk / EV / %EV / GR&R arithmetic in
-  `Nieweb.Reports.Msa` with unit-tested formulas (parity with
-  `aoi-quality-metrics` skill).
-- `MSA2` — MSA report UI + admin-managed thresholds (Acceptable / Out
-  per metric × axis).
-- `PC1` — Process Capability dashboard: per production line grid of Cp
-  compo / paste, Cpk compo / paste, DPMO, FPY_Diag, Machine efficiency,
-  Avg cycle duration, Nb inspections. Depends on `PL1`.
+- `PC1` — Process Capability dashboard: per production line grid of
+  DPMO, FPY_Diag, Machine efficiency, Avg cycle duration, Nb
+  inspections. The Cp/Cpk compo & paste rows render a "MSA source not
+  configured" placeholder until the dedicated MSA DB is commissioned
+  (see §10 Q1). Depends on `PL1`.
 - `PL1` — Production line + machine grouping + shift breakpoints, EF
   entities + admin CRUD.
 
+> **MSA report deferred.** The `templatemsa` entity (Cp / Cpk / EV /
+> %EV / GR&R on a dedicated empty-panel DB) is not delivered in
+> Phase 2. When the MSA source is commissioned we revive a
+> `Nieweb.Reports.Msa` project, an admin threshold-management page,
+> and the corresponding admin-parameter rows.
 ### 7.5 Traceability (M)
 
 - `TC1` — Panel-level drill-down: panel → subpanel → tested object →
@@ -313,7 +332,7 @@ time — sequence matters more than clock estimates.
 - `F11` — Filter builder component honouring the operator matrix.
 - `F12` — Time-decomposition selector shared by every chart.
 - `F13` — Admin pages: production lines / shifts / app parameters /
-  automatic treatments / MSA thresholds / tolerance intervals.
+  automatic treatments / tolerance intervals.
 - `F14` — Home-page pin/unpin.
 - `F15` — PDF preview modal.
 
@@ -347,7 +366,6 @@ time — sequence matters more than clock estimates.
 |---|---|---|---|
 | Numeric drift vs. Vieweb because of different aggregation ordering (e.g. panel vs. board FPY denominator) | Medium | High — engineers will not trust Nieweb without parity | Every report has a snapshot test hand-verified against raw SQL and against a Vieweb export of the same window. |
 | SQL performance regression on the Superviseur DBs (Phase 2 grows the query surface significantly) | Medium | High — could stall the SMT line | Every new query goes through the same `SqlServerAoiSourceBase` guards. Add a p95 query-duration budget per query kind (30 s hard limit stays, warn at 5 s). |
-| MSA formula ambiguity (multiple published `GR&R` conventions) | Medium | Medium | Pin the formulas to the VIT-defined constants in `aoi-quality-metrics`; unit-test with the reference values from the Vieweb user guide §2.4. |
 | SMTP outages produce silent report loss | Medium | Medium | Every attempt writes an audit row; failed treatments surface in the admin UI; retry policy with exponential back-off. |
 | PDF output diverges from print CSS | Low | Low | QuestPDF templates share the same layout data DTO as print CSS; single source of truth for header / footer / column layout. |
 | Scope creep pulls in Sigmalink features prematurely | High | Medium | Phase 2 is Vieweb-only. Sigmalink Analyse + Review are Phase 3. Any feature request beyond §2.1 / §2.2 goes into `docs/phase-3.md` (not this document). |
@@ -356,6 +374,10 @@ time — sequence matters more than clock estimates.
 
 ## 9. Deferred to Phase 3
 
+- **MSA report** (Cp / Cpk / EV / %EV / GR&R on `Reference Designator`
+  / `Package`) — requires a dedicated empty-panel Superviseur DB that
+  is not yet commissioned on site. Revived alongside
+  `Nieweb.Reports.Msa` when that DB exists.
 - Sigmalink Analyse dashboards (Live / Line Performance / Product /
   Panel / Cp-Cpk) with DBQuery Pi/K.
 - Full Sigmalink Review UI (inline / offline / remote / repair /
@@ -370,20 +392,75 @@ time — sequence matters more than clock estimates.
 
 ---
 
-## 10. Open questions (must be resolved before sign-off)
+## 10. Open questions
 
-1. **MSA source DB.** Vieweb required a *dedicated* DB for MSA
-   (empty-panel inspections). Do we already have one on-site, or does
-   MSA wait until it can be commissioned?
-2. **SMTP host + credentials.** Corporate relay or per-app credential?
-   Determines whether `Nieweb.Mail` uses anonymous submission or a
-   secret pulled from Windows-DPAPI / Entra.
-3. **PDF footer branding.** Vieweb allowed 3 header + 3 footer slots
-   (`logo`, `title`, `date`, `description`, `user`). Do we keep this
-   configurability or bake a fixed corporate template?
-4. **Report locking authorisation model.** Do we allow any Author to
-   Duplicate a locked report (Vieweb behaviour), or should the lock
-   also gate Duplicate?
-5. **Automatic-treatment master switch scope.** Global on/off (Vieweb
-   parity) or per-treatment only? Global is simpler; per-treatment is
-   the modern norm.
+### 10.1 Resolved (2026-07-21)
+
+1. **MSA source DB.** Deferred — no empty-panel Superviseur DB is
+   available on site. The `templatemsa` entity, `Nieweb.Reports.Msa`,
+   and the MSA-threshold admin page move to Phase 3 (§9). The
+   Process Capability dashboard still ships in Phase 2 but its
+   Cp/Cpk compo & paste rows render a "MSA source not configured"
+   placeholder.
+2. **PDF footer branding.** Fixed corporate template — no per-report
+   header/footer slot configuration (drops Vieweb's `defaultHeaderLeft`
+   / `defaultHeaderMiddle` / … knobs). See §11.
+3. **Report locking authorisation model.** Vieweb parity — anyone can
+   `Duplicate` a locked report without knowing the password. The lock
+   only gates edit / delete on the original. The duplicated copy is
+   owned by the duplicator with no lock inherited.
+4. **Automatic-treatment master switch scope.** Both — keep the
+   global `Nieweb:Batch:Enabled` kill switch (parity with Vieweb
+   `batchIsOn`) and add a per-`AutomaticTreatment` `IsEnabled` flag.
+   A run fires only when both are on.
+
+### 10.2 Still open
+
+1. **SMTP host + credentials.** Pending IT-department confirmation.
+   Interim design: `Nieweb.Mail` is written against an
+   `ISmtpDelivery` interface with a `MailKitSmtpDelivery`
+   implementation that reads host / port / credentials from
+   `appsettings.json` + `.env`. Both the anonymous-relay and
+   authenticated-submission paths compile; the choice becomes an
+   ops-time configuration only. Block `AT2` from going to production
+   until this is confirmed.
+
+---
+
+## 11. Corporate branding
+
+All assets live under `logo/` at the repo root and are shipped with
+the SPA build.
+
+| File | Usage |
+|---|---|
+| `logo/Nieweb_icon.svg` | Favicon (`<link rel="icon">`), PWA manifest icon, admin sign-in card. |
+| `logo/logo.svg` | Primary Nieweb wordmark. Rendered in the AppShell header and at the top of every printed / PDF report. |
+| `logo/bss_green_premium_no_pod.svg` | Parent-brand mark (BSS Green Premium). Rendered directly **beneath** `logo.svg` in the header (smaller, muted), and in the footer of every printed / PDF report. Kept unobtrusive so it doesn't compete with the primary wordmark on the home page. |
+| `logo/tray_icon.svg` | Reserved for the Windows service tray icon (used only if the process ever runs as a foreground / interactive host; the current Windows-service host has no tray). |
+
+### 11.1 Fixed report template (PDF + Print)
+
+Both QuestPDF (`Nieweb.Pdf`) and the print CSS render every report
+with the same fixed template:
+
+- **Header:** `logo.svg` top-left, report title centred, generation
+  timestamp top-right (short ISO date + user's locale time).
+- **Sub-header strip:** `bss_green_premium_no_pod.svg` scaled to
+  roughly one-third of the main logo, left-aligned, with a thin
+  horizontal rule beneath it.
+- **Body:** the report content (tables + charts + comments).
+- **Footer:** `Nieweb  ·  Page N of M  ·  generated by <displayName>`
+  centred, in muted grey. No per-report configuration.
+
+Rationale: killing the 3×3 header/footer slot matrix from Vieweb
+drops one of the most confusing Author-role settings in the legacy
+UI and lets the branding evolve centrally.
+
+### 11.2 SPA header placement
+
+The existing Mantine `AppShell.Header` continues to show the app
+title. Phase 2 replaces the plain `<Title order={3}>Nieweb</Title>`
+with a small logo cluster: `logo.svg` at ~28 px, `bss_green_premium_
+no_pod.svg` at ~14 px directly under it, both wrapped in a `<Link
+to="/">` so clicking the mark goes home.
