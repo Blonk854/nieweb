@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300">
+    <defs>
+        <linearGradient id="primary" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00D4FF"/>
+            <stop offset="100%" stop-color="#4F46E5"/>
+        </linearGradient>
+
+        <linearGradient id="accent" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00D4FF"/>
+            <stop offset="100%" stop-color="#22C55E"/>
+        </linearGradient>
+
+        <filter id="glow">
+            <feGaussianBlur stdDeviation="6" result="blur"/>
+            <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+        </filter>
+    </defs>
+
+    <!-- Icon -->
+    <g transform="translate(40,35)">
+
+        <!-- Outer ring -->
+        <circle
+            cx="115"
+            cy="115"
+            r="92"
+            fill="none"
+            stroke="url(#primary)"
+            stroke-width="10"
+            opacity="0.35"/>
+
+        <!-- Stylized N -->
+        <path
+            d="M60 175
+               L60 55
+               L170 175
+               L170 55"
+            fill="none"
+            stroke="url(#primary)"
+            stroke-width="20"
+            stroke-linecap="round"
+            stroke-linejoin="round"/>
+
+        <!-- AOI scan line -->
+        <line
+            x1="40"
+            y1="95"
+            x2="190"
+            y2="95"
+            stroke="url(#accent)"
+            stroke-width="6"
+            opacity="0.9"
+            filter="url(#glow)"/>
+
+  
+    </g>
+
+    <!-- Wordmark -->
+    <g transform="translate(280,0)">
+        <text
+            x="0"
+            y="140"
+            font-family="Segoe UI, Inter, Arial, sans-serif"
+            font-size="90"
+            font-weight="700"
+            fill="#111827">
+            Nieweb
+        </text>
+
+        <text
+            x="4"
+            y="190"
+            font-family="Segoe UI, Inter, Arial, sans-serif"
+            font-size="24"
+            font-weight="500"
+            letter-spacing="5"
+            fill="#64748B">
+            AOI ANALYTICS PLATFORM
+        </text>
+
+        <!-- Accent line -->
+        <rect
+            x="0"
+            y="215"
+            width="360"
+            height="6"
+            rx="3"
+            fill="url(#primary)"/>
+    </g>
+</svg>

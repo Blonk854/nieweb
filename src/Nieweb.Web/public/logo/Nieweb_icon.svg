@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <defs>
+        <linearGradient id="primary" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#00D4FF"/>
+            <stop offset="100%" stop-color="#4F46E5"/>
+        </linearGradient>
+
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="8" stdDeviation="12"
+                          flood-color="#4F46E5"
+                          flood-opacity="0.25"/>
+        </filter>
+    </defs>
+
+    <!-- Background -->
+    <rect x="32" y="32"
+          width="448" height="448"
+          rx="120"
+          fill="#0F172A"/>
+
+    <!-- Partial Ring -->
+    <path
+        d="M256 96
+           A160 160 0 1 1 128 352"
+        fill="none"
+        stroke="url(#primary)"
+        stroke-width="20"
+        stroke-linecap="round"
+        opacity="0.75"
+        filter="url(#shadow)"/>
+
+    <!-- Stylized N -->
+    <path
+        d="M160 344
+           L160 168
+           L352 344
+           L352 168"
+        fill="none"
+        stroke="url(#primary)"
+        stroke-width="32"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        filter="url(#shadow)"/>
+</svg>

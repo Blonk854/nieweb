@@ -8,7 +8,6 @@ import {
     NavLink,
     Select,
     Text,
-    Title,
     UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -36,7 +35,7 @@ export function RootLayout() {
     const { t } = useTranslation();
     return (
         <AppShell
-            header={{ height: 56 }}
+            header={{ height: 64 }}
             navbar={{
                 width: 220,
                 breakpoint: "sm",
@@ -54,9 +53,7 @@ export function RootLayout() {
                             size="sm"
                             aria-label={t("app.toggleNavigation")}
                         />
-                        <Title order={3} style={{ margin: 0 }}>
-                            {t("app.title")}
-                        </Title>
+                        <BrandMark />
                     </Group>
                     <Group gap="md">
                         <Text size="sm" c="dimmed" visibleFrom="sm">
@@ -144,6 +141,43 @@ function SideNav() {
                 active={active === "/login"}
             />
         </>
+    );
+}
+
+/**
+ * Header brand cluster: the primary Nieweb wordmark stacked over the
+ * BSS Green Premium sub-brand, wrapped in a link to the home page.
+ * The two SVGs are shipped from `public/logo/` so they are cache-
+ * friendly and can be swapped without a rebuild. The `aria-label`
+ * satisfies a11y since the visual mark carries all the meaning.
+ */
+function BrandMark() {
+    const { t } = useTranslation();
+    return (
+        <Link
+            to="/"
+            aria-label={t("app.title")}
+            style={{
+                display: "inline-flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: 2,
+                textDecoration: "none",
+            }}
+        >
+            <img
+                src="/app/logo/logo.svg"
+                alt=""
+                height={28}
+                style={{ display: "block", width: "auto" }}
+            />
+            <img
+                src="/app/logo/bss_green_premium_no_pod.svg"
+                alt=""
+                height={12}
+                style={{ display: "block", width: "auto", opacity: 0.85 }}
+            />
+        </Link>
     );
 }
 

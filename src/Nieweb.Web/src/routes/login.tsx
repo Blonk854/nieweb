@@ -198,7 +198,15 @@ export function LoginRoute() {
 
     return (
         <Stack gap="lg" maw={480}>
-            <Title order={2}>{t("login.signInHeading")}</Title>
+            <Group gap="md" align="center">
+                <img
+                    src="/app/logo/Nieweb_icon.svg"
+                    alt=""
+                    height={48}
+                    style={{ display: "block", width: "auto" }}
+                />
+                <Title order={2}>{t("login.signInHeading")}</Title>
+            </Group>
             <Card withBorder padding="lg" radius="md">
                 <form
                     onSubmit={form.onSubmit((values) => mutation.mutate(values))}
