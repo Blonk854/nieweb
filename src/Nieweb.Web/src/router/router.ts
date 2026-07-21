@@ -13,6 +13,7 @@ import { LoginRoute } from "../routes/login";
 import { validateLoginSearch } from "../routes/login.search";
 import { OidcReturnRoute } from "../routes/oidc-return";
 import { AdminUsersRoute } from "../routes/admin-users";
+import { AdminAuditRoute } from "../routes/admin-audit";
 import { ChangePasswordRoute } from "../routes/change-password";
 import { useSessionStore } from "../state/session";
 import { redirect } from "@tanstack/react-router";
@@ -64,6 +65,17 @@ const adminUsersRoute = createRoute({
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
+const adminAuditRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/audit",
+    component: AdminAuditRoute,
+    // Same defence-in-depth story as adminUsersRoute: bounce anon
+    // users to /login before the component mounts; the Admin role
+    // check inside AdminAuditRoute renders a localised forbidden
+    // panel for signed-in-but-not-admin callers.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
 const changePasswordRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/account/password",
@@ -92,6 +104,7 @@ const routeTree = rootRoute.addChildren([
     loginRoute,
     oidcReturnRoute,
     adminUsersRoute,
+    adminAuditRoute,
     changePasswordRoute,
 ]);
 

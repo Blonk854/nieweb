@@ -14,6 +14,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import {
     IconChartBar,
+    IconClipboardList,
     IconHome,
     IconKey,
     IconLogin,
@@ -113,6 +114,15 @@ function SideNav() {
                     label={t("nav.adminUsers")}
                     leftSection={<IconUsers size={18} />}
                     active={active.startsWith("/admin/users")}
+                />
+            )}
+            {isAdmin && (
+                <NavLink
+                    component={Link}
+                    to="/admin/audit"
+                    label={t("nav.adminAudit")}
+                    leftSection={<IconClipboardList size={18} />}
+                    active={active.startsWith("/admin/audit")}
                 />
             )}
             {user && (

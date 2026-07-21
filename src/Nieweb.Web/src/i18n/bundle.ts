@@ -15,6 +15,7 @@ export type TranslationBundle = {
         home: string;
         panelYield: string;
         adminUsers: string;
+        adminAudit: string;
         signIn: string;
         signOut: string;
         changePassword: string;
@@ -184,6 +185,46 @@ export type TranslationBundle = {
         deleted: string;
     };
     admin: {
+        audit: {
+            title: string;
+            subtitle: string;
+            reload: string;
+            forbidden: string;
+            loadError: string;
+            emptyState: string;
+            filters: {
+                heading: string;
+                eventType: string;
+                eventTypePlaceholder: string;
+                targetType: string;
+                targetTypePlaceholder: string;
+                targetId: string;
+                targetIdPlaceholder: string;
+                actorUserId: string;
+                actorUserIdPlaceholder: string;
+                fromUtc: string;
+                toUtc: string;
+                apply: string;
+                reset: string;
+                pageSize: string;
+            };
+            columns: {
+                when: string;
+                actor: string;
+                eventType: string;
+                target: string;
+                ip: string;
+                details: string;
+            };
+            anonymous: string;
+            noIp: string;
+            pagination: {
+                summary: string;
+                previous: string;
+                next: string;
+                pageOf: string;
+            };
+        };
         users: {
             title: string;
             subtitle: string;
