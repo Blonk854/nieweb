@@ -140,7 +140,7 @@ public static partial class SourceEndpoints
     /// Slimmer than the raw <see cref="Machine"/> record: the UI only
     /// needs the id + display strings for the multi-select.
     /// </summary>
-    public sealed record MachineOption(int Id, string Name, string TypeName);
+    public sealed record MachineOption(int Id, string Name, string? TypeName);
 
     /// <summary>One item in <c>GET /api/sources/{id}/products</c>.</summary>
     public sealed record ProductOption(int Id, string Name, string? Revision);

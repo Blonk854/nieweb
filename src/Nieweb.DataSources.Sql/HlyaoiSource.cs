@@ -47,7 +47,10 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
                 MachineId: r.GetInt32(0),
                 MachineType: r.GetInt32(1),
                 MachineName: r.GetString(2),
-                MachineTypeName: r.GetString(3)),
+                // Machine_Type_Name is declared nullable in the schema (verified
+                // against both live DBs). Never call GetString on a nullable
+                // column without an IsDBNull guard - it throws.
+                MachineTypeName: r.IsDBNull(3) ? null : r.GetString(3)),
             ct);
     }
 

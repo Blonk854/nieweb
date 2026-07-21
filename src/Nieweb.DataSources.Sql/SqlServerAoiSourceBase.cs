@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -85,7 +86,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     protected async IAsyncEnumerable<T> ExecuteQueryAsync<T>(
         string sql,
         Action<SqlParameterCollection>? bindParameters,
-        Func<SqlDataReader, T> map,
+        Func<DbDataReader, T> map,
         [EnumeratorCancellation] CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
@@ -198,7 +199,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     protected async Task<IReadOnlyList<T>> ExecuteListAsync<T>(
         string sql,
         Action<SqlParameterCollection>? bindParameters,
-        Func<SqlDataReader, T> map,
+        Func<DbDataReader, T> map,
         CancellationToken ct)
     {
         var list = new List<T>();
@@ -620,7 +621,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         }
     }
 
-    private static PanelRow MapPanelRow(SqlDataReader r) => new(
+    internal static PanelRow MapPanelRow(DbDataReader r) => new(
         PanelId: r.GetInt32(0),
         MachineId: r.GetInt32(1),
         LaneNumber: r.GetInt32(2),
@@ -745,7 +746,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     /// The tested-object id is narrowed (checked) to <see cref="int"/> to
     /// match the current cursor/DTO shape.
     /// </remarks>
-    private static TestedObjectRow MapTestedObjectRow(SqlDataReader r)
+    internal static TestedObjectRow MapTestedObjectRow(DbDataReader r)
     {
         var testedObjectId = checked((int)Convert.ToInt64(r.GetValue(2), CultureInfo.InvariantCulture));
         var errorTable = Convert.ToInt64(r.GetValue(4), CultureInfo.InvariantCulture);

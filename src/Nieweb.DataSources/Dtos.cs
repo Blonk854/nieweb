@@ -97,7 +97,7 @@ public sealed record TestedObjectRow(
     string? PartNumberName,
     string? JedecName);
 
-public sealed record Machine(int MachineId, int MachineType, string MachineName, string MachineTypeName);
+public sealed record Machine(int MachineId, int MachineType, string MachineName, string? MachineTypeName);
 
 public sealed record Product(int ProductId, string? ProductName, string? Revision, string? Description);
 
