@@ -27,6 +27,13 @@ public interface IAoiSource
     Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct);
 
     Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Returns the wall-clock UTC timestamp of the most recent PANELS row, or
+    /// <c>null</c> if the table is empty. Useful for UI freshness indicators
+    /// and for sizing default query windows relative to the source's own data.
+    /// </summary>
+    Task<DateTime?> GetLatestPanelUtcAsync(CancellationToken ct);
 }
 
 /// <summary>Optional: source exposes PIN + PIN_MEASURE tables (post-reflow v5.0 only).</summary>

@@ -94,12 +94,6 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
 
     // ---- Fact-table queries (skeleton - to be implemented per-report) ------
 
-    public override Task<Page<PanelRow, PanelCursor>> QueryPanelsAsync(PanelQuery query, CancellationToken ct)
-    {
-        ValidateWindow(query);
-        throw new NotImplementedException("QueryPanelsAsync will be implemented alongside the first PANELS-consuming report.");
-    }
-
     public override Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct)
     {
         ValidateWindow(query);
@@ -110,11 +104,5 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
     {
         ValidateWindow(query);
         throw new NotImplementedException("QueryTestedObjectsAsync will be implemented alongside the first TESTED_OBJECT-consuming report.");
-    }
-
-    public override IAsyncEnumerable<PanelRow> StreamPanelsAsync(PanelQuery query, CancellationToken ct)
-    {
-        ValidateWindow(query);
-        throw new NotImplementedException("StreamPanelsAsync will be implemented once the first CSV/XLSX export path is wired.");
     }
 }

@@ -51,10 +51,10 @@ public sealed record TestedObjectQuery : BaseQuery
 }
 
 /// <summary>Keyset paging cursor for PANELS (ordered by Panel_Numeric_Date, Panel_Id).</summary>
-public readonly record struct PanelCursor(long LastPanelNumericDate, long LastPanelId);
+public readonly record struct PanelCursor(int LastPanelNumericDate, int LastPanelId);
 
 /// <summary>Keyset paging cursor for CARDS (ordered by Panel_Id, Card_Id_On_Panel).</summary>
-public readonly record struct CardCursor(long LastPanelId, int LastCardIdOnPanel);
+public readonly record struct CardCursor(int LastPanelId, int LastCardIdOnPanel);
 
 /// <summary>Keyset paging cursor for TESTED_OBJECT (ordered by Panel_Id, Card_Id_On_Panel, Object_Id).</summary>
-public readonly record struct TestedObjectCursor(long LastPanelId, int LastCardIdOnPanel, int LastObjectId);
+public readonly record struct TestedObjectCursor(int LastPanelId, int LastCardIdOnPanel, int LastObjectId);

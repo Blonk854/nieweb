@@ -61,6 +61,40 @@ foreach (var name in wanted)
         {
             Console.WriteLine($"      [{m.MachineId,3}] {m.MachineName,-24} type={m.MachineType} ({m.MachineTypeName})");
         }
+
+        // --- PANELS smoke: 60 days ending at the source's most recent panel
+        // (windows are sized per-source because HLYAOI post-reflow stopped
+        // receiving new rows in Nov 2025, while MEAOI pre-reflow is live).
+        var latest = await source.GetLatestPanelUtcAsync(cts.Token);
+        if (latest is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine("    PANELS table is empty; skipping panel-query smoke.");
+            continue;
+        }
+        var windowEnd = latest.Value.AddSeconds(1);   // inclusive of the latest row
+        var windowStart = windowEnd - TimeSpan.FromDays(60);
+        var panelQuery = new PanelQuery
+        {
+            Window = new DateRange(windowStart, windowEnd),
+            PageSize = 10,
+        };
+
+        Console.WriteLine();
+        Console.WriteLine($"    Latest panel: {latest:yyyy-MM-dd HH:mm:ss}Z");
+        Console.WriteLine($"    Panels in [{windowStart:yyyy-MM-dd}, {windowEnd:yyyy-MM-dd}) (first {panelQuery.PageSize}):");
+        var page = await source.QueryPanelsAsync(panelQuery, cts.Token);
+        Console.WriteLine(
+            $"    -> {page.Rows.Count} rows, HasMore={page.HasMore}, " +
+            $"NextCursor={(page.NextCursor is PanelCursor c ? $"({c.LastPanelNumericDate}, {c.LastPanelId})" : "null")}.");
+        foreach (var p in page.Rows.Take(5))
+        {
+            var ts = DateTimeOffset.FromUnixTimeSeconds(p.PanelNumericDate).UtcDateTime;
+            Console.WriteLine(
+                $"      [{p.PanelId,8}] {ts:yyyy-MM-dd HH:mm:ss}Z  M{p.MachineId,-2}  " +
+                $"status={p.PanelStatus,2}  cards={p.NbOfValidCards,2}  " +
+                $"barcode='{p.PanelBarCode}'");
+        }
     }
     catch (Exception ex)
     {

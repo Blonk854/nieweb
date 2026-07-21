@@ -12,20 +12,20 @@ public sealed record Page<TRow, TCursor>(
     where TCursor : struct;
 
 public sealed record PanelRow(
-    long PanelId,
+    int PanelId,
     int MachineId,
     int LaneNumber,
-    string? PanelBarCode,
-    long PanelNumericDate,
+    string PanelBarCode,
+    int PanelNumericDate,
     int NbOfValidCards,
-    int TestTime,
+    double TestTime,
     int PanelStatus,
-    long AnomalyBr,
-    long AnomalyAr,
+    int AnomalyBr,
+    int AnomalyAr,
     bool HasBeenReviewed,
     int NbOfTestedObject,
     int NbOfErrorObject,
-    int OperatorId,
+    int? OperatorId,
     int ProductId,
     int RecipeId);
 
