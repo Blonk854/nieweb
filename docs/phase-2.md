@@ -1,6 +1,9 @@
 # Phase 2 — feature parity with Vieweb 1.6.2
 
-_Status: **PROPOSAL** — awaiting sign-off._
+_Status: **IN PROGRESS** — report infrastructure (§7.1), FPY table
+(§7.2 TR1), DPMO table + Pareto server side (§7.2 TR2), Pareto SPA
+page (§7.3 CR1), DefectBitDecoder + #11211 (§7.8), and corporate
+branding (§11.2) have shipped. See §7 for the per-item status snapshot._
 _Depends on: `docs/tech-stack.md` (SIGNED-OFF 2026-07-20)._
 _Successor of: `docs/phase-1-mvp.md`._
 
@@ -240,47 +243,71 @@ rewiring existing layers.
 Ordered by dependency, T-shirt sized. Nothing here is estimated in
 time — sequence matters more than clock estimates.
 
+**Status legend.** Each item is annotated with one of:
+`✅ done <sha>` — merged, tests green;
+`🟡 partial <sha>` — some sub-items delivered, follow-ups called out;
+`⬜ open` — not started.
+
+**Progress snapshot (2026-07-21).** Report infra (§7.1) is fully
+landed. Table reports (§7.2) are landed on the server + export
+layers; the frontend and the #18915 regression are the remaining
+gap. Chart reports (§7.3) have the Pareto flavour shipped end-to-end;
+Deviation and Trend charts are not started. Nothing else in §7.4 –
+§7.11 has code yet.
+
 ### 7.1 Report infrastructure (M)
 
-- `RI1` — Extract the Phase-1 `PanelYieldByLineReport` pattern into a
-  shared `IReport<TInput,TOutput>` contract with snapshot-test scaffold.
-- `RI2` — `Nieweb.Reports.Common`: shared shift bucketing, time-window
-  decomposition (1h / 3h / 6h / 12h / shift / day / week / month), and
-  the aggregation helpers Vieweb calls "analyzed by".
-- `RI3` — `AppParameters` service + `AppParameter` entity + admin CRUD.
-- `RI4` — Filter grammar in `Nieweb.Filters` (typed DTO + operator
-  enum + validator). Reproduces the Vieweb operator table verbatim.
+- `RI1` ✅ done `b388960` — Extract the Phase-1 `PanelYieldByLineReport`
+  pattern into a shared `IReport<TInput,TOutput>` contract with
+  snapshot-test scaffold (`Nieweb.Reports.TestKit`).
+- `RI2` ✅ done `8b3ee1d` — `Nieweb.Reports.Common`: shared shift
+  bucketing, time-window decomposition (1h / 3h / 6h / 12h / shift /
+  day / week / month), and the aggregation helpers Vieweb calls
+  "analyzed by".
+- `RI3` ✅ done `e8cacd5` — `AppParameters` service + `AppParameter`
+  entity + admin CRUD.
+- `RI4` ✅ done `3bbea1a` — Filter grammar in `Nieweb.Filters` (typed
+  DTO + operator enum + validator). Reproduces the Vieweb operator
+  table verbatim.
 
 ### 7.2 Table reports (M)
 
-- `TR1` — **FPY table** (panel + board flavours, per AOI / per product).
-  Snapshot tests on both DBs.
-- `TR2` — **DPMO table** (per AOI / defect / JEDEC / part number /
-  product / reference designator; optional package / error-type / after-
-  diagnostic detail columns). Uses the `Error_Table` / `Error_Table_AR`
-  bit-decoding described in the `vit-aoi-database` skill.
-- `TR3` — CSV + XLSX + PDF export for every table entity. **#18915
-  regression test** on a >250-column DPMO table.
+- `TR1` ✅ done `52e8a2b` — **FPY table** (panel + board flavours,
+  per AOI / per product). Snapshot tests on both DBs.
+- `TR2` ✅ done `47df7e7` — **DPMO table** (per AOI / defect / JEDEC /
+  part number / product / reference designator; optional package /
+  error-type / after-diagnostic detail columns). Uses the
+  `Error_Table` / `Error_Table_AR` bit-decoding described in the
+  `vit-aoi-database` skill. Endpoints wired in `5bc39a6`.
+- `TR3` 🟡 partial `a01475c` — CSV + XLSX exports for DPMO and Pareto
+  endpoints landed. **Still open:** PDF export for every table
+  entity, and the **#18915 regression test** on a >250-column DPMO
+  table (no test currently asserts the cap is gone).
 
 ### 7.3 Chart reports (M)
 
-- `CR1` — **Pareto** (Error) chart with day / shift / top-10 grouping,
-  histogram + table representation, DPMO / PPM / real-value scales.
-- `CR2` — **Deviation** chart on X / Y / Z / surface / theta with
-  `±tolerance`, average, `±3σ` overlays; tolerance intervals sourced
-  from `AppParameter`.
-- `CR3` — **Trend** chart with time-bucket decomposition; supports
-  Cp, Cpk, DPMO\*, FPY\*, panel vs board. Reuse `RI2` bucketing.
+- `CR1` 🟡 partial `03a544e` — **Pareto** (Error) chart shipped as a
+  SPA page (`/report/pareto`) with histogram + cumulative-percent
+  overlay + drill-down table, plus the CSV/XLSX exports from `TR3`.
+  **Still open:** day / shift / top-10 grouping selector, DPMO / PPM
+  / real-value scale toggles (the current chart is fixed to the
+  post-review "real defects" numerator).
+- `CR2` ⬜ open — **Deviation** chart on X / Y / Z / surface / theta
+  with `±tolerance`, average, `±3σ` overlays; tolerance intervals
+  sourced from `AppParameter`.
+- `CR3` ⬜ open — **Trend** chart with time-bucket decomposition;
+  supports Cp, Cpk, DPMO\*, FPY\*, panel vs board. Reuse `RI2`
+  bucketing.
 
 ### 7.4 Process Capability (M)
 
-- `PC1` — Process Capability dashboard: per production line grid of
-  DPMO, FPY_Diag, Machine efficiency, Avg cycle duration, Nb
-  inspections. The Cp/Cpk compo & paste rows render a "MSA source not
-  configured" placeholder until the dedicated MSA DB is commissioned
-  (see §10 Q1). Depends on `PL1`.
-- `PL1` — Production line + machine grouping + shift breakpoints, EF
-  entities + admin CRUD.
+- `PC1` ⬜ open — Process Capability dashboard: per production line
+  grid of DPMO, FPY_Diag, Machine efficiency, Avg cycle duration,
+  Nb inspections. The Cp/Cpk compo & paste rows render a "MSA source
+  not configured" placeholder until the dedicated MSA DB is
+  commissioned (see §10 Q1). Depends on `PL1`.
+- `PL1` ⬜ open — Production line + machine grouping + shift
+  breakpoints, EF entities + admin CRUD.
 
 > **MSA report deferred.** The `templatemsa` entity (Cp / Cpk / EV /
 > %EV / GR&R on a dedicated empty-panel DB) is not delivered in
@@ -289,69 +316,83 @@ time — sequence matters more than clock estimates.
 > and the corresponding admin-parameter rows.
 ### 7.5 Traceability (M)
 
-- `TC1` — Panel-level drill-down: panel → subpanel → tested object →
-  pin (post-reflow / `IPinLevelSource` only).
-- `TC2` — Per-board drill-down (both DBs).
-- `TC3` — Panel-bar-code lookup entry point on the home page + saved-
-  view integration.
+- `TC1` ⬜ open — Panel-level drill-down: panel → subpanel → tested
+  object → pin (post-reflow / `IPinLevelSource` only).
+- `TC2` ⬜ open — Per-board drill-down (both DBs).
+- `TC3` ⬜ open — Panel-bar-code lookup entry point on the home page
+  + saved-view integration.
 
 ### 7.6 Report composition (M)
 
-- `RC1` — `Report` + `ReportGroup` + `ReportEntity` entities and admin
-  CRUD.
-- `RC2` — Report editor SPA route: pick entities from a palette, drop
-  onto a canvas, edit filters per entity, save.
-- `RC3` — Locked reports (owner-set password; anyone can Duplicate).
-- `RC4` — Home-page pinning (`HomeReport`).
-- `RC5` — Print / XLSX / PDF at report level (multi-entity).
-- `RC6` — Comment entity (free-text markdown).
+- `RC1` ⬜ open — `Report` + `ReportGroup` + `ReportEntity` entities
+  and admin CRUD.
+- `RC2` ⬜ open — Report editor SPA route: pick entities from a
+  palette, drop onto a canvas, edit filters per entity, save.
+- `RC3` ⬜ open — Locked reports (owner-set password; anyone can
+  Duplicate).
+- `RC4` ⬜ open — Home-page pinning (`HomeReport`).
+- `RC5` ⬜ open — Print / XLSX / PDF at report level (multi-entity).
+- `RC6` ⬜ open — Comment entity (free-text markdown).
 
 ### 7.7 Automatic treatments (M)
 
-- `AT1` — `Nieweb.Scheduling` BackgroundService + `AutomaticTreatment`
-  entity + concurrency lease.
-- `AT2` — `Nieweb.Mail` (MailKit) with per-attempt audit rows. **#9699
-  regression test.**
-- `AT3` — File-output batch to configured directory.
-- `AT4` — Admin UI: schedule + recipients + enable/disable + master
-  switch + failure inspector.
-- `AT5` — **#12421 regression test**: assert weekly totals == sum of
-  daily totals over the same window.
+- `AT1` ⬜ open — `Nieweb.Scheduling` BackgroundService +
+  `AutomaticTreatment` entity + concurrency lease.
+- `AT2` ⬜ open — `Nieweb.Mail` (MailKit) with per-attempt audit rows.
+  **#9699 regression test.** Blocked on §10.2 Q1 (SMTP host).
+- `AT3` ⬜ open — File-output batch to configured directory.
+- `AT4` ⬜ open — Admin UI: schedule + recipients + enable/disable +
+  master switch + failure inspector.
+- `AT5` ⬜ open — **#12421 regression test**: assert weekly totals ==
+  sum of daily totals over the same window.
 
 ### 7.8 Defect bit fixes (S)
 
-- `DB1` — Central `DefectBitDecoder` service keyed on `Error_Table` /
-  `Error_Table_AR` bits per the `vit-aoi-database` skill (the source
-  of truth for every macro type, foreign material, etc.).
-- `DB2` — **#11211 regression test** on a synthetic panel with several
-  concurrent defect bits.
+- `DB1` ✅ done `88b2ed7` — Central `DefectBitDecoder` service keyed
+  on `Error_Table` / `Error_Table_AR` bits per the `vit-aoi-database`
+  skill (the source of truth for every macro type, foreign material,
+  etc.).
+- `DB2` ✅ done `88b2ed7` — **#11211 regression test** on a synthetic
+  panel with several concurrent defect bits.
 
 ### 7.9 Frontend (M)
 
-- `F10` — Reusable "report canvas" component (drag-drop entities).
-- `F11` — Filter builder component honouring the operator matrix.
-- `F12` — Time-decomposition selector shared by every chart.
-- `F13` — Admin pages: production lines / shifts / app parameters /
-  automatic treatments / tolerance intervals.
-- `F14` — Home-page pin/unpin.
-- `F15` — PDF preview modal.
+- `F10` 🟡 partial `03a544e` — Reusable "report canvas" component
+  (drag-drop entities). The Pareto page shipped a report-shaped
+  layout (filter form + chart + drill-down table + export buttons)
+  that will become the template for the canvas; the drag-drop editor
+  itself is still open.
+- `F11` ⬜ open — Filter builder component honouring the operator
+  matrix.
+- `F12` ⬜ open — Time-decomposition selector shared by every chart.
+- `F13` ⬜ open — Admin pages: production lines / shifts / app
+  parameters / automatic treatments / tolerance intervals. (§7.1
+  RI3's admin CRUD covers `AppParameter` at the API layer; a
+  dedicated SPA route is still pending.)
+- `F14` ⬜ open — Home-page pin/unpin.
+- `F15` ⬜ open — PDF preview modal.
 
 ### 7.10 Deployment & ops (S)
 
-- `O5` — SMTP configuration + secret rotation guidance in
-  `docs/deploy.md`.
-- `O6` — `%ProgramData%\Nieweb\batch` writable-directory bootstrap in
-  `install-service.ps1`.
-- `O7` — Metrics: `/health/scheduler` reports lag (max NextRunUtc
-  overdue) + last-run outcomes.
+- `O5` ⬜ open — SMTP configuration + secret rotation guidance in
+  `docs/deploy.md`. Blocked on §10.2 Q1.
+- `O6` ⬜ open — `%ProgramData%\Nieweb\batch` writable-directory
+  bootstrap in `install-service.ps1`.
+- `O7` ⬜ open — Metrics: `/health/scheduler` reports lag (max
+  NextRunUtc overdue) + last-run outcomes.
 
 ### 7.11 Test coverage (S)
 
-- `T3` — Per-report snapshot fixtures (RI1 scaffold, one per report
-  type × two DBs).
-- `T4` — Playwright happy-path smoke per report type.
-- `T5` — Scheduler integration test: enable a fake treatment with a
-  1-minute cadence and assert two consecutive runs write audit rows.
+- `T3` 🟡 partial — Per-report snapshot fixtures for the shipped
+  reports (FPY table, DPMO table, Pareto) land alongside their
+  respective commits via the `Nieweb.Reports.TestKit` scaffold from
+  `RI1`. **Still open:** two-DB parity fixtures once `HlyaoiSource`
+  and `MeaoiSource` have snapshot cassettes wired.
+- `T4` ⬜ open — Playwright happy-path smoke per report type (the
+  MVP smoke in `7005dd7` covers panel-yield only).
+- `T5` ⬜ open — Scheduler integration test: enable a fake treatment
+  with a 1-minute cadence and assert two consecutive runs write
+  audit rows.
 
 ### 7.12 Design-partner integration (S, ongoing)
 
