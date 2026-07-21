@@ -33,6 +33,10 @@ function ReportStub() {
     return <h1 data-testid="report-stub">Panel yield stub</h1>;
 }
 
+function ChangePasswordStub() {
+    return <h1 data-testid="change-password-stub">Change password stub</h1>;
+}
+
 function renderLogin(initialPath: string = "/login") {
     const rootRoute = createRootRoute({ component: Outlet });
     const home = createRoute({
@@ -51,7 +55,12 @@ function renderLogin(initialPath: string = "/login") {
         path: "/report/panel-yield",
         component: ReportStub,
     });
-    const routeTree = rootRoute.addChildren([home, login, report]);
+    const change = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/account/password",
+        component: ChangePasswordStub,
+    });
+    const routeTree = rootRoute.addChildren([home, login, report, change]);
     const router = createRouter({
         routeTree,
         history: createMemoryHistory({ initialEntries: [initialPath] }),
@@ -147,6 +156,7 @@ describe("LoginRoute", () => {
                     accessToken: "jwt-token-abc",
                     tokenType: "Bearer",
                     expiresUtc: "2099-01-01T00:00:00Z",
+                    mustRotatePassword: false,
                 },
             },
             {
@@ -157,6 +167,7 @@ describe("LoginRoute", () => {
                     email: "admin@nieweb.local",
                     name: "Administrator",
                     roles: ["Admin"],
+                    mustRotatePassword: false,
                 },
             },
         ]);
@@ -222,6 +233,7 @@ describe("LoginRoute", () => {
                 email: "admin@nieweb.local",
                 displayName: "Administrator",
                 roles: ["Admin"],
+                mustRotatePassword: false,
             },
             "existing-token",
         );
@@ -246,6 +258,7 @@ describe("LoginRoute", () => {
                     accessToken: "jwt-token-xyz",
                     tokenType: "Bearer",
                     expiresUtc: "2099-01-01T00:00:00Z",
+                    mustRotatePassword: false,
                 },
             },
             {
@@ -256,6 +269,7 @@ describe("LoginRoute", () => {
                     email: "reader@nieweb.local",
                     name: "Reader",
                     roles: ["Reader"],
+                    mustRotatePassword: false,
                 },
             },
         ]);
@@ -282,11 +296,70 @@ describe("LoginRoute", () => {
                 email: "reader@nieweb.local",
                 displayName: "Reader",
                 roles: ["Reader"],
+                mustRotatePassword: false,
             },
             "existing-token",
         );
         renderLogin("/login?redirect=%2Freport%2Fpanel-yield");
 
         expect(await screen.findByTestId("report-stub")).toBeInTheDocument();
+    });
+
+    it("sends a forced-rotation user to /account/password after sign-in, ignoring any ?redirect", async () => {
+        stubFetch([
+            {
+                match: (u) => u.endsWith("/auth/login"),
+                status: 200,
+                body: {
+                    accessToken: "jwt-token-rot",
+                    tokenType: "Bearer",
+                    expiresUtc: "2099-01-01T00:00:00Z",
+                    mustRotatePassword: true,
+                },
+            },
+            {
+                match: (u) => u.endsWith("/auth/whoami"),
+                status: 200,
+                body: {
+                    userId: "user-rot",
+                    email: "rotator@nieweb.local",
+                    name: "Rotator",
+                    roles: ["Reader"],
+                    mustRotatePassword: true,
+                },
+            },
+        ]);
+        renderLogin("/login?redirect=%2Freport%2Fpanel-yield");
+        const user = userEvent.setup();
+        await user.type(
+            await screen.findByPlaceholderText("you@example.com"),
+            "rotator@nieweb.local",
+        );
+        await user.type(
+            screen.getByPlaceholderText("Enter your password"),
+            "TempPass123",
+        );
+        await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+        expect(
+            await screen.findByTestId("change-password-stub"),
+        ).toBeInTheDocument();
+    });
+
+    it("auto-redirects a signed-in forced-rotation user to /account/password", async () => {
+        useSessionStore.getState().setSession(
+            {
+                email: "rotator@nieweb.local",
+                displayName: "Rotator",
+                roles: ["Reader"],
+                mustRotatePassword: true,
+            },
+            "existing-token",
+        );
+        renderLogin("/login?redirect=%2Freport%2Fpanel-yield");
+
+        expect(
+            await screen.findByTestId("change-password-stub"),
+        ).toBeInTheDocument();
     });
 });

@@ -204,6 +204,11 @@ public static partial class AdminUsersEndpoints
             CreatedUtc = now,
             LastModifiedUtc = now,
             IsOidcProvisioned = false,
+            // Admin-created accounts always ship with a temporary
+            // password the operator communicates out-of-band. Force a
+            // rotation on the user's first sign-in so that value
+            // stops being valid after they log in once.
+            MustRotatePassword = true,
         };
 
         var create = await users.CreateAsync(user, request.Password).ConfigureAwait(false);
@@ -372,6 +377,10 @@ public static partial class AdminUsersEndpoints
             return TypedResults.ValidationProblem(ToProblemDict(add));
         }
 
+        // Admin-initiated resets always require the user to pick a
+        // fresh password on their next sign-in — the operator's
+        // temporary value should not live on after that first login.
+        user.MustRotatePassword = true;
         user.LastModifiedUtc = DateTime.UtcNow;
         _ = await users.UpdateAsync(user).ConfigureAwait(false);
 

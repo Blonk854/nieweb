@@ -12,7 +12,14 @@ import {
     UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconChartBar, IconHome, IconLogin, IconLogout, IconUsers } from "@tabler/icons-react";
+import {
+    IconChartBar,
+    IconHome,
+    IconKey,
+    IconLogin,
+    IconLogout,
+    IconUsers,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import { useSessionStore } from "../state/session";
@@ -106,6 +113,15 @@ function SideNav() {
                     label={t("nav.adminUsers")}
                     leftSection={<IconUsers size={18} />}
                     active={active.startsWith("/admin/users")}
+                />
+            )}
+            {user && (
+                <NavLink
+                    component={Link}
+                    to="/account/password"
+                    label={t("nav.changePassword")}
+                    leftSection={<IconKey size={18} />}
+                    active={active.startsWith("/account/password")}
                 />
             )}
             <NavLink

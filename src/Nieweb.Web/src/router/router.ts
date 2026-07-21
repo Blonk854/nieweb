@@ -12,6 +12,9 @@ import { validatePanelYieldSearch } from "../routes/panel-yield.search";
 import { LoginRoute } from "../routes/login";
 import { validateLoginSearch } from "../routes/login.search";
 import { AdminUsersRoute } from "../routes/admin-users";
+import { ChangePasswordRoute } from "../routes/change-password";
+import { useSessionStore } from "../state/session";
+import { redirect } from "@tanstack/react-router";
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -50,11 +53,34 @@ const adminUsersRoute = createRoute({
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
+const changePasswordRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/account/password",
+    component: ChangePasswordRoute,
+    // The change-password screen needs a signed-in user (there is no
+    // way to change a password anonymously in Nieweb — password
+    // resets go through the admin), so bounce anonymous visitors to
+    // the sign-in page. We intentionally do NOT reuse
+    // `requireAuthentication` here because that helper would then
+    // re-bounce a forced-rotation user straight back to this route
+    // and cause a redirect loop.
+    beforeLoad: ({ location }) => {
+        const user = useSessionStore.getState().user;
+        if (!user) {
+            throw redirect({
+                to: "/login",
+                search: { redirect: location.href },
+            });
+        }
+    },
+});
+
 const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
     loginRoute,
     adminUsersRoute,
+    changePasswordRoute,
 ]);
 
 // Re-export the typed route so components (../routes/panel-yield.tsx)

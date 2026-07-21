@@ -27,6 +27,10 @@ function ProtectedRouteStub() {
     return <h1 data-testid="protected">Protected content</h1>;
 }
 
+function ChangePasswordStub() {
+    return <h1 data-testid="change-password-stub">Change password stub</h1>;
+}
+
 function renderGuardedRouterAt(initialPath: string) {
     const rootRoute = createRootRoute({ component: Outlet });
     const login = createRoute({
@@ -41,7 +45,12 @@ function renderGuardedRouterAt(initialPath: string) {
         component: ProtectedRouteStub,
         beforeLoad: ({ location }) => requireAuthentication(location.href),
     });
-    const routeTree = rootRoute.addChildren([login, protectedRoute]);
+    const changePassword = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/account/password",
+        component: ChangePasswordStub,
+    });
+    const routeTree = rootRoute.addChildren([login, protectedRoute, changePassword]);
     const router = createRouter({
         routeTree,
         history: createMemoryHistory({ initialEntries: [initialPath] }),
@@ -101,6 +110,7 @@ describe("requireAuthentication", () => {
                 email: "reader@nieweb.local",
                 displayName: "Reader",
                 roles: ["Reader"],
+                mustRotatePassword: false,
             },
             "existing-token",
         );
@@ -108,6 +118,25 @@ describe("requireAuthentication", () => {
         renderGuardedRouterAt("/report/panel-yield");
 
         expect(await screen.findByTestId("protected")).toBeInTheDocument();
+    });
+
+    it("bounces a signed-in user with the mustRotatePassword flag to /account/password", async () => {
+        useSessionStore.getState().setSession(
+            {
+                email: "rotator@nieweb.local",
+                displayName: "Rotator",
+                roles: ["Reader"],
+                mustRotatePassword: true,
+            },
+            "existing-token",
+        );
+
+        renderGuardedRouterAt("/report/panel-yield?sourceId=postreflow");
+
+        expect(
+            await screen.findByTestId("change-password-stub"),
+        ).toBeInTheDocument();
+        expect(screen.queryByTestId("protected")).not.toBeInTheDocument();
     });
 });
 

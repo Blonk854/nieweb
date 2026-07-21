@@ -19,6 +19,7 @@ export const en: TranslationBundle = {
         home: "Home",
         panelYield: "Panel Yield by Line",        adminUsers: "Users",        signIn: "Sign in",
         signOut: "Sign out",
+        changePassword: "Change password",
     },
     home: {
         title: "Welcome to Nieweb",
@@ -111,6 +112,36 @@ export const en: TranslationBundle = {
             passwordRequired: "Password is required.",
             invalidCredentials: "Invalid email or password.",
             unexpectedError: "Sign-in failed. Please try again.",
+        },
+    },
+    account: {
+        changePassword: {
+            title: "Change password",
+            subtitle: "Pick a new password for your account.",
+            mustRotateBanner:
+                "You must set a new password before you can continue.",
+            currentPasswordLabel: "Current password",
+            currentPasswordPlaceholder: "Enter your current password",
+            newPasswordLabel: "New password",
+            newPasswordPlaceholder: "Enter a new password",
+            confirmPasswordLabel: "Confirm new password",
+            confirmPasswordPlaceholder: "Re-enter the new password",
+            submit: "Change password",
+            submitting: "Changing password…",
+            cancel: "Cancel",
+            success: "Password changed",
+            successBody: "Your password has been updated.",
+            continueHome: "Continue to Home",
+            currentPasswordRequired: "Current password is required.",
+            newPasswordRequired: "New password is required.",
+            confirmPasswordRequired: "Please confirm the new password.",
+            confirmMismatch: "The two new passwords do not match.",
+            sameAsCurrent:
+                "The new password must be different from the current one.",
+            wrongCurrentPassword: "The current password is incorrect.",
+            validationFailed: "The server rejected the new password:",
+            unexpectedError:
+                "Could not change the password. Please try again.",
         },
     },
     common: {

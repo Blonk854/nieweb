@@ -45,6 +45,17 @@ public sealed class NiewebUser : IdentityUser<int>
     public DateTime LastModifiedUtc { get; set; }
 
     /// <summary>
+    /// When true, the user must set a new password before they can
+    /// access any protected part of the app. Set to true for the
+    /// bootstrap administrator and for every user created or
+    /// password-reset by an admin, and cleared by
+    /// <c>POST /auth/change-password</c> on a successful rotation.
+    /// This defends against operator-issued temporary passwords
+    /// living on indefinitely.
+    /// </summary>
+    public bool MustRotatePassword { get; set; }
+
+    /// <summary>
     /// Concurrency token to detect stale edits in the admin UI.
     /// </summary>
     [System.ComponentModel.DataAnnotations.Timestamp]

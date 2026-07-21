@@ -17,6 +17,7 @@ export type TranslationBundle = {
         adminUsers: string;
         signIn: string;
         signOut: string;
+        changePassword: string;
     };
     home: {
         title: string;
@@ -105,6 +106,33 @@ export type TranslationBundle = {
             emailInvalid: string;
             passwordRequired: string;
             invalidCredentials: string;
+            unexpectedError: string;
+        };
+    };
+    account: {
+        changePassword: {
+            title: string;
+            subtitle: string;
+            mustRotateBanner: string;
+            currentPasswordLabel: string;
+            currentPasswordPlaceholder: string;
+            newPasswordLabel: string;
+            newPasswordPlaceholder: string;
+            confirmPasswordLabel: string;
+            confirmPasswordPlaceholder: string;
+            submit: string;
+            submitting: string;
+            cancel: string;
+            success: string;
+            successBody: string;
+            continueHome: string;
+            currentPasswordRequired: string;
+            newPasswordRequired: string;
+            confirmPasswordRequired: string;
+            confirmMismatch: string;
+            sameAsCurrent: string;
+            wrongCurrentPassword: string;
+            validationFailed: string;
             unexpectedError: string;
         };
     };

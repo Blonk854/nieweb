@@ -14,7 +14,12 @@ describe("useSessionStore", () => {
 
     it("setSession stores the user + token", () => {
         useSessionStore.getState().setSession(
-            { email: "line@nieweb.test", displayName: "Line Eng", roles: ["Reader"] },
+            {
+                email: "line@nieweb.test",
+                displayName: "Line Eng",
+                roles: ["Reader"],
+                mustRotatePassword: false,
+            },
             "eyJ.test.token",
         );
         expect(useSessionStore.getState().user?.email).toBe("line@nieweb.test");
@@ -23,7 +28,7 @@ describe("useSessionStore", () => {
 
     it("clear wipes user + token", () => {
         useSessionStore.getState().setSession(
-            { email: "x@y.z", displayName: "X", roles: [] },
+            { email: "x@y.z", displayName: "X", roles: [], mustRotatePassword: false },
             "tok",
         );
         useSessionStore.getState().clear();
@@ -33,7 +38,12 @@ describe("useSessionStore", () => {
 
     it("persists to localStorage under nieweb.session.v1", () => {
         useSessionStore.getState().setSession(
-            { email: "p@q.r", displayName: "P", roles: ["Reader"] },
+            {
+                email: "p@q.r",
+                displayName: "P",
+                roles: ["Reader"],
+                mustRotatePassword: false,
+            },
             "pTok",
         );
         const raw = localStorage.getItem("nieweb.session.v1");

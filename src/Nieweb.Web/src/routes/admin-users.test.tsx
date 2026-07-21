@@ -103,6 +103,7 @@ function signInAs(roles: string[]) {
             email: "root@nieweb.test",
             displayName: "Root Admin",
             roles,
+            mustRotatePassword: false,
         },
         "test-token",
     );

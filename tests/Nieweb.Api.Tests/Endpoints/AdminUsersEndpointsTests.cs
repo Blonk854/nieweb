@@ -320,6 +320,57 @@ public sealed class AdminUsersEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Create_SetsMustRotatePassword_ForNewUser()
+    {
+        await ClearUsersAsync();
+        _ = await CreateUserAsync("root-rotate@nieweb.test", "correctpassword123", BootstrapAdmin.RoleAdmin);
+        using var client = await LoggedInClientAsync("root-rotate@nieweb.test", "correctpassword123");
+
+        var body = new AdminUsersEndpoints.CreateUserRequest
+        {
+            Email = "freshuser@nieweb.test",
+            DisplayName = "Fresh",
+            Password = "temp-pass-1234",
+            Roles = new[] { BootstrapAdmin.RoleReader },
+        };
+        using var response = await client.PostAsJsonAsync(
+            new Uri("/api/admin/users", UriKind.Relative), body);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        Assert.True(await GetMustRotateAsync("freshuser@nieweb.test"));
+    }
+
+    [Fact]
+    public async Task ResetPassword_SetsMustRotatePassword()
+    {
+        await ClearUsersAsync();
+        _ = await CreateUserAsync("root-reset@nieweb.test", "correctpassword123", BootstrapAdmin.RoleAdmin);
+        var target = await CreateUserAsync("dave@nieweb.test", "originalpass123", BootstrapAdmin.RoleReader);
+        using var admin = await LoggedInClientAsync("root-reset@nieweb.test", "correctpassword123");
+
+        // Precondition: freshly-created (via UserManager, not the endpoint)
+        // user starts *without* the rotation flag.
+        Assert.False(await GetMustRotateAsync("dave@nieweb.test"));
+
+        var body = new AdminUsersEndpoints.ResetPasswordRequest { NewPassword = "brandnewpass456" };
+        using var response = await admin.PostAsJsonAsync(
+            new Uri($"/api/admin/users/{target.Id}/reset-password", UriKind.Relative), body);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        Assert.True(await GetMustRotateAsync("dave@nieweb.test"));
+    }
+
+    private async Task<bool> GetMustRotateAsync(string email)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<NiewebDbContext>();
+        return await db.Users
+            .Where(u => u.Email == email)
+            .Select(u => u.MustRotatePassword)
+            .SingleAsync();
+    }
+
     private async Task<int> GetUserIdAsync(string email)
     {
         using var scope = _factory.Services.CreateScope();

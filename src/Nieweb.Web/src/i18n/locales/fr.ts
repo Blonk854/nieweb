@@ -15,6 +15,7 @@ export const fr: TranslationBundle = {
         home: "Accueil",
         panelYield: "Rendement panneau par ligne",        adminUsers: "Utilisateurs",        signIn: "Connexion",
         signOut: "Se déconnecter",
+        changePassword: "Changer le mot de passe",
     },
     home: {
         title: "Bienvenue sur Nieweb",
@@ -108,6 +109,37 @@ export const fr: TranslationBundle = {
             passwordRequired: "Le mot de passe est requis.",
             invalidCredentials: "Adresse e-mail ou mot de passe incorrect.",
             unexpectedError: "Échec de la connexion. Veuillez réessayer.",
+        },
+    },
+    account: {
+        changePassword: {
+            title: "Changer le mot de passe",
+            subtitle: "Choisissez un nouveau mot de passe pour votre compte.",
+            mustRotateBanner:
+                "Vous devez définir un nouveau mot de passe avant de continuer.",
+            currentPasswordLabel: "Mot de passe actuel",
+            currentPasswordPlaceholder: "Saisissez votre mot de passe actuel",
+            newPasswordLabel: "Nouveau mot de passe",
+            newPasswordPlaceholder: "Saisissez un nouveau mot de passe",
+            confirmPasswordLabel: "Confirmer le nouveau mot de passe",
+            confirmPasswordPlaceholder: "Saisissez à nouveau le nouveau mot de passe",
+            submit: "Changer le mot de passe",
+            submitting: "Modification en cours…",
+            cancel: "Annuler",
+            success: "Mot de passe modifié",
+            successBody: "Votre mot de passe a été mis à jour.",
+            continueHome: "Continuer vers l'accueil",
+            currentPasswordRequired: "Le mot de passe actuel est requis.",
+            newPasswordRequired: "Le nouveau mot de passe est requis.",
+            confirmPasswordRequired: "Veuillez confirmer le nouveau mot de passe.",
+            confirmMismatch:
+                "Les deux nouveaux mots de passe ne correspondent pas.",
+            sameAsCurrent:
+                "Le nouveau mot de passe doit être différent du mot de passe actuel.",
+            wrongCurrentPassword: "Le mot de passe actuel est incorrect.",
+            validationFailed: "Le serveur a refusé le nouveau mot de passe :",
+            unexpectedError:
+                "Impossible de changer le mot de passe. Veuillez réessayer.",
         },
     },
     common: {

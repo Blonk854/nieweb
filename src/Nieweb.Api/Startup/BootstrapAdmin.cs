@@ -117,6 +117,11 @@ public static partial class BootstrapAdmin
             CreatedUtc = now,
             LastModifiedUtc = now,
             IsOidcProvisioned = false,
+            // The bootstrap admin is created with a password read from
+            // configuration. That value must not survive first sign-in
+            // untouched — force the admin to pick a fresh password
+            // before they can reach any protected route.
+            MustRotatePassword = true,
         };
 
         var create = await users.CreateAsync(admin, password).ConfigureAwait(false);

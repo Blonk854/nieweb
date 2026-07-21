@@ -58,8 +58,19 @@ export function LoginRoute() {
     // route mounts. Guarded by the effect so the initial render is
     // still consistent (React can render this component up to twice
     // in strict mode; the redirect fires idempotently either way).
+    //
+    // If the user is flagged for forced password rotation, /login is
+    // the wrong destination — send them straight to the change-
+    // password screen instead.
     useEffect(() => {
-        if (user && redirectTarget) {
+        if (!user) {
+            return;
+        }
+        if (user.mustRotatePassword) {
+            void navigate({ to: "/account/password" });
+            return;
+        }
+        if (redirectTarget) {
             void navigate({ to: redirectTarget });
         }
     }, [user, redirectTarget, navigate]);
@@ -98,6 +109,7 @@ export function LoginRoute() {
                     email: values.email.trim(),
                     displayName: values.email.trim(),
                     roles: [],
+                    mustRotatePassword: tokenResponse.mustRotatePassword,
                 },
                 tokenResponse.accessToken,
             );
@@ -107,13 +119,22 @@ export function LoginRoute() {
                     email: me.email ?? values.email.trim(),
                     displayName: me.name ?? me.email ?? values.email.trim(),
                     roles: me.roles,
+                    mustRotatePassword: me.mustRotatePassword,
                 },
                 tokenResponse.accessToken,
             );
             return me;
         },
-        onSuccess: () => {
+        onSuccess: (me) => {
             setErrorKey(null);
+            // Forced-rotation accounts skip the redirect target and
+            // go straight to the change-password screen. The router
+            // guard will keep bouncing them back here until the flag
+            // is cleared.
+            if (me.mustRotatePassword) {
+                void navigate({ to: "/account/password" });
+                return;
+            }
             void navigate({ to: redirectTarget ?? "/" });
         },
         onError: (error) => {
