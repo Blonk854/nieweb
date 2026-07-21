@@ -111,4 +111,26 @@ export type TranslationBundle = {
             inFuture: string;
         };
     };
+    savedViews: {
+        menu: string;
+        empty: string;
+        save: string;
+        saveTitle: string;
+        namePlaceholder: string;
+        nameRequired: string;
+        shared: string;
+        sharedHint: string;
+        create: string;
+        cancel: string;
+        delete: string;
+        confirmDelete: string;
+        confirmDeleteBody: string;
+        mine: string;
+        sharedByOthers: string;
+        loadError: string;
+        saveError: string;
+        deleteError: string;
+        saved: string;
+        deleted: string;
+    };
 };

@@ -37,6 +37,7 @@ import { pickDefaultSourceId } from "./panel-yield.search";
 import { DataTable, type Column } from "../components/DataTable";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { KpiCards } from "../components/KpiCards";
+import { SavedViewsMenu } from "../components/SavedViewsMenu";
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when a
 // user actually runs a report with per-machine rows.
@@ -136,6 +137,18 @@ export function PanelYieldRoute() {
         void navigate({
             to: "/report/panel-yield",
             search: {} as PanelYieldSearch,
+            replace: false,
+        });
+    }
+
+    // Applies a filter loaded from a saved view: pushes it into the URL
+    // (which drives the report query) *and* seeds the form state so
+    // the input controls also reflect the loaded view.
+    function applySavedFilter(filter: PanelYieldSearch) {
+        setForm(searchToForm(filter));
+        void navigate({
+            to: "/report/panel-yield",
+            search: filter,
             replace: false,
         });
     }
@@ -296,6 +309,12 @@ export function PanelYieldRoute() {
                             <Button variant="subtle" onClick={handleReset} type="button">
                                 {t("panelYield.filters.reset")}
                             </Button>
+                            <SavedViewsMenu<PanelYieldSearch>
+                                reportKey="panel-yield"
+                                currentFilter={search}
+                                onApply={applySavedFilter}
+                                canSave={reportEnabled}
+                            />
                         </Group>
                         <Group>
                             <Anchor
