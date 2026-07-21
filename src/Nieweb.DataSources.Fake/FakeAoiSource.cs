@@ -21,11 +21,16 @@ public sealed class FakeAoiSource : IAoiSource
     private readonly IReadOnlyList<Machine> _machines;
     private readonly IReadOnlyList<Product> _products;
     private readonly IReadOnlyList<Recipe> _recipes;
+    private readonly IReadOnlyList<TestedObjectRow> _testedObjects;
 
     /// <summary>
     /// Builds the singleton with the canonical E2E fixture: one machine,
     /// one product, one recipe, and ten panels on 2026-01-15 UTC (five
-    /// clean, five with a single defect - FPY = 50%).
+    /// clean, five with a defect - FPY = 50%). Each panel carries 20
+    /// tested objects (16 components + 4 paste pads) with a
+    /// deterministic defect distribution across bits 1 / 2 / 3 / 8 / 9
+    /// so component-level reports (DPMO table, Pareto) have a
+    /// realistic vital-few shape to render.
     /// </summary>
     public FakeAoiSource()
     {
@@ -83,6 +88,7 @@ public sealed class FakeAoiSource : IAoiSource
                 RecipeId: 1));
         }
         _panels = panels;
+        _testedObjects = BuildTestedObjects(panels);
     }
 
     public SourceDescriptor Descriptor { get; }
@@ -107,7 +113,11 @@ public sealed class FakeAoiSource : IAoiSource
         => Task.FromResult(new Page<CardRow, CardCursor>(FilterCards(query).ToList(), NextCursor: null, HasMore: false));
 
     public Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct)
-        => Task.FromResult(new Page<TestedObjectRow, TestedObjectCursor>([], NextCursor: null, HasMore: false));
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        var rows = FilterTestedObjects(query).ToList();
+        return Task.FromResult(new Page<TestedObjectRow, TestedObjectCursor>(rows, NextCursor: null, HasMore: false));
+    }
 
     public async IAsyncEnumerable<PanelRow> StreamPanelsAsync(
         PanelQuery query,
@@ -135,18 +145,21 @@ public sealed class FakeAoiSource : IAoiSource
         }
     }
 
-    // The E2E fixture doesn't seed tested-object rows; component-level
-    // reports (DPMO, Pareto) fall back to an empty result on this
-    // source. Real integration tests bind against SQL adapters or the
-    // seeded fakes in Nieweb.Reports.Tests.
+    // Component-level reports (DPMO, Pareto) stream tested objects
+    // through the same window/machine/product/recipe filter as
+    // panels and cards; defect distribution is seeded in
+    // BuildTestedObjects below.
     public async IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(
         TestedObjectQuery query,
         [EnumeratorCancellation] CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        ct.ThrowIfCancellationRequested();
-        await Task.CompletedTask.ConfigureAwait(false);
-        yield break;
+        foreach (var obj in FilterTestedObjects(query))
+        {
+            ct.ThrowIfCancellationRequested();
+            yield return obj;
+            await Task.Yield();
+        }
     }
 
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
@@ -234,5 +247,152 @@ public sealed class FakeAoiSource : IAoiSource
             }
             yield return panel;
         }
+    }
+
+    private IEnumerable<TestedObjectRow> FilterTestedObjects(TestedObjectQuery query)
+    {
+        foreach (var obj in _testedObjects)
+        {
+            if (obj.PanelNumericDate < query.Window.StartEpochSeconds)
+            {
+                continue;
+            }
+            if (obj.PanelNumericDate >= query.Window.EndEpochSecondsExclusive)
+            {
+                continue;
+            }
+            if (query.MachineIds is { Count: > 0 } && !query.MachineIds.Contains(obj.MachineId))
+            {
+                continue;
+            }
+            if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(obj.ProductId))
+            {
+                continue;
+            }
+            // RecipeIds filtering happens at the panel level; every
+            // fixture panel belongs to recipe 1 so a mismatch means
+            // no rows anyway. We look the parent panel up so the
+            // filter is honoured even if a caller narrows on
+            // recipe alone.
+            if (query.RecipeIds is { Count: > 0 })
+            {
+                var parent = FindPanel(obj.PanelId);
+                if (parent is null || !query.RecipeIds.Contains(parent.RecipeId))
+                {
+                    continue;
+                }
+            }
+            yield return obj;
+        }
+    }
+
+    private PanelRow? FindPanel(long panelId)
+    {
+        foreach (var panel in _panels)
+        {
+            if (panel.PanelId == panelId)
+            {
+                return panel;
+            }
+        }
+        return null;
+    }
+
+    // ObjectTypeId codes from the vit-aoi-database skill.
+    private const int ComponentObjectType = 0x01;
+    private const int PastePadObjectType = 0x10;
+
+    // Defect bit masks (see Nieweb.Reports.Common.Defects.DefectBit).
+    private const long BitObjectMissing = 1L << 0;   // bit 1
+    private const long BitPolarityError = 1L << 1;   // bit 2
+    private const long BitSolderJoint = 1L << 2;     // bit 3
+    private const long BitTombstone = 1L << 7;       // bit 8
+    private const long BitTilt = 1L << 8;            // bit 9
+
+    /// <summary>
+    /// Emits 20 tested-object rows per panel (16 components + 4 paste
+    /// pads) with a deterministic distribution of reference designators,
+    /// part numbers, JEDEC packages, and — on the five defective panels
+    /// — five different defect bits. Chosen so the Defect-axis Pareto
+    /// has a textbook vital-few / trivial-many shape:
+    ///   * bit 1 Object missing  — 5 occurrences
+    ///   * bit 3 Solder joint    — 4 occurrences
+    ///   * bit 2 Polarity error  — 3 occurrences
+    ///   * bit 8 Tombstone       — 2 occurrences
+    ///   * bit 9 Tilt            — 1 occurrence
+    /// (Panel 8, object R1 carries two bits so total set bits = 15
+    /// across 200 opportunities → overall DPMO = 75 000 PPM.)
+    /// </summary>
+    private static List<TestedObjectRow> BuildTestedObjects(List<PanelRow> panels)
+    {
+        var rows = new List<TestedObjectRow>(capacity: panels.Count * 20);
+
+        foreach (var panel in panels)
+        {
+            for (var i = 0; i < 20; i++)
+            {
+                var (typeId, topology, partNumber, jedec) = LayoutFor(i);
+                var (errAoi, errReal) = DefectFor(panel.PanelId, i);
+                var status = errAoi == 0L ? 0 : 1;
+
+                rows.Add(new TestedObjectRow(
+                    PanelId: panel.PanelId,
+                    CardIdOnPanel: 1,
+                    ObjectId: (i + 1) * 10,
+                    ObjectTypeId: typeId,
+                    ErrorTable: errAoi,
+                    ErrorTableAr: errReal,
+                    Status: status,
+                    MachineId: panel.MachineId,
+                    ProductId: panel.ProductId,
+                    PanelNumericDate: panel.PanelNumericDate,
+                    Topology: topology,
+                    PartNumberName: partNumber,
+                    JedecName: jedec));
+            }
+        }
+
+        return rows;
+    }
+
+    private static (int TypeId, string Topology, string? PartNumber, string? Jedec) LayoutFor(int i)
+    {
+        return i switch
+        {
+            >= 0 and <= 7 => (ComponentObjectType, $"R{i + 1}", "RES-10K", "0603"),
+            >= 8 and <= 11 => (ComponentObjectType, $"C{i - 7}", "CAP-100N", "0603"),
+            12 => (ComponentObjectType, "U1", "MCU-STM32", "QFN-48"),
+            13 => (ComponentObjectType, "U2", "MCU-STM32", "QFN-48"),
+            14 => (ComponentObjectType, "U3", "IC-LDO", "SOT-23"),
+            15 => (ComponentObjectType, "U4", "IC-LDO", "SOT-23"),
+            _ => (PastePadObjectType, $"PAD{i - 15}", null, null),
+        };
+    }
+
+    private static (long ErrAoi, long ErrReal) DefectFor(int panelId, int i)
+    {
+        // Only defective panels (barcode E2E-005..E2E-009 → PanelId
+        // 105..109) carry any defects. Both Error_Table and
+        // Error_Table_AR are set to the same value so the AOI, Real,
+        // and (empty) Dummy numerators all agree in the smoke fixture.
+        var mask = (panelId, i) switch
+        {
+            (105, 0) => BitObjectMissing,
+            (105, 5) => BitSolderJoint,
+            (105, 12) => BitTombstone,
+            (106, 0) => BitObjectMissing,
+            (106, 5) => BitSolderJoint,
+            (106, 8) => BitPolarityError,
+            (107, 1) => BitObjectMissing,
+            (107, 9) => BitPolarityError,
+            (107, 12) => BitTombstone,
+            (108, 0) => BitObjectMissing | BitSolderJoint,
+            (108, 13) => BitTilt,
+            (109, 2) => BitObjectMissing,
+            (109, 5) => BitSolderJoint,
+            (109, 8) => BitPolarityError,
+            _ => 0L,
+        };
+        return (mask, mask);
     }
 }

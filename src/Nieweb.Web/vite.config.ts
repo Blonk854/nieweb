@@ -36,6 +36,16 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            "/auth": {
+                target: process.env.VITE_API_URL ?? "http://localhost:5000",
+                changeOrigin: true,
+                secure: false,
+            },
+            "/signin-oidc": {
+                target: process.env.VITE_API_URL ?? "http://localhost:5000",
+                changeOrigin: true,
+                secure: false,
+            },
         },
     },
     test: {
