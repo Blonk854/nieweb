@@ -96,13 +96,13 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
             ct);
     }
 
-    // ---- Fact-table queries (skeleton - to be implemented per-report) ------
-
-    public override Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct)
-    {
-        ValidateWindow(query);
-        throw new NotImplementedException("QueryCardsAsync will be implemented alongside the first CARDS-consuming report.");
-    }
+    // ---- Fact-table queries -----------------------------------------------
+    // QueryPanelsAsync, QueryCardsAsync, and QueryTestedObjectsAsync all use
+    // the shared base-class implementations (BuildPanelsQuery / BuildCardsQuery
+    // / BuildTestedObjectsQuery and their mappers). The IS_LAST_INSPECTION
+    // guard in BuildPanelsQuery / BuildCardsQuery is capability-gated on
+    // Descriptor.Caps and v4.3.1 doesn't advertise it, so pre-reflow queries
+    // skip that filter automatically.
 
     /// <summary>
     /// v4.3.1 TESTED_OBJECT lacks <c>Error_Table_AR</c> — the shared
@@ -112,8 +112,4 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
     /// "missing-AR means no review has occurred yet").
     /// </summary>
     protected override bool HasTestedObjectErrorTableAr => false;
-
-    // QueryTestedObjectsAsync uses the shared base-class implementation
-    // (BuildTestedObjectsQuery + MapTestedObjectRow) — see the
-    // HasTestedObjectErrorTableAr override above for the v4.3.1 quirk.
 }

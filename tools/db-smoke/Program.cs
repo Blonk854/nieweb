@@ -168,6 +168,30 @@ foreach (var name in wanted)
                 $"topo='{o.Topology}'  pn='{o.PartNumberName}'  jedec='{o.JedecName}'");
         }
 
+        // --- CARDS smoke: first page of the same small window. Same
+        // rationale as TESTED_OBJECT for keeping the window tiny. Both
+        // DBs project the same shape (BuildCardsQuery); Card_Id is the
+        // only polymorphic column and is only used in the JOIN, not
+        // projected, so no per-source mapper differences apply.
+        var cardQuery = new CardQuery
+        {
+            Window = new DateRange(toWindowStart, toWindowEnd),
+            PageSize = 5,
+        };
+        var cardPage = await source.QueryCardsAsync(cardQuery, cts.Token);
+        Console.WriteLine();
+        Console.WriteLine(
+            $"    Cards in same window (first {cardQuery.PageSize}): " +
+            $"{cardPage.Rows.Count} rows, HasMore={cardPage.HasMore}, " +
+            $"NextCursor={(cardPage.NextCursor is CardCursor cc ? $"({cc.LastPanelId}, {cc.LastCardIdOnPanel})" : "null")}.");
+        foreach (var card in cardPage.Rows.Take(5))
+        {
+            Console.WriteLine(
+                $"      panel={card.PanelId,8} card={card.CardIdOnPanel,2}  M{card.MachineId,-2}  " +
+                $"status={card.CardStatus,2}  BR=0x{card.AnomalyBr:X}  AR=0x{card.AnomalyAr:X}  " +
+                $"comps={card.NbOfTestedObject,4}  err={card.NbOfErrorObject,3}");
+        }
+
         // --- SqlGuards forbidden-keyword regex. Purely in-process assertion;
         // no wire traffic. Proves the guard would refuse a hand-typed write
         // if a future refactor accidentally routed one through the base.

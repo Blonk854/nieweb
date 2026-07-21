@@ -294,7 +294,45 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         }
     }
 
-    public abstract Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct);
+    /// <inheritdoc />
+    /// <remarks>
+    /// Shared implementation: joins <c>CARDS</c> to <c>PANELS</c>
+    /// (for <c>Machine_Id</c> / <c>Product_Id</c> / <c>Panel_Numeric_Date</c>
+    /// and for the mandatory <c>Panel_Numeric_Date</c> window filter),
+    /// mirroring <see cref="QueryPanelsAsync"/> so panel-level and
+    /// board-level reports over the same window agree on scope.
+    /// Ordering matches <see cref="CardCursor"/>: (<c>Panel_Id</c>,
+    /// <c>Card_Number</c>).
+    /// </remarks>
+    public virtual async Task<Page<CardRow, CardCursor>> QueryCardsAsync(
+        CardQuery query, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateWindow(query);
+        var pageSize = ValidatePageSize(query.PageSize);
+
+        var (sql, bind) = BuildCardsQuery(query, pageSize + 1);
+
+        var rows = new List<CardRow>(pageSize + 1);
+        await foreach (var row in ExecuteQueryAsync(sql, bind, MapCardRow, ct).ConfigureAwait(false))
+        {
+            rows.Add(row);
+        }
+
+        var hasMore = rows.Count > pageSize;
+        if (hasMore)
+        {
+            rows.RemoveAt(rows.Count - 1);
+        }
+
+        CardCursor? next = hasMore && rows.Count > 0
+            ? new CardCursor(
+                LastPanelId: checked((int)rows[^1].PanelId),
+                LastCardIdOnPanel: rows[^1].CardIdOnPanel)
+            : null;
+
+        return new Page<CardRow, CardCursor>(rows, next, hasMore);
+    }
 
     /// <inheritdoc />
     /// <remarks>
@@ -772,4 +810,116 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             PartNumberName: r.IsDBNull(10) ? null : r.GetString(10),
             JedecName: r.IsDBNull(11) ? null : r.GetString(11));
     }
+
+    // ---- Shared CARDS query builder ----------------------------------------
+
+    private (string Sql, Action<SqlParameterCollection> Bind) BuildCardsQuery(
+        CardQuery q, int topCount)
+    {
+        EnsureUnderInListCap(q.MachineIds, nameof(q.MachineIds));
+        EnsureUnderInListCap(q.ProductIds, nameof(q.ProductIds));
+        EnsureUnderInListCap(q.RecipeIds, nameof(q.RecipeIds));
+
+        var startEpoch = checked((int)q.Window.StartEpochSeconds);
+        var endEpoch = checked((int)q.Window.EndEpochSecondsExclusive);
+
+        var sb = new StringBuilder(1024);
+        sb.Append(
+            """
+            SELECT TOP (@topCount)
+              c.Panel_Id, c.Card_Number, c.Card_Status,
+              c.Anomaly_BR, c.Anomaly_AR,
+              c.Number_Of_Component, c.Number_Of_Anomaly,
+              p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date
+            FROM dbo.CARDS  c WITH (NOLOCK)
+            JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
+            WHERE p.Panel_Numeric_Date >= @startEpoch
+              AND p.Panel_Numeric_Date <  @endEpoch
+            """);
+
+        // Reuse the panel-level IS_LAST_INSPECTION guard so board-level
+        // FPY / DPMO reports over the same window agree on scope with
+        // panel-level ones. Capability-gated — v4.3.1 pre-reflow lacks
+        // the column.
+        var useLastInsp =
+            Descriptor.Caps.HasFlag(Capabilities.IsLastInspectionFilter);
+        if (useLastInsp)
+        {
+            sb.AppendLine().Append("  AND p.IS_LAST_INSPECTION = 1");
+        }
+
+        AppendInClause(sb, "p.Machine_Id", "@m", q.MachineIds);
+        AppendInClause(sb, "p.Product_Id", "@p", q.ProductIds);
+        AppendInClause(sb, "p.Recipe_Id",  "@r", q.RecipeIds);
+
+        if (q.Cursor is not null)
+        {
+            // Keyset paging on (Panel_Id, Card_Number). Both columns are
+            // int NOT NULL on both DBs.
+            sb.AppendLine().Append(
+                """
+                  AND (c.Panel_Id > @cursorPanel
+                    OR (c.Panel_Id = @cursorPanel AND c.Card_Number > @cursorCard))
+                """);
+        }
+
+        sb.AppendLine().Append("ORDER BY c.Panel_Id, c.Card_Number;");
+
+        void Bind(SqlParameterCollection p)
+        {
+            p.Add(new SqlParameter("@topCount", SqlDbType.Int) { Value = topCount });
+            p.Add(new SqlParameter("@startEpoch", SqlDbType.Int) { Value = startEpoch });
+            p.Add(new SqlParameter("@endEpoch", SqlDbType.Int) { Value = endEpoch });
+
+            BindInParameters(p, "@m", q.MachineIds);
+            BindInParameters(p, "@p", q.ProductIds);
+            BindInParameters(p, "@r", q.RecipeIds);
+
+            if (q.Cursor is CardCursor c)
+            {
+                p.Add(new SqlParameter("@cursorPanel", SqlDbType.Int) { Value = c.LastPanelId });
+                p.Add(new SqlParameter("@cursorCard", SqlDbType.Int) { Value = c.LastCardIdOnPanel });
+            }
+        }
+
+        return (sb.ToString(), Bind);
+    }
+
+    /// <summary>
+    /// Map a row from <see cref="BuildCardsQuery"/>. Column order is
+    /// fixed by the SELECT list.
+    /// </summary>
+    /// <remarks>
+    /// None of the columns projected here are type-polymorphic between
+    /// the two live Superviseur DBs (verified against
+    /// <c>tools/db/out/{postreflow,prereflow}/04_cards_columns.csv</c>):
+    /// <list type="bullet">
+    /// <item><c>Panel_Id</c>, <c>Card_Number</c>, <c>Card_Status</c>,
+    ///   <c>Anomaly_BR</c>, <c>Anomaly_AR</c>,
+    ///   <c>Number_Of_Component</c>, <c>Number_Of_Anomaly</c> are all
+    ///   <c>int NOT NULL</c> on both DBs.</item>
+    /// <item><c>Machine_Id</c>, <c>Product_Id</c>,
+    ///   <c>Panel_Numeric_Date</c> come from <c>PANELS</c> and are all
+    ///   <c>int NOT NULL</c> on both DBs.</item>
+    /// </list>
+    /// The only polymorphic CARDS column is <c>Card_Id</c>
+    /// (<c>bigint</c> on v5.0, <c>int</c> on v4.3.1) — we do not project
+    /// it because <see cref="CardRow.CardIdOnPanel"/> is the within-panel
+    /// index (<c>Card_Number</c>), and the global <c>Card_Id</c> is only
+    /// used in the JOIN. So typed getters are safe on every column.
+    /// The <see cref="int"/>-to-<see cref="long"/> widening for
+    /// <see cref="CardRow.PanelId"/> / <see cref="CardRow.AnomalyBr"/> /
+    /// <see cref="CardRow.AnomalyAr"/> is an implicit conversion.
+    /// </remarks>
+    internal static CardRow MapCardRow(DbDataReader r) => new(
+        PanelId: r.GetInt32(0),
+        CardIdOnPanel: r.GetInt32(1),
+        CardStatus: r.GetInt32(2),
+        AnomalyBr: r.GetInt32(3),
+        AnomalyAr: r.GetInt32(4),
+        NbOfTestedObject: r.GetInt32(5),
+        NbOfErrorObject: r.GetInt32(6),
+        MachineId: r.GetInt32(7),
+        ProductId: r.GetInt32(8),
+        PanelNumericDate: r.GetInt32(9));
 }

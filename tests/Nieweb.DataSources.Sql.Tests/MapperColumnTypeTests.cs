@@ -178,6 +178,63 @@ public sealed class MapperColumnTypeTests
         Assert.Null(row.OperatorId);
     }
 
+    // ---------- MapCardRow ----------
+
+    [Fact]
+    public void MapCardRow_ReadsAllTypedColumnsCorrectly()
+    {
+        // Every column projected by BuildCardsQuery is int NOT NULL on
+        // both live DBs (Card_Id, the only polymorphic CARDS column, is
+        // only used in the JOIN and never projected). Verify each slot
+        // ends up in the right DTO field.
+        var dt = NewCardTable();
+        dt.Rows.Add(
+            /* c.Panel_Id             */ 1234,
+            /* c.Card_Number          */ 3,
+            /* c.Card_Status          */ 2,
+            /* c.Anomaly_BR           */ 5,
+            /* c.Anomaly_AR           */ 1,
+            /* c.Number_Of_Component  */ 42,
+            /* c.Number_Of_Anomaly    */ 3,
+            /* p.Machine_Id           */ 10,
+            /* p.Product_Id           */ 100,
+            /* p.Panel_Numeric_Date   */ 1_700_000_000);
+        using var reader = dt.CreateDataReader();
+        Assert.True(reader.Read());
+
+        var row = SqlServerAoiSourceBase.MapCardRow(reader);
+
+        Assert.Equal(1234L, row.PanelId);
+        Assert.Equal(3, row.CardIdOnPanel);
+        Assert.Equal(2, row.CardStatus);
+        Assert.Equal(5L, row.AnomalyBr);
+        Assert.Equal(1L, row.AnomalyAr);
+        Assert.Equal(42, row.NbOfTestedObject);
+        Assert.Equal(3, row.NbOfErrorObject);
+        Assert.Equal(10, row.MachineId);
+        Assert.Equal(100, row.ProductId);
+        Assert.Equal(1_700_000_000, row.PanelNumericDate);
+    }
+
+    [Fact]
+    public void MapCardRow_NoDefects_LeavesLongCountersAtZero()
+    {
+        // A clean board (status 1, zero anomaly bit-fields) is by far
+        // the most common CARDS row on a healthy line; make sure the
+        // int-to-long widening path doesn't sign-extend or otherwise
+        // mangle a zero.
+        var dt = NewCardTable();
+        dt.Rows.Add(1, 1, 1, 0, 0, 10, 0, 1, 1, 1_700_000_000);
+        using var reader = dt.CreateDataReader();
+        Assert.True(reader.Read());
+
+        var row = SqlServerAoiSourceBase.MapCardRow(reader);
+
+        Assert.Equal(0L, row.AnomalyBr);
+        Assert.Equal(0L, row.AnomalyAr);
+        Assert.Equal(0, row.NbOfErrorObject);
+    }
+
     // ---------- Helpers ----------
 
     private static DataTableReader BuildTestedObjectReader(
@@ -241,6 +298,27 @@ public sealed class MapperColumnTypeTests
         dt.Columns.Add("Operator_Id", typeof(int));
         dt.Columns.Add("Product_Id", typeof(int));
         dt.Columns.Add("Recipe_Id", typeof(int));
+        return dt;
+    }
+
+    private static DataTable NewCardTable()
+    {
+        // Column order matches BuildCardsQuery's SELECT list. Every
+        // column is int NOT NULL on both live DBs (see
+        // tools/db/out/{postreflow,prereflow}/04_cards_columns.csv);
+        // Card_Id — the polymorphic bigint/int column — is not
+        // projected, so no polymorphic type param is needed here.
+        var dt = new DataTable();
+        dt.Columns.Add("Panel_Id", typeof(int));
+        dt.Columns.Add("Card_Number", typeof(int));
+        dt.Columns.Add("Card_Status", typeof(int));
+        dt.Columns.Add("Anomaly_BR", typeof(int));
+        dt.Columns.Add("Anomaly_AR", typeof(int));
+        dt.Columns.Add("Number_Of_Component", typeof(int));
+        dt.Columns.Add("Number_Of_Anomaly", typeof(int));
+        dt.Columns.Add("Machine_Id", typeof(int));
+        dt.Columns.Add("Product_Id", typeof(int));
+        dt.Columns.Add("Panel_Numeric_Date", typeof(int));
         return dt;
     }
 }

@@ -100,15 +100,10 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
             ct);
     }
 
-    // ---- Fact-table queries (skeleton - to be implemented per-report) ------
-
-    public override Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct)
-    {
-        ValidateWindow(query);
-        throw new NotImplementedException("QueryCardsAsync will be implemented alongside the first CARDS-consuming report.");
-    }
-
-    // QueryTestedObjectsAsync uses the shared base-class implementation
-    // (BuildTestedObjectsQuery + MapTestedObjectRow) — v5.0 exposes
-    // Error_Table_AR so no HasTestedObjectErrorTableAr override is needed.
+    // ---- Fact-table queries -----------------------------------------------
+    // QueryPanelsAsync, QueryCardsAsync, and QueryTestedObjectsAsync all use
+    // the shared base-class implementations (BuildPanelsQuery / BuildCardsQuery
+    // / BuildTestedObjectsQuery and their mappers). v5.0 exposes
+    // Error_Table_AR and IS_LAST_INSPECTION, so no capability overrides are
+    // needed here.
 }
