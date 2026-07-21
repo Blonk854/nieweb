@@ -4,4 +4,18 @@
     <ProjectReference Include="..\Nieweb.Data\Nieweb.Data.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Argon2id password hashing (RFC 9106). 1.3.1 is the current release
+      by Keef Aragon; no known GHSA advisories at the time of pinning.
+    -->
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+
+    <!--
+      Direct reference so this project owns the Identity dependency
+      explicitly rather than picking it up transitively via Nieweb.Data.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
+  </ItemGroup>
+
 </Project>

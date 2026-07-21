@@ -5,6 +5,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 
 using Nieweb.Data;
+using Nieweb.Identity.DependencyInjection;
 
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -27,6 +28,16 @@ try
     Log.Information("Starting Nieweb.Api host");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    // Fail fast on DI misconfiguration: every registered service is
+    // constructed once at host build time, and every resolve validates
+    // that scoped services are not captured by singletons. Small cost at
+    // startup, catches wiring bugs before they hit a request path.
+    builder.Host.UseDefaultServiceProvider(options =>
+    {
+        options.ValidateOnBuild = true;
+        options.ValidateScopes = true;
+    });
 
     builder.Host.UseSerilog((context, services, configuration) =>
         configuration
@@ -89,6 +100,12 @@ try
                 $"Unknown Nieweb:Db:Provider '{dbProvider}'. Use 'Sqlite' or 'Npgsql'.");
         }
     });
+
+    // ASP.NET Core Identity for NiewebUser/NiewebRole, wired to
+    // NiewebDbContext and backed by an Argon2id password hasher. Options
+    // (password rules, lockout, Argon2id cost) come from configuration
+    // section Nieweb:Identity - see appsettings.json for defaults.
+    builder.Services.AddNiewebIdentity(builder.Configuration);
 
     var app = builder.Build();
 
