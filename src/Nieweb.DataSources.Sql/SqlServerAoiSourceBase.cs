@@ -1,5 +1,6 @@
 using System.Data;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Data.SqlClient;
@@ -441,6 +442,51 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             : null;
     }
 
+    /// <summary>
+    /// Self-inspects the SQL Server session used by this source: returns
+    /// the connection's <c>program_name</c> (should equal the
+    /// <c>Application Name</c> tag baked in by the constructor) and its
+    /// <c>transaction_isolation_level</c> (should be <c>1</c>
+    /// / <c>ReadUncommitted</c> because
+    /// <see cref="SqlGuards.IsolationPrelude"/> is prepended to every
+    /// batch). Used by <c>tools/db-smoke</c> to prove the read-only
+    /// discipline holds on the wire without needing
+    /// <c>VIEW SERVER STATE</c> permission.
+    /// </summary>
+    /// <returns>
+    /// Tuple of <c>(programName, transactionIsolationLevel, loginName, hostName)</c>.
+    /// </returns>
+    public virtual async Task<(string ProgramName, short TransactionIsolationLevel, string LoginName, string HostName)>
+        GetSessionSelfDiagnosticsAsync(CancellationToken ct)
+    {
+        // Read-only DMV; goes through ExecuteQueryAsync so it inherits
+        // the connection tag (SourceTag) and the READ UNCOMMITTED prelude.
+        // Every login can see its own row in sys.dm_exec_sessions
+        // without VIEW SERVER STATE.
+        const string Sql = """
+            SELECT program_name, transaction_isolation_level, login_name, host_name
+            FROM sys.dm_exec_sessions WITH (NOLOCK)
+            WHERE session_id = @@SPID;
+            """;
+
+        (string, short, string, string)? row = null;
+        await foreach (var r in ExecuteQueryAsync(
+            Sql,
+            bindParameters: null,
+            map: static r => (
+                r.IsDBNull(0) ? string.Empty : r.GetString(0).TrimEnd(),
+                r.GetInt16(1),
+                r.IsDBNull(2) ? string.Empty : r.GetString(2).TrimEnd(),
+                r.IsDBNull(3) ? string.Empty : r.GetString(3).TrimEnd()),
+            ct).ConfigureAwait(false))
+        {
+            row = r;
+        }
+
+        return row ?? throw new InvalidOperationException(
+            "sys.dm_exec_sessions returned no row for @@SPID — this cannot happen on a live connection.");
+    }
+
     // ---- Shared PANELS query builder ---------------------------------------
 
     /// <summary>Upper bound on IN-list filter size to keep parameter counts sane.</summary>
@@ -682,28 +728,42 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     /// <c>Error_Table_AR</c> the builder repeats <c>Error_Table</c> in
     /// slot 5, so this mapper reads slot 5 uniformly.
     /// </summary>
+    /// <remarks>
+    /// Slot 2 (<c>Tested_Object_Id</c>) and slots 4/5 (<c>Error_Table</c>
+    /// / <c>Error_Table_AR</c>) are polymorphic across the two shipped
+    /// Superviseur schemas — verified against the live post-reflow
+    /// (HLYAOI2024, v5.0) and pre-reflow (MEAOI, v4.3.1) DBs:
+    /// <code>
+    ///                        v5.0 (post)    v4.3.1 (pre)
+    ///   Tested_Object_Id     bigint         int
+    ///   Error_Table          int            int
+    ///   Error_Table_AR       bigint         (column absent)
+    /// </code>
+    /// SqlDataReader's typed getters throw <see cref="InvalidCastException"/>
+    /// on any mismatch, so we go through <see cref="Convert.ToInt64(object?, IFormatProvider?)"/>
+    /// which widens both <see cref="int"/> and <see cref="long"/>.
+    /// The tested-object id is narrowed (checked) to <see cref="int"/> to
+    /// match the current cursor/DTO shape.
+    /// </remarks>
     private static TestedObjectRow MapTestedObjectRow(SqlDataReader r)
     {
-        // Column 2 is TESTED_OBJECT.Tested_Object_Id — BIGINT on v5.0,
-        // INT on v4.3.1. GetInt64 handles both after SQL Server's
-        // implicit widening. We then narrow (checked) to match the
-        // current int-typed DTO / cursor; overflow throws instead of
-        // silently truncating.
-        var testedObjectId = checked((int)r.GetInt64(2));
+        var testedObjectId = checked((int)Convert.ToInt64(r.GetValue(2), CultureInfo.InvariantCulture));
+        var errorTable = Convert.ToInt64(r.GetValue(4), CultureInfo.InvariantCulture);
+        var errorTableAr = Convert.ToInt64(r.GetValue(5), CultureInfo.InvariantCulture);
 
         return new TestedObjectRow(
             PanelId: r.GetInt32(0),
             CardIdOnPanel: r.GetInt32(1),
             ObjectId: testedObjectId,
             ObjectTypeId: r.GetInt32(3),
-            ErrorTable: r.GetInt64(4),
-            ErrorTableAr: r.GetInt64(5),
+            ErrorTable: errorTable,
+            ErrorTableAr: errorTableAr,
             // Object-level Status is not a physical column on
             // TESTED_OBJECT — derive it from Error_Table_AR
             // (0 = OK, 1 = at least one post-review defect) so
             // report code that inspects Status behaves the same for
             // both schemas.
-            Status: r.GetInt64(5) != 0 ? 1 : 0,
+            Status: errorTableAr != 0 ? 1 : 0,
             MachineId: r.GetInt32(7),
             ProductId: r.GetInt32(8),
             PanelNumericDate: r.GetInt32(9),

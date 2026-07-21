@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nieweb.DataSources.Sql\Nieweb.DataSources.Sql.csproj" />
+    <ProjectReference Include="..\..\src\Nieweb.Reports\Nieweb.Reports.csproj" />
   </ItemGroup>
 
 </Project>
