@@ -15,7 +15,7 @@
 
 .PARAMETER Prefix
     Environment-variable prefix identifying which AOI credential set to use.
-    Defaults to `AOI_POSTREFLOW_` (Phase 1 HLYAOI). Use `AOI_PREREFLOW_` for
+    Defaults to `AOI_POSTREFLOW_` (Phase 1 HLYAOI2024). Use `AOI_PREREFLOW_` for
     the Phase 2 pre-reflow Mycronic database.
 
 .PARAMETER OutputDir

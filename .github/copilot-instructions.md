@@ -192,12 +192,20 @@ CR4 / Vision20 CR5 shape documented in the `vit-aoi-database` skill, but
 the pre-reflow instance is on an older schema revision and is missing
 several tables.
 
-- **Post-reflow (Phase 1) — `HLYMSSQL2 / HLYAOI`.** Schema `5.0`,
-  DATABASEID 1762100668. Contains `PIN`, `PIN_MEASURE`, all four
-  `*_HISTO` tables, and the `Barcode_Product` view. `Panel_Status`
-  values `{-2,-1,0,1,2}`. Login `svc_hlyaoiprod` currently has
-  **write** access because a read-only account was not yet provisioned
-  — read-only discipline is enforced in code (see below).
+- **Post-reflow (Phase 1) — `HLYMSSQL2 / HLYAOI2024`.** Schema `5.0`.
+  Was `HLYAOI` until 2026-07 (frozen at Panel_Numeric_Date
+  2025-11-14 22:32:51 UTC); the production line then switched to
+  the **live** `HLYAOI2024` catalogue on the same server with the same
+  service account. Contains `PIN`, `PIN_MEASURE`, all four `*_HISTO`
+  tables, and the `Barcode_Product` view. `Panel_Status` values
+  `{-2,-1,0,1,2}`. Login `svc_hlyaoiprod` currently has **write**
+  access because a read-only account is not yet provisioned — read-only
+  discipline is enforced in code by
+  `src/Nieweb.DataSources.Sql/SqlGuards.cs` and by
+  `SqlServerAoiSourceBase` (`WITH (NOLOCK)`, `READ UNCOMMITTED`,
+  30 s query timeout, per-query audit log). Because the DB is on the
+  SMT-line critical path, every new query must be reviewed for cycle-
+  time impact before it is merged.
 - **Pre-reflow (Phase 2) — `HLYMSSQL1 / MEAOI`.** Schema `4.3.1`,
   DATABASEID 1783421400. **Missing entirely:** `PIN`, `PIN_MEASURE`,
   `CARDS_HISTO`, `PANELS_HISTO`, `PIN_HISTO`, `TESTED_OBJECT_HISTO`,
@@ -247,7 +255,8 @@ touches either Superviseur DB must:
   can't block or be blocked.
 - Set `ApplicationName='Nieweb-<script-name>-<source>'` on connections
   (e.g. `Nieweb-probe-schema-postreflow`) so DBAs can identify our
-  sessions.
+  sessions. The C# adapters use `Nieweb-<sourceTag>-<database>`
+  (e.g. `Nieweb-postreflow-HLYAOI2024`).
 - Time-window filter every query on the large tables (`PANELS`, `CARDS`,
   `TESTED_OBJECT`, `PIN`, `PIN_MEASURE`, `*_HISTO`) — never a bare
   `SELECT * FROM …`.

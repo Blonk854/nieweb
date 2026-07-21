@@ -1,7 +1,10 @@
 using System.Data;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Nieweb.DataSources.Sql;
 
@@ -18,23 +21,30 @@ namespace Nieweb.DataSources.Sql;
 /// Concrete subclasses (<c>HlyaoiSource</c>, <c>MeaoiSource</c>) supply the
 /// <see cref="IAoiSource.Descriptor"/> and the source-specific SQL text.
 /// </summary>
-public abstract class SqlServerAoiSourceBase : IAoiSource
+public abstract partial class SqlServerAoiSourceBase : IAoiSource
 {
     private readonly AoiSourceOptions _options;
     private readonly string _connectionString;
+    private readonly ILogger _log;
 
-    protected SqlServerAoiSourceBase(AoiSourceOptions options)
+    protected SqlServerAoiSourceBase(AoiSourceOptions options, ILogger<SqlServerAoiSourceBase>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
+        _log = (ILogger?)logger ?? NullLogger.Instance;
 
+        // ApplicationName includes both the source tag and the target database
+        // so a DBA glancing at sys.dm_exec_sessions can immediately tell
+        // (a) which Nieweb source is talking and (b) which catalogue it hit
+        // (e.g. `Nieweb-postreflow-HLYAOI2024`). This matters because we run
+        // against a live inspection DB with a write-capable service account.
         var builder = new SqlConnectionStringBuilder
         {
             DataSource = options.Server,
             InitialCatalog = options.Database,
             UserID = options.User,
             Password = options.Password,
-            ApplicationName = $"Nieweb-{SourceTag}",
+            ApplicationName = $"Nieweb-{SourceTag}-{options.Database}",
             ConnectTimeout = options.ConnectTimeoutSeconds,
             TrustServerCertificate = options.TrustServerCertificate,
             Encrypt = options.Encrypt,
@@ -67,7 +77,9 @@ public abstract class SqlServerAoiSourceBase : IAoiSource
     /// <summary>
     /// Streams the rows produced by <paramref name="sql"/> through
     /// <paramref name="map"/>. The SQL is guarded (write keywords rejected)
-    /// and prefixed with the standard isolation prelude.
+    /// and prefixed with the standard isolation prelude. Every invocation is
+    /// logged (source tag, first line of SQL, parameter count, duration,
+    /// row count) so we have an audit trail against a live Superviseur DB.
     /// </summary>
     protected async IAsyncEnumerable<T> ExecuteQueryAsync<T>(
         string sql,
@@ -79,17 +91,102 @@ public abstract class SqlServerAoiSourceBase : IAoiSource
         ArgumentNullException.ThrowIfNull(map);
         SqlGuards.EnsureReadOnly(sql);
 
+        var sw = Stopwatch.StartNew();
+        var rowCount = 0;
+        var sqlTag = SqlSummary(sql);
+
         await using var conn = await OpenConnectionAsync(ct).ConfigureAwait(false);
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = SqlGuards.IsolationPrelude + sql;
         cmd.CommandTimeout = _options.QueryTimeoutSeconds;
         bindParameters?.Invoke(cmd.Parameters);
+        var paramCount = cmd.Parameters.Count;
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        SqlDataReader reader;
+        try
         {
-            yield return map(reader);
+            reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         }
+        catch (Exception ex)
+        {
+            LogAoiQueryFailed(_log, SourceTag, _options.Database, sqlTag, paramCount, sw.ElapsedMilliseconds, ex);
+            throw;
+        }
+
+        await using (reader.ConfigureAwait(false))
+        {
+            try
+            {
+                while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                {
+                    rowCount++;
+                    yield return map(reader);
+                }
+            }
+            finally
+            {
+                sw.Stop();
+                var elapsed = sw.ElapsedMilliseconds;
+                // Warn if we exceed 5s or half the configured timeout,
+                // whichever is smaller. Anything close to the cap is a red
+                // flag on a live line DB.
+                var warnThreshold = Math.Min(5000L, _options.QueryTimeoutSeconds * 500L);
+                if (elapsed >= warnThreshold)
+                {
+                    LogAoiQuerySlow(_log, SourceTag, _options.Database, sqlTag, paramCount, rowCount, elapsed);
+                }
+                else
+                {
+                    LogAoiQuery(_log, SourceTag, _options.Database, sqlTag, paramCount, rowCount, elapsed);
+                }
+            }
+        }
+    }
+
+    // Source-generated logger delegates — avoids CA1848 boxing and lets
+    // Serilog / OpenTelemetry treat each field as a structured property.
+    [LoggerMessage(
+        EventId = 6001,
+        Level = LogLevel.Information,
+        Message = "AOI query: source={SourceTag} db={Database} sql={SqlTag} params={ParamCount} rows={RowCount} durationMs={DurationMs}")]
+    private static partial void LogAoiQuery(
+        ILogger logger, string sourceTag, string database, string sqlTag,
+        int paramCount, int rowCount, long durationMs);
+
+    [LoggerMessage(
+        EventId = 6002,
+        Level = LogLevel.Warning,
+        Message = "AOI query slow: source={SourceTag} db={Database} sql={SqlTag} params={ParamCount} rows={RowCount} durationMs={DurationMs}")]
+    private static partial void LogAoiQuerySlow(
+        ILogger logger, string sourceTag, string database, string sqlTag,
+        int paramCount, int rowCount, long durationMs);
+
+    [LoggerMessage(
+        EventId = 6003,
+        Level = LogLevel.Error,
+        Message = "AOI query failed: source={SourceTag} db={Database} sql={SqlTag} params={ParamCount} durationMs={DurationMs}")]
+    private static partial void LogAoiQueryFailed(
+        ILogger logger, string sourceTag, string database, string sqlTag,
+        int paramCount, long durationMs, Exception exception);
+
+    /// <summary>Compact one-line tag for the audit log (first non-blank line, capped).</summary>
+    private static string SqlSummary(string sql)
+    {
+        const int MaxLength = 120;
+        var span = sql.AsSpan();
+        // Skip leading whitespace.
+        var i = 0;
+        while (i < span.Length && char.IsWhiteSpace(span[i]))
+        {
+            i++;
+        }
+        // Take up to the first newline or MaxLength chars.
+        var end = i;
+        while (end < span.Length && span[end] != '\r' && span[end] != '\n' && end - i < MaxLength)
+        {
+            end++;
+        }
+        return span[i..end].ToString();
     }
 
     /// <summary>

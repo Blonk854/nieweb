@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Nieweb.DataSources.Sql;
@@ -36,8 +37,8 @@ public static class AoiSourceServiceCollectionExtensions
     /// <code>
     /// "Nieweb": {
     ///   "Aoi": {
-    ///     "Postreflow": { "Server": "...", "Database": "HLYAOI", ... },
-    ///     "Prereflow":  { "Server": "...", "Database": "MEAOI",  ... }
+    ///     "Postreflow": { "Server": "...", "Database": "HLYAOI2024", ... },
+    ///     "Prereflow":  { "Server": "...", "Database": "MEAOI",   ... }
     ///   }
     /// }
     /// </code>
@@ -74,7 +75,11 @@ public static class AoiSourceServiceCollectionExtensions
         {
             var monitor = sp.GetRequiredService<IOptionsMonitor<AoiSourceOptions>>();
             var opts = monitor.Get(typeof(TSource).Name);
-            return (TSource)Activator.CreateInstance(typeof(TSource), opts)!;
+            // Logger is optional so hosts without a logging provider (unit
+            // tests, one-shot tools) still resolve. When present, every
+            // AOI query is audited (source, DB, sql tag, duration, rows).
+            var logger = sp.GetService<ILogger<SqlServerAoiSourceBase>>();
+            return (TSource)Activator.CreateInstance(typeof(TSource), opts, logger)!;
         });
 
         // Second registration under the interface so consumers that just

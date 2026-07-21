@@ -7,7 +7,8 @@
     Same guards as probe-schema.ps1 (read-only regex block, READ UNCOMMITTED,
     NOLOCK, tagged ApplicationName). Dumps INFORMATION_SCHEMA.COLUMNS for the
     remaining core tables (PIN, MACHINE, PRODUCT, RECIPE, OBJECT_TYPE) and for
-    the extra tables discovered on HLYAOI that our vit-aoi-database skill does
+    the extra tables discovered on HLYAOI2024 (post-reflow, was HLYAOI) that
+    our vit-aoi-database skill does
     not yet document (Barcode_Product, LOG_PROD, PIXEL_SIZE, SPC, SPC_OBJECT,
     VERSION). Also dumps full contents of small reference tables (MACHINE,
     OBJECT_TYPE, FEEDER, PIXEL_SIZE, VERSION) and TOP 5 samples of the larger

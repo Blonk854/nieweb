@@ -62,9 +62,9 @@ foreach (var name in wanted)
             Console.WriteLine($"      [{m.MachineId,3}] {m.MachineName,-24} type={m.MachineType} ({m.MachineTypeName})");
         }
 
-        // --- PANELS smoke: 60 days ending at the source's most recent panel
-        // (windows are sized per-source because HLYAOI post-reflow stopped
-        // receiving new rows in Nov 2025, while MEAOI pre-reflow is live).
+        // --- PANELS smoke: 60 days ending at the source's most recent panel.
+        // Both sources are live now (post-reflow HLYAOI was renamed to
+        // HLYAOI2024 in 2026-07 and points at the current production catalogue).
         var latest = await source.GetLatestPanelUtcAsync(cts.Token);
         if (latest is null)
         {

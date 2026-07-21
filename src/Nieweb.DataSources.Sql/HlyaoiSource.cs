@@ -1,12 +1,17 @@
+using Microsoft.Extensions.Logging;
+
 namespace Nieweb.DataSources.Sql;
 
 /// <summary>
 /// Post-reflow Mycronic AOI source — Vision20 / Vision3D CR5 Superviseur v5.0.
-/// Backed by <c>HLYMSSQL2 / HLYAOI</c>.
+/// Backed by <c>HLYMSSQL2 / HLYAOI2024</c> (was <c>HLYAOI</c> until 2026-07;
+/// same server + service account, DB renamed to <c>HLYAOI2024</c> when the
+/// production line switched to the live catalogue).
 /// </summary>
 public sealed class HlyaoiSource : SqlServerAoiSourceBase
 {
-    public HlyaoiSource(AoiSourceOptions options) : base(options)
+    public HlyaoiSource(AoiSourceOptions options, ILogger<SqlServerAoiSourceBase>? logger = null)
+        : base(options, logger)
     {
     }
 
@@ -14,7 +19,7 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
 
     public override SourceDescriptor Descriptor { get; } = new(
         Id: "postreflow",
-        DisplayName: "Post-reflow AOI (HLYAOI)",
+        DisplayName: "Post-reflow AOI (HLYAOI2024)",
         SchemaVersion: "5.0",
         Caps:
             Capabilities.PinLevel |

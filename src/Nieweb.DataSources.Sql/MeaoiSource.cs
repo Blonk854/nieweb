@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Nieweb.DataSources.Sql;
 
 /// <summary>
@@ -8,7 +10,8 @@ namespace Nieweb.DataSources.Sql;
 /// </summary>
 public sealed class MeaoiSource : SqlServerAoiSourceBase
 {
-    public MeaoiSource(AoiSourceOptions options) : base(options)
+    public MeaoiSource(AoiSourceOptions options, ILogger<SqlServerAoiSourceBase>? logger = null)
+        : base(options, logger)
     {
     }
 

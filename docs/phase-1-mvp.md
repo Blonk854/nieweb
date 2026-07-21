@@ -25,7 +25,7 @@ goal: pretty. Not the goal: performant at 1000 concurrent users.
 
 A line engineer or quality engineer picks:
 
-- **Source** — post-reflow (HLYAOI) or pre-reflow (MEAOI)
+- **Source** — post-reflow (HLYAOI2024) or pre-reflow (MEAOI)
 - **Date range** — a start & end datetime (defaults to "last 7 days
   ending at the source's latest panel", using
   `IAoiSource.GetLatestPanelUtcAsync`)
@@ -77,7 +77,7 @@ Users can:
 
 ## 3. Success criteria (definition of done)
 
-1. **Numeric parity.** For a fixed 30-day window on HLYAOI, Nieweb's per-
+1. **Numeric parity.** For a fixed 30-day window on HLYAOI2024, Nieweb's per-
    machine panel counts, "good" / "faulty" / "not inspected" splits, and
    FPY percentages match hand-computed values from raw SQL within
    rounding error. Snapshot test proves it in CI.
@@ -149,7 +149,7 @@ flowchart LR
     K -->|/api/*| A[Nieweb.Api Minimal API]
     A --> R[Nieweb.Reports]
     R -->|IAoiSource| DS[Nieweb.DataSources.Sql]
-    DS -->|WITH NOLOCK| H[(HLYAOI SQL Server)]
+    DS -->|WITH NOLOCK| H[(HLYAOI2024 SQL Server)]
     DS -->|WITH NOLOCK| M[(MEAOI SQL Server)]
     A --> I[Nieweb.Identity]
     A --> D[Nieweb.Data EF Core]
@@ -207,7 +207,7 @@ time — sequence matters more than clock estimates.
   `(IAoiSource, FilterDto)` → `PanelYieldResultDto` (KPI header + rows +
   per-machine breakdown), aggregating with `StreamPanelsAsync` so it
   scales past a single page.
-- `R2` — Snapshot tests: three fixed windows on HLYAOI + three on MEAOI
+- `R2` — Snapshot tests: three fixed windows on HLYAOI2024 + three on MEAOI
   → JSON snapshots checked into repo, compared byte-for-byte in CI.
 - `R3` — `/api/reports/panel-yield` endpoint: takes filter as
   query-string, returns `PanelYieldResultDto`.
@@ -263,7 +263,7 @@ time — sequence matters more than clock estimates.
 | Numeric mismatch with Vieweb on FPY | Snapshot tests **and** a reconciliation script that runs Nieweb's aggregation vs. a hand-written raw SQL query on the same window and diffs the output. |
 | React SPA + auth cookie interactions in a Windows service (SameSite / secure-flag surprises) | Test both HTTPS and HTTP-behind-proxy in a staging box before demoing to line engineers. |
 | Entra ID app registration blocked / slow on IT side | Local-account path is fully functional in isolation, so we can ship the MVP with local accounts if OIDC is delayed. |
-| HLYAOI post-reflow stays stale | MVP demonstrates on MEAOI (live) by default; HLYAOI is still valuable for the snapshot-test fixtures. |
+| HLYAOI2024 post-reflow performance impact | HLYAOI2024 is on the SMT-line critical path. Every AOI query is time-windowed, TOP-limited, `WITH (NOLOCK)`, and hard-capped at 30 s. All queries are logged (SQL tag + duration + row count) so slow ones surface immediately. |
 | Design partners disengage | Weekly 30-minute cap; write down every request so contributions feel acknowledged even when deferred. |
 | SQL Server test container too slow in CI | Fall back to `.bak` restore or run integration tests against a shared dev SQL Server instance behind a feature flag. |
 
