@@ -36,6 +36,16 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
+    // When Windows launches Nieweb.Api under the Service Control
+    // Manager (see tools/deploy/install-service.ps1), UseWindowsService()
+    // wires the host lifetime to SCM start/stop signals, routes ETW
+    // events to the Windows Event Log, and no-ops when the exe is
+    // launched from a console. Safe to call unconditionally.
+    builder.Host.UseWindowsService(options =>
+    {
+        options.ServiceName = "Nieweb";
+    });
+
     // Fail fast on DI misconfiguration: every registered service is
     // constructed once at host build time, and every resolve validates
     // that scoped services are not captured by singletons. Small cost at

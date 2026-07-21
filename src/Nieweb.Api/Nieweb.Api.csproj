@@ -44,6 +44,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.0" />
     <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.17.0" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
@@ -69,9 +70,7 @@
     Node can skip the SPA build by setting the property to false, e.g.:
       dotnet publish -p:BuildNiewebSpaOnPublish=false
   -->
-  <Target Name="BuildNiewebSpa"
-          BeforeTargets="PrepareForPublish"
-          Condition=" '$(BuildNiewebSpaOnPublish)' == 'true' ">
+  <Target Name="BuildNiewebSpa" BeforeTargets="PrepareForPublish" Condition=" '$(BuildNiewebSpaOnPublish)' == 'true' ">
     <PropertyGroup>
       <_NpmCommand Condition=" '$(OS)' == 'Windows_NT' ">npm.cmd</_NpmCommand>
       <_NpmCommand Condition=" '$(OS)' != 'Windows_NT' ">npm</_NpmCommand>
