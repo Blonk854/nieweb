@@ -182,6 +182,26 @@ try
     // available on this host" (developer machines that only see one
     // DB, CI hosts that see none). Every wire query enforces the
     // read-only discipline documented in copilot-instructions.md.
+    //
+    // Credentials never live in appsettings.json - they come from
+    // AOI_{POSTREFLOW,PREREFLOW}_{SERVER,DATABASE,USER,PASSWORD} env
+    // vars, optionally seeded from a .env file at the repo root (see
+    // .env.example). AddNiewebAoiEnvironment walks up from the
+    // ContentRoot to find a .env, loads any missing vars into the
+    // process env, and layers them onto the configuration under
+    // Nieweb:Aoi:*. AddNiewebAoiSources then binds the standard
+    // sections. Both are safe no-ops when no credentials are present.
+    //
+    // The "Testing" environment (set by NiewebApiFactory) short-circuits
+    // .env loading so integration tests do not accidentally register the
+    // live post-reflow / pre-reflow sources when a developer's repo has
+    // a populated .env on disk.
+    if (!builder.Environment.IsEnvironment("Testing"))
+    {
+        var aoiEnvFile = AoiEnvironmentConfigurationExtensions
+            .FindEnvFile(builder.Environment.ContentRootPath);
+        builder.Configuration.AddNiewebAoiEnvironment(aoiEnvFile);
+    }
     builder.Services.AddNiewebAoiSources(builder.Configuration);
 
     // Health checks for orchestration probes / load-balancers:
