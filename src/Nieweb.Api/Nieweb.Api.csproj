@@ -30,6 +30,14 @@
     <ProjectReference Include="..\Nieweb.Identity\Nieweb.Identity.csproj" />
     <ProjectReference Include="..\Nieweb.Reports\Nieweb.Reports.csproj" />
     <ProjectReference Include="..\Nieweb.DataSources.Sql\Nieweb.DataSources.Sql.csproj" />
+    <!--
+      Nieweb.DataSources.Fake is only active when
+      Nieweb:Aoi:Fake:Enabled=true is set (typically by the Playwright
+      E2E harness). Shipping the assembly is harmless because the DI
+      extension no-ops otherwise, and it keeps the E2E harness from
+      having to build a bespoke API host.
+    -->
+    <ProjectReference Include="..\Nieweb.DataSources.Fake\Nieweb.DataSources.Fake.csproj" />
   </ItemGroup>
 
   <ItemGroup>

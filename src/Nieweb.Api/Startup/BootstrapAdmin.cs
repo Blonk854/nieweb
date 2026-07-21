@@ -100,6 +100,14 @@ public static partial class BootstrapAdmin
         var email = config["Nieweb:Bootstrap:Admin:Email"];
         var password = config["Nieweb:Bootstrap:Admin:Password"];
         var displayName = config["Nieweb:Bootstrap:Admin:DisplayName"] ?? "Administrator";
+        // Forced rotation defaults to true (production-safe). Operators
+        // can opt out explicitly by setting
+        // Nieweb:Bootstrap:Admin:MustRotatePassword=false — used by
+        // the Playwright E2E harness so its bootstrap admin can sign
+        // straight into the report screens without a rotation detour.
+        var mustRotatePassword =
+            !bool.TryParse(config["Nieweb:Bootstrap:Admin:MustRotatePassword"], out var flag)
+                || flag;
 
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
@@ -117,11 +125,7 @@ public static partial class BootstrapAdmin
             CreatedUtc = now,
             LastModifiedUtc = now,
             IsOidcProvisioned = false,
-            // The bootstrap admin is created with a password read from
-            // configuration. That value must not survive first sign-in
-            // untouched — force the admin to pick a fresh password
-            // before they can reach any protected route.
-            MustRotatePassword = true,
+            MustRotatePassword = mustRotatePassword,
         };
 
         var create = await users.CreateAsync(admin, password).ConfigureAwait(false);

@@ -91,3 +91,9 @@ appsettings.Local.json
 
 # Transient smoke-test scratch files
 .smoke.*
+
+# ─── Playwright E2E artifacts ───
+src/Nieweb.Web/test-results/
+src/Nieweb.Web/playwright-report/
+src/Nieweb.Web/playwright/.cache/
+src/Nieweb.Web/blob-report/

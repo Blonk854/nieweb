@@ -12,6 +12,7 @@ using Nieweb.Api.Auth;
 using Nieweb.Api.Endpoints;
 using Nieweb.Api.Startup;
 using Nieweb.Data;
+using Nieweb.DataSources.Fake.DependencyInjection;
 using Nieweb.DataSources.Sql;
 using Nieweb.Identity.DependencyInjection;
 
@@ -203,6 +204,11 @@ try
         builder.Configuration.AddNiewebAoiEnvironment(aoiEnvFile);
     }
     builder.Services.AddNiewebAoiSources(builder.Configuration);
+
+    // Opt-in in-memory fake source for the Playwright E2E harness (T2).
+    // Enabled only when Nieweb:Aoi:Fake:Enabled=true - stays dormant on
+    // every other host.
+    builder.Services.AddNiewebFakeAoiSource(builder.Configuration);
 
     // Health checks for orchestration probes / load-balancers:
     //   /health/live  -> process is alive (always healthy while

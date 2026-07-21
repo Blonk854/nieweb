@@ -46,8 +46,10 @@ export default defineConfig({
         stderr: "pipe",
         env: {
             ASPNETCORE_ENVIRONMENT: "Development",
-            // SQLite in the Nieweb.Api working directory. Cleaned up by the
-            // test-results/ gitignore entry (dev DB file lives in-tree).
+            // SQLite in the Nieweb.Api working directory. The
+            // scripts/clean-e2e-db.mjs step (invoked by pretest:e2e)
+            // deletes stale copies before every run so the bootstrap
+            // admin is always freshly seeded.
             Nieweb__Db__Provider: "Sqlite",
             ConnectionStrings__NiewebDb: "Data Source=nieweb-e2e.db",
             // Test-only signing key. Never used outside E2E runs.
@@ -55,6 +57,32 @@ export default defineConfig({
             Nieweb__Auth__Jwt__Audience: "nieweb-api-e2e",
             Nieweb__Auth__Jwt__SigningKey:
                 "nieweb-e2e-signing-key-must-be-32-plus-bytes-of-utf8",
+            // Cheap Argon2 parameters keep the bootstrap admin
+            // creation from dominating cold-start wall time.
+            Nieweb__Identity__Argon2id__MemoryKb: "8",
+            Nieweb__Identity__Argon2id__Iterations: "1",
+            Nieweb__Identity__Argon2id__DegreeOfParallelism: "1",
+            // Loosen the production password policy so the bootstrap
+            // credentials below stay short and printable in logs
+            // without needing four character classes.
+            Nieweb__Identity__Password__RequiredLength: "8",
+            Nieweb__Identity__Password__RequireDigit: "false",
+            Nieweb__Identity__Password__RequireLowercase: "false",
+            Nieweb__Identity__Password__RequireUppercase: "false",
+            Nieweb__Identity__Password__RequireNonAlphanumeric: "false",
+            Nieweb__Identity__Password__RequiredUniqueChars: "1",
+            // Seed the bootstrap administrator on first boot. The
+            // MustRotatePassword=false override lets the E2E sign in
+            // directly without a rotation detour - the rotation flow
+            // is exercised by the SPA unit + integration tests.
+            Nieweb__Bootstrap__Admin__Email: "e2e-admin@nieweb.test",
+            Nieweb__Bootstrap__Admin__Password: "e2eE2ePassword",
+            Nieweb__Bootstrap__Admin__DisplayName: "E2E Admin",
+            Nieweb__Bootstrap__Admin__MustRotatePassword: "false",
+            // Register the in-memory FakeAoiSource so the panel-yield
+            // report actually has data to render / export.
+            Nieweb__Aoi__Fake__Enabled: "true",
         },
     },
 });
+

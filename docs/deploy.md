@@ -150,6 +150,38 @@ Migrations are idempotent — re-running is safe. Bootstrap the first
 admin user via the Identity CLI (or, until that ships, by inserting a
 row directly with a bcrypt/Argon2id hash generated locally).
 
+### 4.1. First-boot bootstrap admin
+
+Nieweb.Api will seed a single administrator on first launch **only**
+when the users table is empty. The seed is opt-in via configuration:
+
+```jsonc
+"Nieweb": {
+    "Bootstrap": {
+        "Admin": {
+            "Email":                 "admin@nieweb.corp",
+            "Password":              "REPLACE-with-a-single-use-value",
+            "DisplayName":           "Initial administrator",
+            "MustRotatePassword":    true
+        }
+    }
+}
+```
+
+Behavior:
+
+- If `Email` or `Password` is missing/blank, the seeder does nothing
+  and logs a warning — first-run provisioning must then happen via
+  another route (`dotnet ef` insert, sidecar CLI, etc.).
+- `MustRotatePassword` defaults to `true` in every host. Leave it
+  true for production so the seeded credential is discarded at first
+  sign-in via `POST /auth/change-password`. Set it to `false`
+  **only** for automated harnesses (the Playwright E2E does this) —
+  never for a human-facing deployment.
+- After the first successful boot, remove `Nieweb:Bootstrap:Admin:*`
+  from configuration so a compromised or leaked file cannot re-seed
+  the admin.
+
 ---
 
 ## 5. Install the Windows service
@@ -271,3 +303,20 @@ code guards prevent accidental writes regardless.
 | `/api/sources` returns fewer than two entries.                            | AOI credentials missing / wrong for that source. Check `.env` and re-run — the API restart is not required, but the source list is cached at startup. |
 | SPA loads but every API call returns 401.                                 | JWT signing-key mismatch between environment (`appsettings.Production.json`) and the browser session. Restart the service, re-log-in. |
 | Report request takes minutes on the SMT-line box.                         | Widen the time window or add filters — every AOI query is bounded, but a large window with no product filter can still scan a lot of rows. |
+
+---
+
+## 10. Running the end-to-end smoke locally
+
+The Playwright harness under `src/Nieweb.Web/e2e/` boots Nieweb.Api
+with a fresh SQLite file (`nieweb-e2e.db` in the Nieweb.Api folder),
+seeds a bootstrap admin with `MustRotatePassword=false`, and enables
+the in-memory `FakeAoiSource` (`Nieweb:Aoi:Fake:Enabled=true`) so no
+real AOI connection is required.
+
+```powershell
+cd src\Nieweb.Web
+npm ci  # first run only
+npx playwright install chromium  # first run only
+npm run test:e2e
+```
