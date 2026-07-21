@@ -14,6 +14,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import i18n from "../i18n";
 import { LoginRoute } from "./login";
+import { validateLoginSearch } from "./login.search";
 import { useSessionStore } from "../state/session";
 
 /**
@@ -28,6 +29,10 @@ function HomeStub() {
     return <h1>Home stub</h1>;
 }
 
+function ReportStub() {
+    return <h1 data-testid="report-stub">Panel yield stub</h1>;
+}
+
 function renderLogin(initialPath: string = "/login") {
     const rootRoute = createRootRoute({ component: Outlet });
     const home = createRoute({
@@ -39,8 +44,14 @@ function renderLogin(initialPath: string = "/login") {
         getParentRoute: () => rootRoute,
         path: "/login",
         component: LoginRoute,
+        validateSearch: validateLoginSearch,
     });
-    const routeTree = rootRoute.addChildren([home, login]);
+    const report = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/report/panel-yield",
+        component: ReportStub,
+    });
+    const routeTree = rootRoute.addChildren([home, login, report]);
     const router = createRouter({
         routeTree,
         history: createMemoryHistory({ initialEntries: [initialPath] }),
@@ -52,13 +63,16 @@ function renderLogin(initialPath: string = "/login") {
             mutations: { retry: false },
         },
     });
-    return render(
-        <MantineProvider>
-            <QueryClientProvider client={client}>
-                <RouterProvider router={router} />
-            </QueryClientProvider>
-        </MantineProvider>,
-    );
+    return {
+        router,
+        ...render(
+            <MantineProvider>
+                <QueryClientProvider client={client}>
+                    <RouterProvider router={router} />
+                </QueryClientProvider>
+            </MantineProvider>,
+        ),
+    };
 }
 
 function stubFetch(
@@ -221,5 +235,58 @@ describe("LoginRoute", () => {
             expect(useSessionStore.getState().user).toBeNull();
             expect(useSessionStore.getState().token).toBeNull();
         });
+    });
+
+    it("navigates to the ?redirect target after a successful sign-in", async () => {
+        stubFetch([
+            {
+                match: (u) => u.endsWith("/auth/login"),
+                status: 200,
+                body: {
+                    accessToken: "jwt-token-xyz",
+                    tokenType: "Bearer",
+                    expiresUtc: "2099-01-01T00:00:00Z",
+                },
+            },
+            {
+                match: (u) => u.endsWith("/auth/whoami"),
+                status: 200,
+                body: {
+                    userId: "user-2",
+                    email: "reader@nieweb.local",
+                    name: "Reader",
+                    roles: ["Reader"],
+                },
+            },
+        ]);
+        renderLogin(
+            "/login?redirect=%2Freport%2Fpanel-yield%3FsourceId%3Dpostreflow",
+        );
+        const user = userEvent.setup();
+        await user.type(
+            await screen.findByPlaceholderText("you@example.com"),
+            "reader@nieweb.local",
+        );
+        await user.type(
+            screen.getByPlaceholderText("Enter your password"),
+            "ReaderPass123",
+        );
+        await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+        expect(await screen.findByTestId("report-stub")).toBeInTheDocument();
+    });
+
+    it("auto-redirects an already-signed-in visitor arriving with ?redirect=", async () => {
+        useSessionStore.getState().setSession(
+            {
+                email: "reader@nieweb.local",
+                displayName: "Reader",
+                roles: ["Reader"],
+            },
+            "existing-token",
+        );
+        renderLogin("/login?redirect=%2Freport%2Fpanel-yield");
+
+        expect(await screen.findByTestId("report-stub")).toBeInTheDocument();
     });
 });

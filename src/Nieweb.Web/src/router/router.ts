@@ -5,10 +5,12 @@ import {
 } from "@tanstack/react-router";
 
 import { RootLayout } from "./RootLayout";
+import { requireAuthentication } from "./guards";
 import { HomeRoute } from "../routes/home";
 import { PanelYieldRoute } from "../routes/panel-yield";
 import { validatePanelYieldSearch } from "../routes/panel-yield.search";
 import { LoginRoute } from "../routes/login";
+import { validateLoginSearch } from "../routes/login.search";
 import { AdminUsersRoute } from "../routes/admin-users";
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -24,18 +26,28 @@ const panelYieldRoute = createRoute({
     path: "/report/panel-yield",
     component: PanelYieldRoute,
     validateSearch: validatePanelYieldSearch,
+    // Reports are gated behind authentication; the API returns 401 for
+    // anonymous callers, but bouncing to /login *before* the query
+    // fires avoids a flash of an empty report page.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
 const loginRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/login",
     component: LoginRoute,
+    validateSearch: validateLoginSearch,
 });
 
 const adminUsersRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/admin/users",
     component: AdminUsersRoute,
+    // Authentication is enforced up-front here too; the Admin role
+    // check lives inside AdminUsersRoute so we can render a localised
+    // forbidden panel for signed-in-but-not-admin users instead of
+    // silently bouncing them.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
 const routeTree = rootRoute.addChildren([

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Alert,
     Anchor,
@@ -14,13 +14,14 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useMutation } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { IconAlertCircle, IconLogout } from "@tabler/icons-react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { login, whoami } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useSessionStore } from "../state/session";
+import type { LoginSearch } from "./login.search";
 
 type FormValues = {
     email: string;
@@ -30,10 +31,13 @@ type FormValues = {
 /**
  * Sign-in route. Renders a Mantine form that posts credentials to
  * POST /auth/login, then calls GET /auth/whoami to hydrate the
- * session store, and finally navigates back to the home page.
+ * session store, and finally navigates back to either the URL the
+ * auth guard bounced the user from (via `?redirect=<path>`) or the
+ * home page.
  *
  * If the user is already signed in the route shows their identity and
- * a sign-out button instead of the form.
+ * a sign-out button instead of the form — unless a redirect param is
+ * present, in which case they are sent straight to their destination.
  */
 export function LoginRoute() {
     const { t } = useTranslation();
@@ -41,9 +45,24 @@ export function LoginRoute() {
     const setSession = useSessionStore((s) => s.setSession);
     const clearSession = useSessionStore((s) => s.clear);
     const navigate = useNavigate();
+    // `strict: false` mirrors the panel-yield route: the shape is
+    // enforced at the router level by `validateLoginSearch`; the cast
+    // keeps the component decoupled from the router registration.
+    const rawSearch = useSearch({ strict: false });
+    const { redirect: redirectTarget } = rawSearch as LoginSearch;
     const [errorKey, setErrorKey] = useState<
         "login.form.invalidCredentials" | "login.form.unexpectedError" | null
     >(null);
+
+    // Signed in with a pending redirect? Send them there once the
+    // route mounts. Guarded by the effect so the initial render is
+    // still consistent (React can render this component up to twice
+    // in strict mode; the redirect fires idempotently either way).
+    useEffect(() => {
+        if (user && redirectTarget) {
+            void navigate({ to: redirectTarget });
+        }
+    }, [user, redirectTarget, navigate]);
 
     const form = useForm<FormValues>({
         mode: "controlled",
@@ -95,7 +114,7 @@ export function LoginRoute() {
         },
         onSuccess: () => {
             setErrorKey(null);
-            void navigate({ to: "/" });
+            void navigate({ to: redirectTarget ?? "/" });
         },
         onError: (error) => {
             clearSession();
