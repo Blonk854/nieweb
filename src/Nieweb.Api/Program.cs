@@ -182,6 +182,7 @@ try
 
     app.MapAuthEndpoints();
     app.MapSourceEndpoints();
+    app.MapReportEndpoints();
 
     app.Run();
 }

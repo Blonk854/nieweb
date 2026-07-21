@@ -26,6 +26,7 @@
     <ProjectReference Include="..\..\src\Nieweb.Data\Nieweb.Data.csproj" />
     <ProjectReference Include="..\..\src\Nieweb.Data.Migrations.Sqlite\Nieweb.Data.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\..\src\Nieweb.Identity\Nieweb.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Nieweb.Reports\Nieweb.Reports.csproj" />
   </ItemGroup>
 
 </Project>
