@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!--
+      Documentation-file generation is inherited from Directory.Build.props
+      so IDE0005 (unused using) still runs at build time, but test-method
+      names and setup classes should not require XML comments.
+    -->
+    <!--
+      CA1707: underscores in test method names (Method_Scenario_Expectation)
+      are idiomatic xUnit and read far better than PascalCase-only names.
+    -->
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Nieweb.Identity\Nieweb.Identity.csproj" />
+  </ItemGroup>
+
+</Project>

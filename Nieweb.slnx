@@ -12,4 +12,7 @@
   <Folder Name="/tools/">
     <Project Path="tools/db-smoke/Nieweb.DbSmoke.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nieweb.Identity.Tests/Nieweb.Identity.Tests.csproj" />
+  </Folder>
 </Solution>
