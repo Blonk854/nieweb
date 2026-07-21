@@ -73,6 +73,18 @@ export type TranslationBundle = {
             emptyChart: string;
             ariaSummary: string;
         };
+        kpi: {
+            totalPanels: string;
+            overallFpy: string;
+            freshness: string;
+            unknownFreshness: string;
+            noPanels: string;
+            band: {
+                green: string;
+                amber: string;
+                red: string;
+            };
+        };
     };
     login: {
         title: string;
@@ -88,5 +100,15 @@ export type TranslationBundle = {
         pageSize: string;
         noRows: string;
         rowCount: string;
+    };
+    freshness: {
+        relative: {
+            justNow: string;
+            secondsAgo: string;
+            minutesAgo: string;
+            hoursAgo: string;
+            daysAgo: string;
+            inFuture: string;
+        };
     };
 };

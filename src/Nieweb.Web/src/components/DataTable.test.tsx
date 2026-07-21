@@ -136,32 +136,30 @@ describe("DataTable", () => {
         expect(passedCols.map((c: Column<Row>) => c.key)).toEqual(["name", "fpy"]);
     });
 
-    it("hides a column when its Columns menu entry is clicked", async () => {
+    it("hides a column when its Columns menu entry is clicked, and non-hideable columns are disabled in the menu", async () => {
         const user = userEvent.setup();
         render(
             <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />,
             { wrapper },
         );
-        // Open the columns menu.
+        // Open the columns menu and grab both items synchronously (one
+        // findByRole to wait for the menu to mount, then getAllByRole).
         await user.click(screen.getByRole("button", { name: /Columns/i }));
-        // Only the FPY column is hideable ("name" has hideable=false).
-        const fpyItem = await screen.findByRole("menuitem", { name: /FPY/i });
-        await user.click(fpyItem);
-        // FPY header should be gone.
-        expect(screen.queryByRole("columnheader", { name: /FPY/i })).toBeNull();
-        // Machine cells still visible.
-        expect(machineCells()).toEqual(["L1-AOI", "L2-AOI", "L3-AOI", "L4-AOI"]);
-    });
-
-    it("disables the toggle for non-hideable columns", async () => {
-        const user = userEvent.setup();
-        render(
-            <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />,
-            { wrapper },
-        );
-        await user.click(screen.getByRole("button", { name: /Columns/i }));
-        const nameItem = await screen.findByRole("menuitem", { name: /Machine/i });
+        await screen.findByRole("menu");
+        // Mantine menu items sometimes render as aria-hidden while
+        // the popover animates in; opt into `hidden: true` so testing-
+        // library returns them regardless.
+        const items = screen.getAllByRole("menuitem", { hidden: true });
+        const nameItem = items.find((i) => /Machine/i.test(i.textContent ?? ""));
+        const fpyItem = items.find((i) => /FPY/i.test(i.textContent ?? ""));
+        expect(nameItem).toBeDefined();
+        expect(fpyItem).toBeDefined();
+        // Non-hideable Machine column is disabled from the start.
         expect(nameItem).toHaveAttribute("data-disabled");
+        // Hideable FPY column toggles when clicked.
+        await user.click(fpyItem!);
+        expect(screen.queryByRole("columnheader", { name: /FPY/i })).toBeNull();
+        expect(machineCells()).toEqual(["L1-AOI", "L2-AOI", "L3-AOI", "L4-AOI"]);
     });
 
     it("shows an empty-state row inside the table body when there are no rows", () => {

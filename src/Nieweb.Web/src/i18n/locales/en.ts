@@ -80,6 +80,18 @@ export const en: TranslationBundle = {
             emptyChart: "No data to chart.",
             ariaSummary: "Bar chart of first-pass yield for {{count}} machines.",
         },
+        kpi: {
+            totalPanels: "Total panels",
+            overallFpy: "Overall FPY",
+            freshness: "Source freshness",
+            unknownFreshness: "unknown",
+            noPanels: "No panels recorded",
+            band: {
+                green: "On target",
+                amber: "Watch",
+                red: "Below target",
+            },
+        },
     },
     login: {
         title: "Sign in",
@@ -96,5 +108,15 @@ export const en: TranslationBundle = {
         pageSize: "Rows per page",
         noRows: "No rows to display.",
         rowCount: "{{count}} rows",
+    },
+    freshness: {
+        relative: {
+            justNow: "just now",
+            secondsAgo: "{{count}} seconds ago",
+            minutesAgo: "{{count}} minutes ago",
+            hoursAgo: "{{count}} hours ago",
+            daysAgo: "{{count}} days ago",
+            inFuture: "in the future",
+        },
     },
 };

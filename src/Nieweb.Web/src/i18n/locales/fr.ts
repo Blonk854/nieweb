@@ -77,6 +77,18 @@ export const fr: TranslationBundle = {
             emptyChart: "Aucune donnée à afficher.",
             ariaSummary: "Diagramme à barres du rendement premier passage pour {{count}} machines.",
         },
+        kpi: {
+            totalPanels: "Total panneaux",
+            overallFpy: "FPY global",
+            freshness: "Fraîcheur de la source",
+            unknownFreshness: "inconnue",
+            noPanels: "Aucun panneau enregistré",
+            band: {
+                green: "Dans la cible",
+                amber: "À surveiller",
+                red: "Sous la cible",
+            },
+        },
     },
     login: {
         title: "Connexion",
@@ -93,5 +105,15 @@ export const fr: TranslationBundle = {
         pageSize: "Lignes par page",
         noRows: "Aucune ligne à afficher.",
         rowCount: "{{count}} lignes",
+    },
+    freshness: {
+        relative: {
+            justNow: "à l'instant",
+            secondsAgo: "il y a {{count}} secondes",
+            minutesAgo: "il y a {{count}} minutes",
+            hoursAgo: "il y a {{count}} heures",
+            daysAgo: "il y a {{count}} jours",
+            inFuture: "dans le futur",
+        },
     },
 };

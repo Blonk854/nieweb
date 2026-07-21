@@ -36,6 +36,7 @@ import type { PanelYieldSearch } from "./panel-yield.search";
 import { pickDefaultSourceId } from "./panel-yield.search";
 import { DataTable, type Column } from "../components/DataTable";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
+import { KpiCards } from "../components/KpiCards";
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when a
 // user actually runs a report with per-machine rows.
@@ -465,7 +466,12 @@ function ResultsCard(props: {
                         </Text>
                     </Group>
 
-                    <OverallRow data={data} />
+                    <KpiCards
+                        totalPanels={data.overall.totalPanels}
+                        overallFpyPercent={data.overall.fpyPercent}
+                        latestPanelUtc={source?.latestPanelUtc ?? null}
+                        sourceDisplayName={source?.displayName ?? data.source.displayName}
+                    />
 
                     {data.byMachine.length === 0 ? (
                         <Text c="dimmed">{t("panelYield.results.noRows")}</Text>
@@ -483,26 +489,6 @@ function ResultsCard(props: {
                 </Stack>
             )}
         </Card>
-    );
-}
-
-function OverallRow({ data }: { data: PanelYieldResult }) {
-    const { t } = useTranslation();
-    return (
-        <Group gap="lg">
-            <Text>
-                <strong>{t("panelYield.results.overall")}:</strong>{" "}
-            </Text>
-            <Text>
-                {t("panelYield.results.totalPanels")}: {data.overall.totalPanels}
-            </Text>
-            <Text>
-                {t("panelYield.results.goodPanels")}: {data.overall.goodPanels}
-            </Text>
-            <Text>
-                {t("panelYield.results.fpyPercent")}: {data.overall.fpyPercent.toFixed(2)}
-            </Text>
-        </Group>
     );
 }
 
