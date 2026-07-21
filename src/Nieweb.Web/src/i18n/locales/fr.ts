@@ -67,6 +67,16 @@ export const fr: TranslationBundle = {
             fpyPercent: "FPY (%)",
             machineName: "Machine",
         },
+        chart: {
+            heading: "FPY par machine",
+            axisMachine: "Machine",
+            axisFpy: "FPY (%)",
+            overallFpy: "Global",
+            thresholdGreen: "Seuil vert",
+            thresholdAmber: "Seuil orange",
+            emptyChart: "Aucune donnée à afficher.",
+            ariaSummary: "Diagramme à barres du rendement premier passage pour {{count}} machines.",
+        },
     },
     login: {
         title: "Connexion",

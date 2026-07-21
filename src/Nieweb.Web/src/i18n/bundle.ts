@@ -63,6 +63,16 @@ export type TranslationBundle = {
             fpyPercent: string;
             machineName: string;
         };
+        chart: {
+            heading: string;
+            axisMachine: string;
+            axisFpy: string;
+            overallFpy: string;
+            thresholdGreen: string;
+            thresholdAmber: string;
+            emptyChart: string;
+            ariaSummary: string;
+        };
     };
     login: {
         title: string;

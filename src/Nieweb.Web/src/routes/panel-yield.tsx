@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, lazy, Suspense } from "react";
 import {
     Alert,
     Anchor,
@@ -34,6 +34,12 @@ import {
 } from "../api/reports";
 import type { PanelYieldSearch } from "./panel-yield.search";
 import { pickDefaultSourceId } from "./panel-yield.search";
+// Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
+// out keeps the initial bundle small; the chunk is only fetched when a
+// user actually runs a report with per-machine rows.
+const FpyBarChart = lazy(() =>
+    import("../charts/FpyBarChart").then((m) => ({ default: m.FpyBarChart })),
+);
 
 /**
  * Panel Yield by Line report - F4 filter form.
@@ -462,7 +468,14 @@ function ResultsCard(props: {
                     {data.byMachine.length === 0 ? (
                         <Text c="dimmed">{t("panelYield.results.noRows")}</Text>
                     ) : (
-                        <Table striped withTableBorder>
+                        <>
+                            <Suspense fallback={<Loader size="sm" />}>
+                                <FpyBarChart
+                                    rows={data.byMachine}
+                                    overallFpyPercent={data.overall.fpyPercent}
+                                />
+                            </Suspense>
+                            <Table striped withTableBorder>
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th>{t("panelYield.results.machineName")}</Table.Th>
@@ -488,6 +501,7 @@ function ResultsCard(props: {
                                 ))}
                             </Table.Tbody>
                         </Table>
+                        </>
                     )}
                 </Stack>
             )}

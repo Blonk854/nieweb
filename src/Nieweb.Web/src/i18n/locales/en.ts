@@ -70,6 +70,16 @@ export const en: TranslationBundle = {
             fpyPercent: "FPY (%)",
             machineName: "Machine",
         },
+        chart: {
+            heading: "FPY by machine",
+            axisMachine: "Machine",
+            axisFpy: "FPY (%)",
+            overallFpy: "Overall",
+            thresholdGreen: "Green threshold",
+            thresholdAmber: "Amber threshold",
+            emptyChart: "No data to chart.",
+            ariaSummary: "Bar chart of first-pass yield for {{count}} machines.",
+        },
     },
     login: {
         title: "Sign in",
