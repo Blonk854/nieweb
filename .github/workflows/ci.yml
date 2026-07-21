@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+# Cancel in-flight runs for the same branch/PR when a newer push arrives.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    name: build / format / test / audit
+    # windows-latest matches the local dev stack: the editorconfig mandates
+    # CRLF everywhere, so `dotnet format --verify-no-changes` would fail on
+    # a Linux checkout (git converts to LF by default).
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: .NET info
+        run: dotnet --info
+
+      - name: Restore local tools
+        # Pins dotnet-ef 10.0.10 from .config/dotnet-tools.json.
+        run: dotnet tool restore
+
+      - name: Restore packages
+        run: dotnet restore Nieweb.slnx
+
+      - name: Build
+        # TreatWarningsAsErrors=true in Directory.Build.props means any
+        # analyzer/CS warning fails the build. No -warnaserror flag needed.
+        run: dotnet build Nieweb.slnx --no-restore --configuration Debug
+
+      - name: Format check
+        run: dotnet format Nieweb.slnx --verify-no-changes --no-restore --verbosity minimal
+
+      - name: Test
+        # No test projects exist yet (Phase 1 backlog: T1/T2). `dotnet test`
+        # on a solution with no test projects returns 0 with a "no test is
+        # available" message, so this step is a no-op today and starts
+        # gating the moment the first test project lands.
+        run: dotnet test Nieweb.slnx --no-build --configuration Debug --verbosity minimal
+
+      - name: EF migration consistency (Sqlite)
+        # Emits the migration script and discards it. If the model snapshot
+        # has drifted from the entity model (i.e. someone edited an entity
+        # but forgot to add a migration) or the migration itself is broken,
+        # `dotnet ef` fails with a clear error. --idempotent is not passed
+        # because SQLite does not support idempotent scripts.
+        run: dotnet ef migrations script --project src/Nieweb.Data.Migrations.Sqlite | Out-Null
+
+      - name: EF migration consistency (Npgsql)
+        run: dotnet ef migrations script --project src/Nieweb.Data.Migrations.Npgsql --idempotent | Out-Null
+
+      - name: Vulnerable package scan
+        # Fails the build if any direct or transitive package matches a
+        # published GHSA advisory. Complements Dependabot by catching CVE
+        # windows before the next Dependabot run.
+        run: |
+          $out = dotnet list Nieweb.slnx package --vulnerable --include-transitive 2>&1 | Out-String
+          Write-Host $out
+          if ($out -match 'has the following vulnerable packages') {
+            Write-Error "Vulnerable packages detected. See log above."
+            exit 1
+          }
