@@ -14,19 +14,13 @@ import {
 import { Link } from "@tanstack/react-router";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { Trans, useTranslation } from "react-i18next";
-import { apiFetch } from "../api/client";
-
-type SourceDescriptor = {
-    id: string;
-    displayName: string;
-    schemaVersion?: string;
-};
+import { fetchSources } from "../api/sources";
 
 export function HomeRoute() {
     const { t } = useTranslation();
     const { data, error, isPending } = useQuery({
         queryKey: ["sources"],
-        queryFn: () => apiFetch<SourceDescriptor[]>("/api/sources"),
+        queryFn: fetchSources,
     });
 
     return (

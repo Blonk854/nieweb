@@ -144,4 +144,127 @@ public sealed class SourceEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Null(infos[1].LatestPanelUtc);
         Assert.Equal(_expectedPreCaps, infos[1].Capabilities);
     }
+
+    [Fact]
+    public async Task ListMachines_WithUnknownSource_Returns404()
+    {
+        using var client = _factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-machines-404@nieweb.test");
+
+        using var authed = _factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri("/api/sources/nope/machines", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListMachines_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(new Uri("/api/sources/postreflow/machines", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListMachines_ReturnsSortedOptions()
+    {
+        var source = new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None))
+        {
+            SeededMachines =
+            [
+                new Machine(5, 1, "Zeta line", "Vision3D"),
+                new Machine(2, 1, "Alpha line", "Vision3D"),
+                new Machine(3, 2, "beta line", "Vision20"),
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-machines-list@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri("/api/sources/postreflow/machines", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await response.Content.ReadFromJsonAsync<SourceEndpoints.MachineOption[]>(_responseJson);
+        Assert.NotNull(options);
+        Assert.Equal(3, options!.Length);
+        // Case-insensitive alpha sort: "Alpha line" < "beta line" < "Zeta line".
+        Assert.Equal("Alpha line", options[0].Name);
+        Assert.Equal("beta line", options[1].Name);
+        Assert.Equal("Zeta line", options[2].Name);
+        Assert.Equal("Vision3D", options[0].TypeName);
+    }
+
+    [Fact]
+    public async Task ListProducts_ReturnsSortedOptions()
+    {
+        var source = new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None))
+        {
+            SeededProducts =
+            [
+                new Product(9, "Widget-B", "R2", "Widget B revision 2"),
+                new Product(1, "Widget-A", "R1", null),
+                new Product(4, null, "R0", "unnamed"),
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-products-list@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri("/api/sources/postreflow/products", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await response.Content.ReadFromJsonAsync<SourceEndpoints.ProductOption[]>(_responseJson);
+        Assert.NotNull(options);
+        Assert.Equal(3, options!.Length);
+        // Empty-name product sorts first (Ordinal empty < any non-empty).
+        Assert.Equal(string.Empty, options[0].Name);
+        Assert.Equal("Widget-A", options[1].Name);
+        Assert.Equal("Widget-B", options[2].Name);
+        Assert.Equal("R1", options[1].Revision);
+    }
+
+    [Fact]
+    public async Task ListRecipes_ReturnsSortedOptions()
+    {
+        var source = new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None))
+        {
+            SeededRecipes =
+            [
+                new Recipe(7, "prog-B", 1, "alice", 1, "top", null, null, "V2"),
+                new Recipe(3, "prog-A", 1, "bob", 1, "top", null, null, null),
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-recipes-list@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri("/api/sources/postreflow/recipes", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await response.Content.ReadFromJsonAsync<SourceEndpoints.RecipeOption[]>(_responseJson);
+        Assert.NotNull(options);
+        Assert.Equal(2, options!.Length);
+        Assert.Equal("prog-A", options[0].Name);
+        Assert.Equal("prog-B", options[1].Name);
+        Assert.Equal("V2", options[1].VariantName);
+    }
 }

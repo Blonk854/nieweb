@@ -33,6 +33,15 @@ public static partial class SourceEndpoints
         group.MapGet(string.Empty, ListSourcesAsync)
             .WithName("SourcesList");
 
+        group.MapGet("/{id}/machines", ListMachinesAsync)
+            .WithName("SourcesListMachines");
+
+        group.MapGet("/{id}/products", ListProductsAsync)
+            .WithName("SourcesListProducts");
+
+        group.MapGet("/{id}/recipes", ListRecipesAsync)
+            .WithName("SourcesListRecipes");
+
         return routes;
     }
 
@@ -124,6 +133,92 @@ public static partial class SourceEndpoints
         }
         result.Sort(StringComparer.Ordinal);
         return result;
+    }
+
+    /// <summary>
+    /// One item in the <c>GET /api/sources/{id}/machines</c> response.
+    /// Slimmer than the raw <see cref="Machine"/> record: the UI only
+    /// needs the id + display strings for the multi-select.
+    /// </summary>
+    public sealed record MachineOption(int Id, string Name, string TypeName);
+
+    /// <summary>One item in <c>GET /api/sources/{id}/products</c>.</summary>
+    public sealed record ProductOption(int Id, string Name, string? Revision);
+
+    /// <summary>One item in <c>GET /api/sources/{id}/recipes</c>.</summary>
+    public sealed record RecipeOption(int Id, string Name, int ProductId, string? VariantName);
+
+    private static IAoiSource? FindSource(IEnumerable<IAoiSource> sources, string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            return null;
+        }
+        return sources.FirstOrDefault(s =>
+            string.Equals(s.Descriptor.Id, id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static IResult SourceNotFound(string? id) =>
+        Results.Problem(
+            title: "Unknown source id.",
+            detail: $"No AOI source is registered with id '{id}'.",
+            statusCode: StatusCodes.Status404NotFound);
+
+    private static async Task<IResult> ListMachinesAsync(
+        string id,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        var source = FindSource(sources, id);
+        if (source is null)
+        {
+            return SourceNotFound(id);
+        }
+        var raw = await source.ListMachinesAsync(cancellationToken).ConfigureAwait(false);
+        var options = raw
+            .Select(m => new MachineOption(m.MachineId, m.MachineName, m.MachineTypeName))
+            .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(m => m.Id)
+            .ToArray();
+        return Results.Ok(options);
+    }
+
+    private static async Task<IResult> ListProductsAsync(
+        string id,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        var source = FindSource(sources, id);
+        if (source is null)
+        {
+            return SourceNotFound(id);
+        }
+        var raw = await source.ListProductsAsync(cancellationToken).ConfigureAwait(false);
+        var options = raw
+            .Select(p => new ProductOption(p.ProductId, p.ProductName ?? string.Empty, p.Revision))
+            .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(p => p.Id)
+            .ToArray();
+        return Results.Ok(options);
+    }
+
+    private static async Task<IResult> ListRecipesAsync(
+        string id,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        var source = FindSource(sources, id);
+        if (source is null)
+        {
+            return SourceNotFound(id);
+        }
+        var raw = await source.ListRecipesAsync(cancellationToken).ConfigureAwait(false);
+        var options = raw
+            .Select(r => new RecipeOption(r.RecipeId, r.FileName ?? string.Empty, r.ProductId, r.VariantName))
+            .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(r => r.Id)
+            .ToArray();
+        return Results.Ok(options);
     }
 
     /// <summary>

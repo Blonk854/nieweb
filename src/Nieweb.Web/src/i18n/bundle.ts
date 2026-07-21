@@ -28,6 +28,41 @@ export type TranslationBundle = {
         title: string;
         subtitle: string;
         placeholderBody: string;
+        filters: {
+            heading: string;
+            source: string;
+            sourcePlaceholder: string;
+            from: string;
+            to: string;
+            machines: string;
+            machinesPlaceholder: string;
+            products: string;
+            productsPlaceholder: string;
+            recipes: string;
+            recipesPlaceholder: string;
+            onlyLastInspection: string;
+            onlyLastInspectionHint: string;
+            submit: string;
+            reset: string;
+            exportCsv: string;
+            exportXlsx: string;
+            emptyPrompt: string;
+            missingRequired: string;
+        };
+        results: {
+            heading: string;
+            noRows: string;
+            source: string;
+            window: string;
+            overall: string;
+            totalPanels: string;
+            inspectedPanels: string;
+            goodPanels: string;
+            faultyPanels: string;
+            notInspectedPanels: string;
+            fpyPercent: string;
+            machineName: string;
+        };
     };
     login: {
         title: string;

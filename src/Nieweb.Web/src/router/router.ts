@@ -7,6 +7,7 @@ import {
 import { RootLayout } from "./RootLayout";
 import { HomeRoute } from "../routes/home";
 import { PanelYieldRoute } from "../routes/panel-yield";
+import { validatePanelYieldSearch } from "../routes/panel-yield.search";
 import { LoginRoute } from "../routes/login";
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -21,6 +22,7 @@ const panelYieldRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/report/panel-yield",
     component: PanelYieldRoute,
+    validateSearch: validatePanelYieldSearch,
 });
 
 const loginRoute = createRoute({
@@ -30,6 +32,11 @@ const loginRoute = createRoute({
 });
 
 const routeTree = rootRoute.addChildren([homeRoute, panelYieldRoute, loginRoute]);
+
+// Re-export the typed route so components (../routes/panel-yield.tsx)
+// can call `panelYieldRoute.useSearch()` and get the fully-typed
+// PanelYieldSearch back.
+export { panelYieldRoute };
 
 export const router = createRouter({
     routeTree,
