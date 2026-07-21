@@ -361,20 +361,20 @@ public abstract class SqlServerAoiSourceBase : IAoiSource
     }
 
     private static PanelRow MapPanelRow(SqlDataReader r) => new(
-        PanelId:          r.GetInt32(0),
-        MachineId:        r.GetInt32(1),
-        LaneNumber:       r.GetInt32(2),
-        PanelBarCode:     r.GetString(3),
+        PanelId: r.GetInt32(0),
+        MachineId: r.GetInt32(1),
+        LaneNumber: r.GetInt32(2),
+        PanelBarCode: r.GetString(3),
         PanelNumericDate: r.GetInt32(4),
-        NbOfValidCards:   r.GetInt32(5),
-        TestTime:         r.GetDouble(6),
-        PanelStatus:      r.GetInt32(7),
-        AnomalyBr:        r.GetInt32(8),
-        AnomalyAr:        r.GetInt32(9),
-        HasBeenReviewed:  r.GetByte(10) != 0,
+        NbOfValidCards: r.GetInt32(5),
+        TestTime: r.GetDouble(6),
+        PanelStatus: r.GetInt32(7),
+        AnomalyBr: r.GetInt32(8),
+        AnomalyAr: r.GetInt32(9),
+        HasBeenReviewed: r.GetByte(10) != 0,
         NbOfTestedObject: r.GetInt32(11),
-        NbOfErrorObject:  r.GetInt32(12),
-        OperatorId:       r.IsDBNull(13) ? null : r.GetInt32(13),
-        ProductId:        r.GetInt32(14),
-        RecipeId:         r.GetInt32(15));
+        NbOfErrorObject: r.GetInt32(12),
+        OperatorId: r.IsDBNull(13) ? null : r.GetInt32(13),
+        ProductId: r.GetInt32(14),
+        RecipeId: r.GetInt32(15));
 }

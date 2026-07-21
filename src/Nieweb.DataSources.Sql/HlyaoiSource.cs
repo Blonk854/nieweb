@@ -1,5 +1,3 @@
-using Microsoft.Data.SqlClient;
-
 namespace Nieweb.DataSources.Sql;
 
 /// <summary>
@@ -41,9 +39,9 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
             Sql,
             bindParameters: null,
             map: static r => new Machine(
-                MachineId:       r.GetInt32(0),
-                MachineType:     r.GetInt32(1),
-                MachineName:     r.GetString(2),
+                MachineId: r.GetInt32(0),
+                MachineType: r.GetInt32(1),
+                MachineName: r.GetString(2),
                 MachineTypeName: r.GetString(3)),
             ct);
     }
@@ -60,9 +58,9 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
             Sql,
             bindParameters: null,
             map: static r => new Product(
-                ProductId:   r.GetInt32(0),
+                ProductId: r.GetInt32(0),
                 ProductName: r.IsDBNull(1) ? null : r.GetString(1),
-                Revision:    r.IsDBNull(2) ? null : r.GetString(2),
+                Revision: r.IsDBNull(2) ? null : r.GetString(2),
                 Description: r.IsDBNull(3) ? null : r.GetString(3)),
             ct);
     }
@@ -82,15 +80,15 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
             Sql,
             bindParameters: null,
             map: static r => new Recipe(
-                RecipeId:          r.GetInt32(0),
-                FileName:          r.IsDBNull(1) ? null : r.GetString(1),
-                ProductId:         r.GetInt32(2),
-                Author:            r.IsDBNull(3) ? null : r.GetString(3),
-                InspectedSideNb:   r.GetInt32(4),
+                RecipeId: r.GetInt32(0),
+                FileName: r.IsDBNull(1) ? null : r.GetString(1),
+                ProductId: r.GetInt32(2),
+                Author: r.IsDBNull(3) ? null : r.GetString(3),
+                InspectedSideNb: r.GetInt32(4),
                 InspectedSideName: r.IsDBNull(5) ? null : r.GetString(5),
-                Customer:          r.IsDBNull(6) ? null : r.GetString(6),
-                ProductionStep:    r.IsDBNull(7) ? null : r.GetString(7),
-                VariantName:       r.IsDBNull(8) ? null : r.GetString(8)),
+                Customer: r.IsDBNull(6) ? null : r.GetString(6),
+                ProductionStep: r.IsDBNull(7) ? null : r.GetString(7),
+                VariantName: r.IsDBNull(8) ? null : r.GetString(8)),
             ct);
     }
 

@@ -33,7 +33,7 @@ foreach (var name in wanted)
     var prefix = name switch
     {
         "postreflow" => "AOI_POSTREFLOW_",
-        "prereflow"  => "AOI_PREREFLOW_",
+        "prereflow" => "AOI_PREREFLOW_",
         _ => null,
     };
     if (prefix is null)
@@ -115,7 +115,11 @@ static string FindRepoRoot(string start)
     var dir = new DirectoryInfo(start);
     while (dir is not null)
     {
-        if (Directory.Exists(Path.Combine(dir.FullName, ".git"))) return dir.FullName;
+        if (Directory.Exists(Path.Combine(dir.FullName, ".git")))
+        {
+            return dir.FullName;
+        }
+
         dir = dir.Parent;
     }
     throw new InvalidOperationException($"Could not locate repo root from {start}.");
@@ -127,9 +131,17 @@ static Dictionary<string, string> LoadDotEnv(string path)
     foreach (var raw in File.ReadAllLines(path))
     {
         var line = raw.Trim();
-        if (line.Length == 0 || line.StartsWith('#')) continue;
+        if (line.Length == 0 || line.StartsWith('#'))
+        {
+            continue;
+        }
+
         var eq = line.IndexOf('=');
-        if (eq <= 0) continue;
+        if (eq <= 0)
+        {
+            continue;
+        }
+
         var key = line[..eq].Trim();
         var value = line[(eq + 1)..].Trim();
         if (value.Length >= 2 && ((value[0] == '"' && value[^1] == '"') || (value[0] == '\'' && value[^1] == '\'')))
