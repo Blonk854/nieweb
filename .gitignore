@@ -97,3 +97,9 @@ src/Nieweb.Web/test-results/
 src/Nieweb.Web/playwright-report/
 src/Nieweb.Web/playwright/.cache/
 src/Nieweb.Web/blob-report/
+
+# --- ASP.NET Core Data Protection keys (Phase C) ---
+# The Nieweb API encrypts AOI-source passwords at rest via the DP API.
+# Keys live on the local filesystem; never version them.
+src/Nieweb.Api/data/data-protection-keys/
+src/Nieweb.Api/data/
