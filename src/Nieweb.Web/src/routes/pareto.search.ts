@@ -13,7 +13,9 @@ export type ParetoAxis =
     | "AoiMachine"
     | "ReferenceDesignator"
     | "PartNumber"
-    | "Jedec";
+    | "Jedec"
+    | "Day"
+    | "Shift";
 
 export const PARETO_AXES: readonly ParetoAxis[] = [
     "Defect",
@@ -22,6 +24,8 @@ export const PARETO_AXES: readonly ParetoAxis[] = [
     "ReferenceDesignator",
     "PartNumber",
     "Jedec",
+    "Day",
+    "Shift",
 ];
 
 /** Post-review is the boss-approved default (matches Vieweb "DPMO real defects"). */
@@ -37,6 +41,16 @@ export const PARETO_OPPORTUNITIES: readonly ParetoOpportunity[] = [
     "Components",
     "Paste",
 ];
+
+/**
+ * Bar-height metric. `Count` is the volume-weighted default;
+ * `Dpmo` / `Ppm` switch to a rate view (see CR1 in docs/phase-2.md).
+ * `Ppm` is a display alias for `Dpmo` — the API returns identical
+ * numeric values.
+ */
+export type ParetoWeight = "Count" | "Dpmo" | "Ppm";
+
+export const PARETO_WEIGHTS: readonly ParetoWeight[] = ["Count", "Dpmo", "Ppm"];
 
 /**
  * URL-serialisable filter state for the Pareto report. Every field is
@@ -58,6 +72,18 @@ export type ParetoSearch = {
     numerator?: ParetoNumerator;
     /** Which tested-object kinds count as opportunities. Default `All`. */
     opportunity?: ParetoOpportunity;
+    /** Bar-height metric. Default `Count`. */
+    weight?: ParetoWeight;
+    /**
+     * IANA or Windows time-zone id used to bucket panel timestamps
+     * when axis is `Day` or `Shift`. Default UTC.
+     */
+    siteTimeZone?: string;
+    /**
+     * Shift start times as an ordered list of `HH:MM` strings.
+     * Required when axis is `Shift`.
+     */
+    shifts?: string[];
     /** Cap on the number of visible bars; excess rolls into an Others bucket. */
     topN?: number;
     /** Cumulative-% threshold that highlights the "vital few". Default 80. */
@@ -66,8 +92,6 @@ export type ParetoSearch = {
     machineIds?: number[];
     /** Panel product ids. */
     productIds?: number[];
-    /** Panel recipe ids. */
-    recipeIds?: number[];
     /** 1-based defect bit numbers used for drill-in from the Defect axis. */
     defectBits?: number[];
     /** Reference-designator narrowing filter. */
@@ -91,6 +115,11 @@ export function toApiQuery(search: ParetoSearch): Record<string, string> {
     if (search.axis) out.axis = search.axis;
     if (search.numerator) out.numerator = search.numerator;
     if (search.opportunity) out.opportunity = search.opportunity;
+    if (search.weight) out.weight = search.weight;
+    if (search.siteTimeZone) out.siteTimeZone = search.siteTimeZone;
+    if (search.shifts && search.shifts.length > 0) {
+        out.shifts = search.shifts.join(",");
+    }
     if (typeof search.topN === "number" && search.topN > 0) {
         out.topN = String(search.topN);
     }
@@ -102,9 +131,6 @@ export function toApiQuery(search: ParetoSearch): Record<string, string> {
     }
     if (search.productIds && search.productIds.length > 0) {
         out.productIds = search.productIds.join(",");
-    }
-    if (search.recipeIds && search.recipeIds.length > 0) {
-        out.recipeIds = search.recipeIds.join(",");
     }
     if (search.defectBits && search.defectBits.length > 0) {
         out.defectBits = search.defectBits.join(",");
@@ -137,11 +163,13 @@ export function validateParetoSearch(raw: Record<string, unknown>): ParetoSearch
             raw.opportunity,
             PARETO_OPPORTUNITIES,
         ),
+        weight: toEnumOrUndef<ParetoWeight>(raw.weight, PARETO_WEIGHTS),
+        siteTimeZone: toStringOrUndef(raw.siteTimeZone),
+        shifts: toStringArray(raw.shifts),
         topN: toPositiveIntOrUndef(raw.topN),
         vitalFewThreshold: toFiniteNumberOrUndef(raw.vitalFewThreshold),
         machineIds: toNumberArray(raw.machineIds),
         productIds: toNumberArray(raw.productIds),
-        recipeIds: toNumberArray(raw.recipeIds),
         defectBits: toNumberArray(raw.defectBits),
         topologies: toStringArray(raw.topologies),
         partNumbers: toStringArray(raw.partNumbers),

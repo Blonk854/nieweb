@@ -892,9 +892,9 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         // Applied Filters sheet: DefectBits row must echo "1".
         var filters = workbook.Worksheet("Applied Filters");
         Assert.Equal("Filter", filters.Cell(1, 1).GetString());
-        // Row order: Machine, Product, Recipe, DefectBits, Topologies, PartNumbers, JedecNames.
-        Assert.Equal("DefectBits", filters.Cell(5, 1).GetString());
-        Assert.Equal("1", filters.Cell(5, 2).GetString());
+        // Row order: Machine, Product, DefectBits, Topologies, PartNumbers, JedecNames.
+        Assert.Equal("DefectBits", filters.Cell(4, 1).GetString());
+        Assert.Equal("1", filters.Cell(4, 2).GetString());
 
         // Rows sheet: PN-A first (5), PN-B second (2).
         var rows = workbook.Worksheet("Rows");
@@ -905,6 +905,213 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         Assert.Equal("2", rows.Cell(3, 1).GetString());
         Assert.Equal("PN-B", rows.Cell(3, 2).GetString());
         Assert.Equal(2, (int)rows.Cell(3, 4).GetDouble());
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // #18915 regression: no 250-row cap on any DPMO export
+    //
+    // Vieweb 1.6 truncated exports above 250 rows/columns. Nieweb must
+    // survive an arbitrarily wide DPMO table — we seed 300 distinct
+    // reference designators (each with one defect) and verify that both
+    // CSV and XLSX round-trip the full row set. See docs/phase-2.md §2.3
+    // and §7.2 TR3.
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Builds a fake source that has one defective tested-object per
+    /// distinct reference designator (<c>Ref-0001</c>..<c>Ref-{count}</c>)
+    /// so a group-by-reference-designator DPMO table produces exactly
+    /// <paramref name="count"/> rows.
+    /// </summary>
+    private static FakeAoiSource SeedWide(int count)
+    {
+        var objs = new List<TestedObjectRow>(count);
+        for (var i = 1; i <= count; i++)
+        {
+            objs.Add(Obj(
+                machineId: 10,
+                date: WindowStartEpoch + i,
+                objectId: i,
+                objectTypeId: ComponentType,
+                errorTable: BitObjectMissing,
+                errorTableAr: BitObjectMissing,
+                topology: $"Ref-{i:D4}"));
+        }
+        return new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects = objs,
+            SeededMachines = [new Machine(10, 2, "AOI-10", "AOI")],
+        };
+    }
+
+    [Fact]
+    public async Task DpmoCsv_Regression18915_300RowsRoundTripCleanly()
+    {
+        const int rowCount = 300;
+        var fake = SeedWide(rowCount);
+        var (authed, factory) = await AuthedClientAsync("dpmo-csv-18915@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=reference-designator&numerator=aoi", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadAsStringAsync();
+        var lines = body.Split(["\r\n"], StringSplitOptions.RemoveEmptyEntries);
+
+        // Expected: 1 header + 1 OVERALL row + 300 group rows.
+        Assert.Equal(1 + 1 + rowCount, lines.Length);
+
+        // Every Ref-0001..Ref-0300 must appear exactly once (order is
+        // by DPMO desc + GroupKey; every row has DPMO=1e6 so the tie
+        // break falls to GroupKey ordinal). Assert set-equality to
+        // stay agnostic of ordering.
+        var refs = lines
+            .Skip(2)
+            .Select(l => l.Split(',', StringSplitOptions.None))
+            .Select(f => f[7]) // GroupKey column
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Equal(rowCount, refs.Count);
+        for (var i = 1; i <= rowCount; i++)
+        {
+            Assert.Contains($"Ref-{i:D4}", refs);
+        }
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DpmoXlsx_Regression18915_300RowsRoundTripCleanly()
+    {
+        const int rowCount = 300;
+        var fake = SeedWide(rowCount);
+        var (authed, factory) = await AuthedClientAsync("dpmo-xlsx-18915@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=reference-designator&numerator=aoi", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var ms = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(ms);
+
+        var rows = workbook.Worksheet("Rows");
+        // Header on row 1, data rows 2..(rowCount+1).
+        var lastRow = rows.LastRowUsed()?.RowNumber() ?? 0;
+        Assert.Equal(rowCount + 1, lastRow);
+
+        // Set-equality on the GroupKey column (column 1), same
+        // reasoning as the CSV test.
+        var refs = new HashSet<string>(StringComparer.Ordinal);
+        for (var r = 2; r <= lastRow; r++)
+        {
+            refs.Add(rows.Cell(r, 1).GetString());
+        }
+        Assert.Equal(rowCount, refs.Count);
+        for (var i = 1; i <= rowCount; i++)
+        {
+            Assert.Contains($"Ref-{i:D4}", refs);
+        }
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // PDF export endpoints (TR3 — one smoke per report type)
+    // -------------------------------------------------------------------------
+
+    private const string PdfContentType = "application/pdf";
+
+    private static void AssertLooksLikePdf(byte[] bytes)
+    {
+        Assert.True(bytes.Length > 500, $"PDF payload too small: {bytes.Length} bytes.");
+        // "%PDF-" magic header.
+        Assert.Equal((byte)'%', bytes[0]);
+        Assert.Equal((byte)'P', bytes[1]);
+        Assert.Equal((byte)'D', bytes[2]);
+        Assert.Equal((byte)'F', bytes[3]);
+        Assert.Equal((byte)'-', bytes[4]);
+        // "%%EOF" trailer somewhere in the last 1 KB.
+        var tail = System.Text.Encoding.ASCII.GetString(bytes, Math.Max(0, bytes.Length - 1024), Math.Min(bytes.Length, 1024));
+        Assert.Contains("%%EOF", tail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DpmoPdf_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.pdf?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DpmoPdf_HappyPath_ReturnsValidPdf()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects =
+            [
+                Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
+                Obj(10, WindowStartEpoch + 61, ComponentType, 0, 0),
+                Obj(11, WindowStartEpoch + 70, ComponentType, BitObjectMissing, BitObjectMissing),
+            ],
+            SeededMachines =
+            [
+                new Machine(10, 2, "AOI-10", "AOI"),
+                new Machine(11, 2, "AOI-11", "AOI"),
+            ],
+        };
+
+        var (authed, factory) = await AuthedClientAsync("dpmo-pdf-happy@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/dpmo-table/export.pdf?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&groupBy=aoi-machine&numerator=aoi", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(PdfContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "dpmo-postreflow-AoiMachine-20260101-20260102.pdf",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        AssertLooksLikePdf(bytes);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ParetoPdf_HappyPath_ReturnsValidPdf()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededTestedObjects =
+            [
+                Obj(10, WindowStartEpoch + 1, 1, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R1"),
+                Obj(10, WindowStartEpoch + 2, 2, ComponentType, BitPolarityError, BitPolarityError, topology: "R2"),
+                Obj(10, WindowStartEpoch + 3, 3, ComponentType, 0, 0, topology: "R3"),
+            ],
+            SeededMachines = [new Machine(10, 2, "AOI-10", "AOI")],
+        };
+
+        var (authed, factory) = await AuthedClientAsync("pareto-pdf-happy@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.pdf?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=defect&numerator=aoi", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(PdfContentType, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "pareto-postreflow-Defect-20260101-20260102.pdf",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        AssertLooksLikePdf(bytes);
 
         authed.Dispose();
         await factory!.DisposeAsync();

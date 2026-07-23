@@ -11,7 +11,6 @@ namespace Nieweb.Reports;
 /// <param name="Window">Half-open UTC time window over <c>Panel_Numeric_Date</c>.</param>
 /// <param name="MachineIds">Optional restriction to a subset of AOI machines.</param>
 /// <param name="ProductIds">Optional restriction to a subset of products.</param>
-/// <param name="RecipeIds">Optional restriction to a subset of recipes.</param>
 /// <param name="OnlyLastInspection">
 /// When <c>true</c> (default) and the source supports it, restricts to the
 /// most recent inspection of each panel. Sources without
@@ -21,7 +20,6 @@ public sealed record PanelYieldFilter(
     DateRange Window,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    IReadOnlyCollection<int>? RecipeIds = null,
     bool OnlyLastInspection = true);
 
 /// <summary>

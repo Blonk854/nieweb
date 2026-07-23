@@ -54,7 +54,7 @@ export function runPanelYieldReport(search: PanelYieldSearch): Promise<PanelYiel
  */
 export function panelYieldExportUrl(
     search: PanelYieldSearch,
-    format: "csv" | "xlsx",
+    format: "csv" | "xlsx" | "pdf",
 ): string {
     const qs = new URLSearchParams(toApiQuery(search)).toString();
     return `/api/reports/panel-yield/export.${format}?${qs}`;

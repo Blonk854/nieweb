@@ -33,7 +33,6 @@ export type DpmoKpi = {
 export type ParetoAppliedFilters = {
     machineIds: number[];
     productIds: number[];
-    recipeIds: number[];
     defectBits: number[];
     topologies: string[];
     partNumbers: string[];
@@ -81,7 +80,7 @@ export function runParetoReport(search: ParetoSearch): Promise<ParetoResult> {
  * clicks don't forward the Bearer token; a follow-up ticket will
  * switch to fetch+blob+object-URL or signed URLs.
  */
-export function paretoExportUrl(search: ParetoSearch, format: "csv" | "xlsx"): string {
+export function paretoExportUrl(search: ParetoSearch, format: "csv" | "xlsx" | "pdf"): string {
     const qs = new URLSearchParams(toApiQuery(search)).toString();
     return `/api/reports/pareto/export.${format}?${qs}`;
 }

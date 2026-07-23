@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import {
     IconAlertTriangle,
     IconDownload,
+    IconEye,
     IconPrinter,
     IconX,
 } from "@tabler/icons-react";
@@ -28,7 +29,6 @@ import "@mantine/dates/styles.css";
 import {
     fetchMachines,
     fetchProducts,
-    fetchRecipes,
     fetchSources,
     type SourceInfo,
 } from "../api/sources";
@@ -42,16 +42,19 @@ import {
     PARETO_AXES,
     PARETO_NUMERATORS,
     PARETO_OPPORTUNITIES,
+    PARETO_WEIGHTS,
     pickDefaultSourceId,
     withDefectBit,
     withoutDefectBit,
     type ParetoAxis,
     type ParetoNumerator,
     type ParetoOpportunity,
+    type ParetoWeight,
     type ParetoSearch,
 } from "./pareto.search";
 import { DataTable, type Column } from "../components/DataTable";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
+import { PdfPreviewModal } from "../components/PdfPreviewModal";
 
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when
@@ -96,11 +99,6 @@ export function ParetoRoute() {
         queryFn: () => fetchProducts(effectiveSourceId!),
         enabled: Boolean(effectiveSourceId),
     });
-    const recipesQuery = useQuery({
-        queryKey: ["recipes", effectiveSourceId],
-        queryFn: () => fetchRecipes(effectiveSourceId!),
-        enabled: Boolean(effectiveSourceId),
-    });
 
     const reportEnabled = Boolean(
         search.sourceId && search.startUtc && search.endUtc && search.axis,
@@ -115,6 +113,11 @@ export function ParetoRoute() {
         () => sources.find((s) => s.id === search.sourceId),
         [sources, search.sourceId],
     );
+
+    // F15 - PDF preview modal state.
+    const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+    const pdfPreviewUrl = reportEnabled ? paretoExportUrl(search, "pdf") : null;
+    const pdfFallbackFilename = `pareto-${search.sourceId ?? "source"}.pdf`;
 
     const canSubmit = Boolean(effectiveSourceId && form.from && form.to && form.axis);
 
@@ -210,7 +213,6 @@ export function ParetoRoute() {
                                     sourceId: value ?? undefined,
                                     machineIds: [],
                                     productIds: [],
-                                    recipeIds: [],
                                 }))
                             }
                             required
@@ -289,6 +291,22 @@ export function ParetoRoute() {
                             }
                             allowDeselect={false}
                         />
+                        <Select
+                            label={t("pareto.filters.weight")}
+                            description={t("pareto.filters.weightHint")}
+                            data={PARETO_WEIGHTS.map((w) => ({
+                                value: w,
+                                label: t(`pareto.weight.${w}`),
+                            }))}
+                            value={form.weight}
+                            onChange={(value) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    weight: (value ?? "Count") as ParetoWeight,
+                                }))
+                            }
+                            allowDeselect={false}
+                        />
                         <NumberInput
                             label={t("pareto.filters.topN")}
                             description={t("pareto.filters.topNHint")}
@@ -355,27 +373,6 @@ export function ParetoRoute() {
                             }))
                         }
                         disabled={!effectiveSourceId || productsQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
-                    <MultiSelect
-                        label={t("pareto.filters.recipes")}
-                        placeholder={t("pareto.filters.recipesPlaceholder")}
-                        data={(recipesQuery.data ?? []).map((r) => ({
-                            value: String(r.id),
-                            label: r.variantName
-                                ? `${r.name} — ${r.variantName}`
-                                : r.name,
-                        }))}
-                        value={(form.recipeIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                recipeIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || recipesQuery.isPending}
                         searchable
                         clearable
                     />
@@ -457,6 +454,34 @@ export function ParetoRoute() {
                                     </Text>
                                 </Group>
                             </Anchor>
+                            <Anchor
+                                href={reportEnabled ? paretoExportUrl(search, "pdf") : undefined}
+                                aria-disabled={!reportEnabled}
+                                data-disabled={!reportEnabled || undefined}
+                            >
+                                <Group gap={4}>
+                                    <IconDownload size={16} />
+                                    <Text size="sm">
+                                        {t("pareto.filters.exportPdf")}
+                                    </Text>
+                                </Group>
+                            </Anchor>
+                            <Anchor
+                                component="button"
+                                type="button"
+                                onClick={() => setPdfPreviewOpen(true)}
+                                aria-disabled={!reportEnabled}
+                                data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
+                                data-testid="pareto-preview-pdf"
+                            >
+                                <Group gap={4}>
+                                    <IconEye size={16} />
+                                    <Text size="sm">
+                                        {t("common.pdfPreview.openAction")}
+                                    </Text>
+                                </Group>
+                            </Anchor>
                         </Group>
                     </Group>
                 </Stack>
@@ -473,6 +498,13 @@ export function ParetoRoute() {
                 vitalFewThresholdPercent={search.vitalFewThreshold ?? 80}
                 onBarClick={handleBarClick}
             />
+
+            <PdfPreviewModal
+                opened={pdfPreviewOpen}
+                onClose={() => setPdfPreviewOpen(false)}
+                pdfUrl={pdfPreviewUrl}
+                fallbackFilename={pdfFallbackFilename}
+            />
         </Stack>
     );
 }
@@ -488,11 +520,11 @@ type FormState = {
     axis: ParetoAxis;
     numerator: ParetoNumerator;
     opportunity: ParetoOpportunity;
+    weight: ParetoWeight;
     topN: number | undefined;
     vitalFewThreshold: number | undefined;
     machineIds: number[];
     productIds: number[];
-    recipeIds: number[];
     defectBits: number[];
 };
 
@@ -504,11 +536,11 @@ function emptyForm(): FormState {
         axis: "Defect",
         numerator: "Real",
         opportunity: "All",
+        weight: "Count",
         topN: undefined,
         vitalFewThreshold: undefined,
         machineIds: [],
         productIds: [],
-        recipeIds: [],
         defectBits: [],
     };
 }
@@ -521,11 +553,11 @@ function searchToForm(s: ParetoSearch): FormState {
         axis: s.axis ?? "Defect",
         numerator: s.numerator ?? "Real",
         opportunity: s.opportunity ?? "All",
+        weight: s.weight ?? "Count",
         topN: s.topN,
         vitalFewThreshold: s.vitalFewThreshold,
         machineIds: s.machineIds ?? [],
         productIds: s.productIds ?? [],
-        recipeIds: s.recipeIds ?? [],
         defectBits: s.defectBits ?? [],
     };
 }
@@ -538,11 +570,11 @@ function formToSearch(f: FormState): ParetoSearch {
         axis: f.axis,
         numerator: f.numerator,
         opportunity: f.opportunity,
+        weight: f.weight,
         topN: f.topN,
         vitalFewThreshold: f.vitalFewThreshold,
         machineIds: f.machineIds.length > 0 ? f.machineIds : undefined,
         productIds: f.productIds.length > 0 ? f.productIds : undefined,
-        recipeIds: f.recipeIds.length > 0 ? f.recipeIds : undefined,
         defectBits: f.defectBits.length > 0 ? f.defectBits : undefined,
     };
 }

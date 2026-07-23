@@ -4,6 +4,7 @@ using System.Text;
 using ClosedXML.Excel;
 using Nieweb.DataSources;
 using Nieweb.Reports;
+using Nieweb.Reports.Common;
 
 namespace Nieweb.Api.Endpoints;
 
@@ -28,12 +29,18 @@ public static partial class ReportEndpoints
     /// <param name="axis">
     /// Group-by axis. Accepts kebab-case
     /// (<c>defect</c>, <c>product</c>, <c>aoi-machine</c>,
-    /// <c>reference-designator</c>, <c>part-number</c>, <c>jedec</c>)
-    /// or the raw <see cref="ParetoAxis"/> member name.
+    /// <c>reference-designator</c>, <c>part-number</c>, <c>jedec</c>,
+    /// <c>day</c>, <c>shift</c>) or the raw <see cref="ParetoAxis"/>
+    /// member name. <c>shift</c> requires <paramref name="shifts"/>.
     /// </param>
     /// <param name="numerator">One of <c>real</c> (default), <c>aoi</c>, <c>dummy</c>.</param>
     /// <param name="opportunity">One of <c>all</c> (default), <c>components</c>, <c>paste</c>.</param>
-    /// <param name="weight">Only <c>count</c> ships today.</param>
+    /// <param name="weight">
+    /// Bar-height metric. <c>count</c> (default, volume-weighted),
+    /// <c>dpmo</c> (defects per million opportunities, rate-weighted),
+    /// or <c>ppm</c> (numeric alias of <c>dpmo</c>, relabelled for
+    /// component-quality contexts).
+    /// </param>
     /// <param name="topN">Optional cap on visible rows.</param>
     /// <param name="includeOthers">
     /// When <c>true</c> (default) and <paramref name="topN"/> caused
@@ -48,7 +55,6 @@ public static partial class ReportEndpoints
     /// </param>
     /// <param name="machineIds">CSV int list, filtered at the DB level.</param>
     /// <param name="productIds">CSV int list, filtered at the DB level.</param>
-    /// <param name="recipeIds">CSV int list, filtered at the DB level.</param>
     /// <param name="defectBits">
     /// CSV int list of 1-based bit numbers (1..25). Narrows the input
     /// to tested-object rows carrying at least one of these bits.
@@ -56,6 +62,18 @@ public static partial class ReportEndpoints
     /// <param name="topologies">CSV list of <c>TESTED_OBJECT.Topology</c> values.</param>
     /// <param name="partNumbers">CSV list of <c>PART_NUMBER</c> names.</param>
     /// <param name="jedecNames">CSV list of <c>JEDEC</c> names.</param>
+    /// <param name="siteTimeZone">
+    /// IANA (e.g. <c>Europe/Paris</c>) or Windows (e.g.
+    /// <c>Romance Standard Time</c>) time-zone identifier used to
+    /// bucket panel timestamps when axis is <c>day</c> or
+    /// <c>shift</c>. Defaults to UTC (matches how
+    /// <c>Panel_Numeric_Date</c> is stored).
+    /// </param>
+    /// <param name="shifts">
+    /// Required when axis is <c>shift</c>. CSV list of shift start
+    /// times in <c>HH:MM</c> (24h) form (e.g.
+    /// <c>08:00,16:00,00:00</c>). Ignored for other axes.
+    /// </param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
@@ -73,11 +91,12 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         string? defectBits,
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? siteTimeZone,
+        string? shifts,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -85,8 +104,9 @@ public static partial class ReportEndpoints
         var built = TryBuildParetoRequest(
             sourceId, startUtc, endUtc, axis, numerator, opportunity, weight,
             topN, includeOthers, vitalFewThreshold, includeObsoleteBits,
-            machineIds, productIds, recipeIds,
+            machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
+            siteTimeZone, shifts,
             sources);
         if (built.Error is not null)
         {
@@ -115,11 +135,13 @@ public static partial class ReportEndpoints
                 title: "Invalid Pareto filter: " + ex.Message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
-        catch (NotSupportedException ex)
+        catch (ArgumentException ex)
         {
-            // Non-Count ParetoWeight is not implemented yet.
+            // Raised when Axis=Shift is requested without a
+            // ShiftDefinition, or when TimeBucketer refuses the
+            // decomposed window.
             return Results.Problem(
-                title: ex.Message,
+                title: "Invalid Pareto filter: " + ex.Message,
                 statusCode: StatusCodes.Status400BadRequest);
         }
     }
@@ -138,11 +160,12 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         string? defectBits,
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? siteTimeZone,
+        string? shifts,
         IEnumerable<IAoiSource> sources)
     {
         var baseParse = TryBuildBaseRequest(sourceId, startUtc, endUtc, sources);
@@ -194,6 +217,22 @@ public static partial class ReportEndpoints
             }
         }
 
+        var siteTz = TryParseTimeZone(siteTimeZone, out var tzError);
+        if (tzError is not null)
+        {
+            return (null, null, ProblemFor("siteTimeZone", tzError));
+        }
+        var shiftDef = TryParseShifts(shifts, out var shiftsError);
+        if (shiftsError is not null)
+        {
+            return (null, null, ProblemFor("shifts", shiftsError));
+        }
+        if (axisValue == ParetoAxis.Shift && shiftDef is null)
+        {
+            return (null, null, ProblemFor("shifts",
+                "axis=shift requires a shifts=HH:MM,... query parameter listing shift start times."));
+        }
+
         var filter = new ParetoFilter(
             Window: baseParse.Window,
             Axis: axisValue,
@@ -206,13 +245,87 @@ public static partial class ReportEndpoints
             IncludeObsoleteBits: includeObsoleteBits ?? false,
             MachineIds: ParseIntList(machineIds),
             ProductIds: ParseIntList(productIds),
-            RecipeIds: ParseIntList(recipeIds),
             DefectBits: defectBitList,
             Topologies: ParseStringList(topologies),
             PartNumbers: ParseStringList(partNumbers),
-            JedecNames: ParseStringList(jedecNames));
+            JedecNames: ParseStringList(jedecNames),
+            SiteTimeZone: siteTz,
+            Shifts: shiftDef);
 
         return (baseParse.Source, filter, null);
+    }
+
+    /// <summary>
+    /// Parse <paramref name="raw"/> as either an IANA (e.g.
+    /// <c>Europe/Paris</c>) or Windows (e.g.
+    /// <c>Romance Standard Time</c>) time-zone identifier. Returns
+    /// <c>null</c> when <paramref name="raw"/> is null/empty; sets
+    /// <paramref name="error"/> and returns <c>null</c> when the id
+    /// does not resolve.
+    /// </summary>
+    private static TimeZoneInfo? TryParseTimeZone(string? raw, out string? error)
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(raw);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            error = $"'{raw}' is not a recognised time-zone id (accepts IANA e.g. 'Europe/Paris' or Windows e.g. 'Romance Standard Time').";
+            return null;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            error = $"'{raw}' is corrupt in the system time-zone database.";
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Parse a CSV of <c>HH:MM</c> shift start times into a
+    /// <see cref="ShiftDefinition"/>. Returns <c>null</c> when
+    /// <paramref name="raw"/> is null/empty; sets
+    /// <paramref name="error"/> and returns <c>null</c> for malformed
+    /// input.
+    /// </summary>
+    private static ShiftDefinition? TryParseShifts(string? raw, out string? error)
+    {
+        error = null;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0)
+        {
+            error = "shifts must contain at least one HH:MM entry.";
+            return null;
+        }
+        var starts = new List<TimeOnly>(parts.Length);
+        foreach (var part in parts)
+        {
+            if (!TimeOnly.TryParseExact(part, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t)
+                && !TimeOnly.TryParseExact(part, "H:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out t))
+            {
+                error = $"'{part}' is not a valid shift start (expected 24-hour HH:MM).";
+                return null;
+            }
+            starts.Add(t);
+        }
+        try
+        {
+            return ShiftDefinition.FromStarts(starts);
+        }
+        catch (ArgumentException ex)
+        {
+            error = ex.Message;
+            return null;
+        }
     }
 
     [LoggerMessage(EventId = 3003, Level = LogLevel.Information,
@@ -250,11 +363,12 @@ public static partial class ReportEndpoints
     /// <param name="includeObsoleteBits">Include obsolete defect bits when axis=defect.</param>
     /// <param name="machineIds">CSV int list.</param>
     /// <param name="productIds">CSV int list.</param>
-    /// <param name="recipeIds">CSV int list.</param>
     /// <param name="defectBits">CSV int list (1..25).</param>
     /// <param name="topologies">CSV string list.</param>
     /// <param name="partNumbers">CSV string list.</param>
     /// <param name="jedecNames">CSV string list.</param>
+    /// <param name="siteTimeZone">IANA or Windows time-zone id for Day/Shift bucketing (default UTC).</param>
+    /// <param name="shifts">CSV of HH:MM shift start times (required when axis=shift).</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
@@ -273,11 +387,12 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         string? defectBits,
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? siteTimeZone,
+        string? shifts,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -287,8 +402,9 @@ public static partial class ReportEndpoints
         var built = TryBuildParetoRequest(
             sourceId, startUtc, endUtc, axis, numerator, opportunity, weight,
             topN, includeOthers, vitalFewThreshold, includeObsoleteBits,
-            machineIds, productIds, recipeIds,
+            machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
+            siteTimeZone, shifts,
             sources);
         if (built.Error is not null)
         {
@@ -428,11 +544,12 @@ public static partial class ReportEndpoints
     /// <param name="includeObsoleteBits">Include obsolete defect bits when axis=defect.</param>
     /// <param name="machineIds">CSV int list.</param>
     /// <param name="productIds">CSV int list.</param>
-    /// <param name="recipeIds">CSV int list.</param>
     /// <param name="defectBits">CSV int list (1..25).</param>
     /// <param name="topologies">CSV string list.</param>
     /// <param name="partNumbers">CSV string list.</param>
     /// <param name="jedecNames">CSV string list.</param>
+    /// <param name="siteTimeZone">IANA or Windows time-zone id for Day/Shift bucketing (default UTC).</param>
+    /// <param name="shifts">CSV of HH:MM shift start times (required when axis=shift).</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
@@ -451,11 +568,12 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         string? defectBits,
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? siteTimeZone,
+        string? shifts,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -465,8 +583,9 @@ public static partial class ReportEndpoints
         var built = TryBuildParetoRequest(
             sourceId, startUtc, endUtc, axis, numerator, opportunity, weight,
             topN, includeOthers, vitalFewThreshold, includeObsoleteBits,
-            machineIds, productIds, recipeIds,
+            machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
+            siteTimeZone, shifts,
             sources);
         if (built.Error is not null)
         {
@@ -496,10 +615,10 @@ public static partial class ReportEndpoints
                 statusCode: StatusCodes.Status400BadRequest).ExecuteAsync(context).ConfigureAwait(false);
             return;
         }
-        catch (NotSupportedException ex)
+        catch (ArgumentException ex)
         {
             await Results.Problem(
-                title: ex.Message,
+                title: "Invalid Pareto filter: " + ex.Message,
                 statusCode: StatusCodes.Status400BadRequest).ExecuteAsync(context).ConfigureAwait(false);
             return;
         }
@@ -571,7 +690,6 @@ public static partial class ReportEndpoints
         var frow = 2;
         AppendFilterRow(filters, ref frow, "MachineIds", string.Join(",", result.AppliedFilters.MachineIds));
         AppendFilterRow(filters, ref frow, "ProductIds", string.Join(",", result.AppliedFilters.ProductIds));
-        AppendFilterRow(filters, ref frow, "RecipeIds", string.Join(",", result.AppliedFilters.RecipeIds));
         AppendFilterRow(filters, ref frow, "DefectBits", string.Join(",", result.AppliedFilters.DefectBits));
         AppendFilterRow(filters, ref frow, "Topologies", string.Join(",", result.AppliedFilters.Topologies));
         AppendFilterRow(filters, ref frow, "PartNumbers", string.Join(",", result.AppliedFilters.PartNumbers));

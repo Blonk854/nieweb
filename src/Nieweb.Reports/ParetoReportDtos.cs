@@ -1,4 +1,5 @@
 using Nieweb.DataSources;
+using Nieweb.Reports.Common;
 
 namespace Nieweb.Reports;
 
@@ -29,31 +30,57 @@ public enum ParetoAxis
 
     /// <summary>One bar per <c>JEDEC</c> / package name.</summary>
     Jedec = 5,
+
+    /// <summary>
+    /// One bar per local-calendar day of the requested window (see
+    /// <see cref="ParetoFilter.SiteTimeZone"/>). Bucket keys are the
+    /// ISO date <c>yyyy-MM-dd</c>. Days with no matching tested-object
+    /// rows are omitted from the output — the Pareto chart itself
+    /// does not draw gaps.
+    /// </summary>
+    Day = 6,
+
+    /// <summary>
+    /// One bar per production-shift instance in the requested window.
+    /// Requires <see cref="ParetoFilter.Shifts"/>. Because shifts wrap
+    /// around midnight (see <see cref="ShiftDefinition"/>), a single
+    /// 24-hour window produces up to <c>Shifts.Starts.Length</c>
+    /// rows. Bucket keys embed the shift-start date and label so
+    /// same-name shifts on different days remain distinct.
+    /// </summary>
+    Shift = 7,
 }
 
 /// <summary>
 /// Weight applied to each defect when computing bar heights and the
-/// cumulative-percent line. Currently only <see cref="Count"/> is
-/// supported — the enum exists as a stable extensibility hook so a
-/// severity- or cost-weighted Pareto can be added later without
-/// changing the DTO shape.
+/// cumulative-percent line. <see cref="Count"/> is the boss-approved
+/// default (volume-weighted); <see cref="Dpmo"/> / <see cref="Ppm"/>
+/// switch to a rate view — the "scale toggle" from docs/phase-2.md
+/// §7.3 CR1.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The default <see cref="Count"/> is "volume-weighted" in the
-/// production-engineering sense: absolute defect count scales with
+/// Under <see cref="Count"/>, absolute defect count scales with
 /// production volume, so a low-rate defect on a high-volume product
 /// correctly outranks a high-rate defect on a low-volume product.
-/// A DPMO/rate ranking would flip that ordering — Pareto deliberately
-/// does not.
+/// Under <see cref="Dpmo"/> / <see cref="Ppm"/> that ordering flips —
+/// the ranking becomes rate-driven and low-volume outliers can lead
+/// the chart. Line engineers toggle deliberately.
 /// </para>
 /// <para>
-/// Adding a new value here must be paired with wiring the new metric
-/// into <see cref="ParetoRow.WeightedScore"/> and adjusting the sort
-/// key inside <see cref="ParetoReport"/>. The Vieweb-parity
-/// severity-cost weight belongs in a future
-/// <c>SeverityCostPerDefectBit</c> value backed by an internal
-/// <c>DefectWeight</c> table.
+/// <see cref="Ppm"/> is a display alias for <see cref="Dpmo"/> — the
+/// math is identical (both compute <c>1e6 · defects / opportunities</c>).
+/// The distinction is preserved so localised UI can say "PPM"
+/// (parts-per-million, familiar to component-quality engineers)
+/// rather than "DPMO" (defects-per-million-opportunities, familiar
+/// to process-quality engineers). Row values are byte-identical.
+/// </para>
+/// <para>
+/// A future severity/cost weight will land as an additional enum
+/// value backed by an internal <c>DefectWeight</c> table. Adding a
+/// new value must be paired with wiring the metric into
+/// <see cref="ParetoRow.WeightedScore"/> inside
+/// <see cref="ParetoReport"/>.
 /// </para>
 /// </remarks>
 public enum ParetoWeight
@@ -63,6 +90,22 @@ public enum ParetoWeight
     /// = the boss-approved volume-weighted ranking.
     /// </summary>
     Count = 0,
+
+    /// <summary>
+    /// Bar height = <c>1e6 · defect count / opportunity count</c>
+    /// (defects per million opportunities). Rate-view ranking; the
+    /// sort order flips relative to <see cref="Count"/>. Buckets with
+    /// zero opportunities emit <c>0</c>.
+    /// </summary>
+    Dpmo = 1,
+
+    /// <summary>
+    /// Bar height = <c>1e6 · defect count / opportunity count</c>,
+    /// numerically identical to <see cref="Dpmo"/>. Preserved as a
+    /// distinct enum value so component-quality reports can render
+    /// "PPM" in the UI without owning a separate report definition.
+    /// </summary>
+    Ppm = 2,
 }
 
 /// <summary>
@@ -85,8 +128,9 @@ public enum ParetoWeight
 /// </param>
 /// <param name="Opportunity">Which tested-object kinds count as opportunities.</param>
 /// <param name="Weight">
-/// Bar-height metric. Only <see cref="ParetoWeight.Count"/> is
-/// implemented today; other values throw at runtime.
+/// Bar-height metric. <see cref="ParetoWeight.Count"/> is the
+/// volume-weighted default; <see cref="ParetoWeight.Dpmo"/> and
+/// <see cref="ParetoWeight.Ppm"/> switch to the rate view.
 /// </param>
 /// <param name="TopN">
 /// Cap on the number of visible rows. When set and there are more
@@ -109,7 +153,6 @@ public enum ParetoWeight
 /// </param>
 /// <param name="MachineIds">DB-level filter on parent panel's <c>Machine_Id</c>.</param>
 /// <param name="ProductIds">DB-level filter on parent panel's <c>Product_Id</c>.</param>
-/// <param name="RecipeIds">DB-level filter on parent panel's <c>Recipe_Id</c>.</param>
 /// <param name="DefectBits">
 /// In-memory narrowing filter: only tested-object rows that have at
 /// least one of these bits set in the chosen numerator field
@@ -122,6 +165,21 @@ public enum ParetoWeight
 /// </param>
 /// <param name="PartNumbers">In-memory narrowing filter on <c>PART_NUMBER.Part_Number</c>.</param>
 /// <param name="JedecNames">In-memory narrowing filter on <c>JEDEC.Jedec_Name</c>.</param>
+/// <param name="SiteTimeZone">
+/// Time zone used to bucket <c>Panel_Numeric_Date</c> when
+/// <see cref="Axis"/> is <see cref="ParetoAxis.Day"/> or
+/// <see cref="ParetoAxis.Shift"/>. When <c>null</c> the report falls
+/// back to UTC — matching how <c>Panel_Numeric_Date</c> is stored in
+/// the Superviseur DB — so shipping without a site time zone still
+/// produces reproducible buckets.
+/// </param>
+/// <param name="Shifts">
+/// Production-shift schedule used when <see cref="Axis"/> is
+/// <see cref="ParetoAxis.Shift"/>. Required for that axis and
+/// ignored otherwise; the report throws
+/// <see cref="System.ArgumentException"/> when Shift is requested
+/// without a definition.
+/// </param>
 public sealed record ParetoFilter(
     DateRange Window,
     ParetoAxis Axis,
@@ -134,11 +192,12 @@ public sealed record ParetoFilter(
     bool IncludeObsoleteBits = false,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    IReadOnlyCollection<int>? RecipeIds = null,
     IReadOnlyCollection<int>? DefectBits = null,
     IReadOnlyCollection<string>? Topologies = null,
     IReadOnlyCollection<string>? PartNumbers = null,
-    IReadOnlyCollection<string>? JedecNames = null);
+    IReadOnlyCollection<string>? JedecNames = null,
+    TimeZoneInfo? SiteTimeZone = null,
+    ShiftDefinition? Shifts = null);
 
 /// <summary>
 /// One row of a Pareto chart. <see cref="DefectCount"/> is the bar
@@ -170,10 +229,12 @@ public sealed record ParetoFilter(
 /// "what fraction of production ran through this bucket?".
 /// </param>
 /// <param name="DpmoPpm">
-/// <c>1e6 · DefectCount / OpportunityCount</c>. Rate-view diagnostic
-/// only — the ranking is <b>not</b> based on this, so a low-rate
-/// / high-volume bucket correctly outranks a high-rate / low-volume
-/// bucket.
+/// <c>1e6 · DefectCount / OpportunityCount</c>. Rate-view metric.
+/// Ranks the bar when <see cref="ParetoFilter.Weight"/> is
+/// <see cref="ParetoWeight.Dpmo"/> or <see cref="ParetoWeight.Ppm"/>;
+/// under <see cref="ParetoWeight.Count"/> it is a diagnostic only
+/// and the ranking stays volume-weighted so a low-rate / high-volume
+/// bucket correctly outranks a high-rate / low-volume bucket.
 /// </param>
 /// <param name="DefectSharePercent">
 /// <c>100 · DefectCount / TotalDefectCount</c>. Height of this bar
@@ -254,7 +315,6 @@ public sealed record ParetoResult(
 public sealed record ParetoAppliedFilters(
     IReadOnlyList<int> MachineIds,
     IReadOnlyList<int> ProductIds,
-    IReadOnlyList<int> RecipeIds,
     IReadOnlyList<int> DefectBits,
     IReadOnlyList<string> Topologies,
     IReadOnlyList<string> PartNumbers,

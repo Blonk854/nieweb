@@ -70,7 +70,6 @@ public sealed class PanelYieldByLineReport : IReport<PanelYieldFilter, PanelYiel
             Window = filter.Window,
             MachineIds = filter.MachineIds,
             ProductIds = filter.ProductIds,
-            RecipeIds = filter.RecipeIds,
             OnlyLastInspection = filter.OnlyLastInspection,
         };
 

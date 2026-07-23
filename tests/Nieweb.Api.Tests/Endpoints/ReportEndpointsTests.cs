@@ -598,4 +598,58 @@ public sealed class ReportEndpointsTests : IClassFixture<NiewebApiFactory>
             OperatorId: 42,
             ProductId: 500,
             RecipeId: 600);
+
+    // -------------------------------------------------------------------------
+    // PDF export endpoint (TR3) — smoke test.
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task PanelYieldPdf_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.pdf?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PanelYieldPdf_HappyPath_ReturnsValidPdf()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededPanels =
+            [
+                Panel(1, 800, WindowStartEpoch + 60, 1),
+                Panel(2, 800, WindowStartEpoch + 120, 2),
+                Panel(3, 800, WindowStartEpoch + 180, -1),
+            ],
+            SeededMachines = [new Machine(800, 2, "AOI-800", "AOI")],
+        };
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(fake)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "yield-pdf-happy@nieweb.test");
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/panel-yield/export.pdf?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(
+            "panel-yield-postreflow-20260101-20260102.pdf",
+            response.Content.Headers.ContentDisposition?.FileName);
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length > 500, $"PDF payload too small: {bytes.Length} bytes.");
+        // "%PDF-" magic header + "%%EOF" trailer.
+        Assert.Equal((byte)'%', bytes[0]);
+        Assert.Equal((byte)'P', bytes[1]);
+        Assert.Equal((byte)'D', bytes[2]);
+        Assert.Equal((byte)'F', bytes[3]);
+        var tail = System.Text.Encoding.ASCII.GetString(bytes, Math.Max(0, bytes.Length - 1024), Math.Min(bytes.Length, 1024));
+        Assert.Contains("%%EOF", tail, StringComparison.Ordinal);
+    }
 }

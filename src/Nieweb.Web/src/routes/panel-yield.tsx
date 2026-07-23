@@ -17,12 +17,11 @@ import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { IconAlertTriangle, IconDownload, IconPrinter } from "@tabler/icons-react";
+import { IconAlertTriangle, IconDownload, IconEye, IconPrinter } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 import {
     fetchMachines,
     fetchProducts,
-    fetchRecipes,
     fetchSources,
     type SourceInfo,
 } from "../api/sources";
@@ -37,6 +36,7 @@ import { pickDefaultSourceId } from "./panel-yield.search";
 import { DataTable, type Column } from "../components/DataTable";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { KpiCards } from "../components/KpiCards";
+import { PdfPreviewModal } from "../components/PdfPreviewModal";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when a
@@ -94,11 +94,6 @@ export function PanelYieldRoute() {
         queryFn: () => fetchProducts(effectiveSourceId!),
         enabled: Boolean(effectiveSourceId),
     });
-    const recipesQuery = useQuery({
-        queryKey: ["recipes", effectiveSourceId],
-        queryFn: () => fetchRecipes(effectiveSourceId!),
-        enabled: Boolean(effectiveSourceId),
-    });
 
     // The report query is driven off the URL search params (not the
     // local form) so the URL alone reproduces a run. Cached per shape.
@@ -115,6 +110,13 @@ export function PanelYieldRoute() {
         () => sources.find((s) => s.id === search.sourceId),
         [sources, search.sourceId],
     );
+
+    // F15 - PDF preview modal open state. The URL is only built when
+    // `reportEnabled` is true, so we never accidentally trigger a
+    // fetch against a half-built filter.
+    const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+    const pdfPreviewUrl = reportEnabled ? panelYieldExportUrl(search, "pdf") : null;
+    const pdfFallbackFilename = `panel-yield-${search.sourceId ?? "source"}.pdf`;
 
     const canSubmit = Boolean(effectiveSourceId && form.from && form.to);
 
@@ -189,7 +191,6 @@ export function PanelYieldRoute() {
                                     sourceId: value ?? undefined,
                                     machineIds: [],
                                     productIds: [],
-                                    recipeIds: [],
                                 }))
                             }
                             required
@@ -274,27 +275,6 @@ export function PanelYieldRoute() {
                         clearable
                     />
 
-                    <MultiSelect
-                        label={t("panelYield.filters.recipes")}
-                        placeholder={t("panelYield.filters.recipesPlaceholder")}
-                        data={(recipesQuery.data ?? []).map((r) => ({
-                            value: String(r.id),
-                            label: r.variantName
-                                ? `${r.name} — ${r.variantName}`
-                                : r.name,
-                        }))}
-                        value={(form.recipeIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                recipeIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || recipesQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
                     {!canSubmit && (
                         <Text c="dimmed" size="sm">
                             {t("panelYield.filters.missingRequired")}
@@ -350,6 +330,34 @@ export function PanelYieldRoute() {
                                     </Text>
                                 </Group>
                             </Anchor>
+                            <Anchor
+                                href={reportEnabled ? panelYieldExportUrl(search, "pdf") : undefined}
+                                aria-disabled={!reportEnabled}
+                                data-disabled={!reportEnabled || undefined}
+                            >
+                                <Group gap={4}>
+                                    <IconDownload size={16} />
+                                    <Text size="sm">
+                                        {t("panelYield.filters.exportPdf")}
+                                    </Text>
+                                </Group>
+                            </Anchor>
+                            <Anchor
+                                component="button"
+                                type="button"
+                                onClick={() => setPdfPreviewOpen(true)}
+                                aria-disabled={!reportEnabled}
+                                data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
+                                data-testid="panel-yield-preview-pdf"
+                            >
+                                <Group gap={4}>
+                                    <IconEye size={16} />
+                                    <Text size="sm">
+                                        {t("common.pdfPreview.openAction")}
+                                    </Text>
+                                </Group>
+                            </Anchor>
                         </Group>
                     </Group>
                 </Stack>
@@ -362,6 +370,13 @@ export function PanelYieldRoute() {
                 data={reportQuery.data}
                 error={reportQuery.error}
                 source={activeSource}
+            />
+
+            <PdfPreviewModal
+                opened={pdfPreviewOpen}
+                onClose={() => setPdfPreviewOpen(false)}
+                pdfUrl={pdfPreviewUrl}
+                fallbackFilename={pdfFallbackFilename}
             />
         </Stack>
     );
@@ -379,7 +394,6 @@ type FormState = {
     to: string | null;
     machineIds: number[];
     productIds: number[];
-    recipeIds: number[];
     onlyLastInspection: boolean | undefined;
 };
 
@@ -390,7 +404,6 @@ function emptyForm(): FormState {
         to: null,
         machineIds: [],
         productIds: [],
-        recipeIds: [],
         onlyLastInspection: undefined,
     };
 }
@@ -402,7 +415,6 @@ function searchToForm(s: PanelYieldSearch): FormState {
         to: s.endUtc ? isoToMantine(s.endUtc) : null,
         machineIds: s.machineIds ?? [],
         productIds: s.productIds ?? [],
-        recipeIds: s.recipeIds ?? [],
         onlyLastInspection: s.onlyLastInspection,
     };
 }
@@ -414,7 +426,6 @@ function formToSearch(f: FormState): PanelYieldSearch {
         endUtc: f.to ? mantineToIso(f.to) : undefined,
         machineIds: f.machineIds.length > 0 ? f.machineIds : undefined,
         productIds: f.productIds.length > 0 ? f.productIds : undefined,
-        recipeIds: f.recipeIds.length > 0 ? f.recipeIds : undefined,
         onlyLastInspection: f.onlyLastInspection,
     };
 }

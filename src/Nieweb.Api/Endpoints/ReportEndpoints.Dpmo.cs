@@ -37,7 +37,6 @@ public static partial class ReportEndpoints
     /// </param>
     /// <param name="machineIds">Optional comma-separated int list.</param>
     /// <param name="productIds">Optional comma-separated int list.</param>
-    /// <param name="recipeIds">Optional comma-separated int list.</param>
     /// <param name="includeObsoleteBits">
     /// When <c>true</c> and <see cref="DpmoGroupBy.Defect"/>, emit rows
     /// for defect bits flagged obsolete in the catalogue. Default <c>false</c>.
@@ -54,7 +53,6 @@ public static partial class ReportEndpoints
         string? opportunity,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? includeObsoleteBits,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
@@ -62,7 +60,7 @@ public static partial class ReportEndpoints
     {
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, recipeIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, sources);
         if (built.Error is not null)
         {
             return built.Error;
@@ -91,7 +89,6 @@ public static partial class ReportEndpoints
         string? opportunity,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? includeObsoleteBits,
         IEnumerable<IAoiSource> sources)
     {
@@ -121,7 +118,6 @@ public static partial class ReportEndpoints
             Opportunity: opportunityValue,
             MachineIds: ParseIntList(machineIds),
             ProductIds: ParseIntList(productIds),
-            RecipeIds: ParseIntList(recipeIds),
             IncludeObsoleteBits: includeObsoleteBits ?? false);
 
         return (baseParse.Source, filter, null);
@@ -298,7 +294,6 @@ public static partial class ReportEndpoints
     /// <param name="opportunity">Opportunity filter (default <c>all</c>).</param>
     /// <param name="machineIds">Optional comma-separated int list.</param>
     /// <param name="productIds">Optional comma-separated int list.</param>
-    /// <param name="recipeIds">Optional comma-separated int list.</param>
     /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="logger">Endpoint logger.</param>
@@ -313,7 +308,6 @@ public static partial class ReportEndpoints
         string? opportunity,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? includeObsoleteBits,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
@@ -323,7 +317,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, recipeIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);
@@ -423,7 +417,6 @@ public static partial class ReportEndpoints
     /// <param name="opportunity">Opportunity filter (default <c>all</c>).</param>
     /// <param name="machineIds">Optional comma-separated int list.</param>
     /// <param name="productIds">Optional comma-separated int list.</param>
-    /// <param name="recipeIds">Optional comma-separated int list.</param>
     /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="logger">Endpoint logger.</param>
@@ -438,7 +431,6 @@ public static partial class ReportEndpoints
         string? opportunity,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? includeObsoleteBits,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
@@ -448,7 +440,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, recipeIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);

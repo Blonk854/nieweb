@@ -36,7 +36,6 @@ public enum FpyGroupBy
 /// <param name="GroupBy">Rows grouped by AOI machine or product.</param>
 /// <param name="MachineIds">Optional restriction to a subset of AOI machines.</param>
 /// <param name="ProductIds">Optional restriction to a subset of products.</param>
-/// <param name="RecipeIds">Optional restriction to a subset of recipes.</param>
 /// <param name="OnlyLastInspection">
 /// When <c>true</c> (default) and the source supports it, restricts to the
 /// most recent inspection of each panel. Sources without
@@ -48,7 +47,6 @@ public sealed record FpyTableFilter(
     FpyGroupBy GroupBy,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    IReadOnlyCollection<int>? RecipeIds = null,
     bool OnlyLastInspection = true);
 
 /// <summary>

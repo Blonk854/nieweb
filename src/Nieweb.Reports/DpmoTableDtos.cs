@@ -95,7 +95,6 @@ public enum DpmoOpportunity
 /// <param name="Opportunity">Which tested-object kinds count as opportunities (All / Components / Paste).</param>
 /// <param name="MachineIds">Optional restriction to a subset of AOI machines.</param>
 /// <param name="ProductIds">Optional restriction to a subset of products.</param>
-/// <param name="RecipeIds">Optional restriction to a subset of recipes.</param>
 /// <param name="IncludeObsoleteBits">
 /// When grouping by <see cref="DpmoGroupBy.Defect"/>, whether to emit
 /// rows for bits flagged obsolete by
@@ -109,7 +108,6 @@ public sealed record DpmoTableFilter(
     DpmoOpportunity Opportunity,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    IReadOnlyCollection<int>? RecipeIds = null,
     bool IncludeObsoleteBits = false);
 
 /// <summary>

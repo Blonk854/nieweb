@@ -1,4 +1,5 @@
-using Nieweb.DataSources;
+﻿using Nieweb.DataSources;
+using Nieweb.Reports.Common;
 using Nieweb.Reports.TestKit;
 using Nieweb.Reports.Tests.Fakes;
 using Xunit;
@@ -56,8 +57,8 @@ public sealed class ParetoReportTests
     /// The boss's canonical scenario, distilled to test-friendly
     /// numbers with the same mathematical shape:
     /// <list type="bullet">
-    ///   <item><description>Product A — 100 opportunities, 10 defects → DPMO 100 000.</description></item>
-    ///   <item><description>Product B — 20 opportunities, 5 defects → DPMO 250 000.</description></item>
+    ///   <item><description>Product A â€” 100 opportunities, 10 defects â†’ DPMO 100 000.</description></item>
+    ///   <item><description>Product B â€” 20 opportunities, 5 defects â†’ DPMO 250 000.</description></item>
     /// </list>
     /// A DPMO-ranked view would rank B first. The volume-weighted
     /// Pareto MUST rank A first because 10 defective boards hurts
@@ -128,7 +129,7 @@ public sealed class ParetoReportTests
         Assert.Equal(100_000d, rowA.DpmoPpm);
         Assert.Equal(250_000d, rowB.DpmoPpm);
         Assert.True(rowB.DpmoPpm > rowA.DpmoPpm,
-            "B's DPMO should be higher than A's — otherwise the test doesn't prove anything.");
+            "B's DPMO should be higher than A's â€” otherwise the test doesn't prove anything.");
 
         // Defect share + cumulative.
         Assert.Equal(100d * 10 / 15, rowA.DefectSharePercent);
@@ -406,12 +407,15 @@ public sealed class ParetoReportTests
     }
 
     [Fact]
-    public async Task WeightNonCount_Throws()
+    public async Task Weight_UndefinedValue_Throws()
     {
+        // Guards the enum boundary: RunAsync must refuse a
+        // ParetoWeight value that isn't declared in the enum, not
+        // silently fall through to the Count branch.
         var source = new FakeAoiSource(_postReflow);
         var filter = new ParetoFilter(_oneDay, ParetoAxis.Product, Weight: (ParetoWeight)999);
 
-        await Assert.ThrowsAsync<NotSupportedException>(async () =>
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await ParetoReport.Instance.RunAsync(
                 source, filter, TestContext.Current.CancellationToken));
     }
@@ -474,4 +478,229 @@ public sealed class ParetoReportTests
             PartNumberName: partNumberName,
             JedecName: jedecName);
     }
+
+    // ---------------------------------------------------------------
+    // CR1: Day / Shift axes + Dpmo / Ppm weights
+    // ---------------------------------------------------------------
+
+    /// <summary>
+    /// Axis=Day groups rows by local calendar day. This test spans a
+    /// two-day UTC window with clearly-separated panel timestamps
+    /// and asserts one row per day, sorted descending by defect
+    /// count (higher-defect day ranks first).
+    /// </summary>
+    [Fact]
+    public async Task DayAxis_BucketsRowsByCalendarDay()
+    {
+        var window = new DateRange(
+            new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 3, 3, 0, 0, 0, TimeSpan.Zero));
+        var day1 = (int)window.StartEpochSeconds + 3600;          // 01:00 UTC on day 1
+        var day2 = (int)window.StartEpochSeconds + 86400 + 3600;  // 01:00 UTC on day 2
+
+        var objects = new List<TestedObjectRow>();
+        // Day 1: 5 defective + 5 clean
+        for (var i = 0; i < 5; i++)
+        {
+            objects.Add(Obj(machineId: 1, date: day1 + i, objectId: 1_000 + i,
+                objectTypeId: ComponentType, errorTable: BitObjectMissing, errorTableAr: BitObjectMissing));
+        }
+        for (var i = 0; i < 5; i++)
+        {
+            objects.Add(Obj(machineId: 1, date: day1 + 10 + i, objectId: 2_000 + i,
+                objectTypeId: ComponentType, errorTable: 0, errorTableAr: 0));
+        }
+        // Day 2: 2 defective + 8 clean
+        for (var i = 0; i < 2; i++)
+        {
+            objects.Add(Obj(machineId: 1, date: day2 + i, objectId: 3_000 + i,
+                objectTypeId: ComponentType, errorTable: BitObjectMissing, errorTableAr: BitObjectMissing));
+        }
+        for (var i = 0; i < 8; i++)
+        {
+            objects.Add(Obj(machineId: 1, date: day2 + 10 + i, objectId: 4_000 + i,
+                objectTypeId: ComponentType, errorTable: 0, errorTableAr: 0));
+        }
+
+        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var filter = new ParetoFilter(
+            window,
+            ParetoAxis.Day,
+            SiteTimeZone: TimeZoneInfo.Utc);
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.Equal(5L, result.Rows[0].DefectCount);
+        Assert.Equal("2026-03-01", result.Rows[0].GroupKey);
+        Assert.Equal(2L, result.Rows[1].DefectCount);
+        Assert.Equal("2026-03-02", result.Rows[1].GroupKey);
+        SnapshotAssert.Match(result, "Pareto_DayAxis");
+    }
+
+    /// <summary>
+    /// Axis=Shift buckets rows into a 3-shift schedule (08:00,
+    /// 16:00, 00:00 UTC). Rows land in the shift whose half-open
+    /// window contains their timestamp.
+    /// </summary>
+    [Fact]
+    public async Task ShiftAxis_BucketsRowsByShiftDefinition()
+    {
+        var window = new DateRange(
+            new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 3, 2, 0, 0, 0, TimeSpan.Zero));
+
+        // UTC epoch for 2026-03-01T00:00Z:
+        var baseEpoch = (int)window.StartEpochSeconds;
+        var shift1Time = baseEpoch + (10 * 3600); // 10:00Z â†’ Shift starting 08:00
+        var shift2Time = baseEpoch + (18 * 3600); // 18:00Z â†’ Shift starting 16:00
+        var shift3Time = baseEpoch + (2 * 3600);  // 02:00Z â†’ Shift starting 00:00
+
+        var objects = new List<TestedObjectRow>
+        {
+            Obj(1, shift1Time, 1, ComponentType, BitObjectMissing, BitObjectMissing),
+            Obj(1, shift1Time + 60, 2, ComponentType, BitObjectMissing, BitObjectMissing),
+            Obj(1, shift2Time, 3, ComponentType, BitObjectMissing, BitObjectMissing),
+            Obj(1, shift3Time, 4, ComponentType, 0, 0),
+        };
+        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var shifts = ShiftDefinition.FromStarts(
+            new[] { new TimeOnly(8, 0), new TimeOnly(16, 0), new TimeOnly(0, 0) });
+
+        var filter = new ParetoFilter(
+            window,
+            ParetoAxis.Shift,
+            SiteTimeZone: TimeZoneInfo.Utc,
+            Shifts: shifts);
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        // Two shifts have defects; the 00:00 shift only has a clean
+        // opportunity so it still shows up (opportunity counted).
+        Assert.Contains(result.Rows, r => r.DefectCount == 2);
+        Assert.Contains(result.Rows, r => r.DefectCount == 1);
+        SnapshotAssert.Match(result, "Pareto_ShiftAxis");
+    }
+
+    /// <summary>
+    /// Axis=Shift with no ShiftDefinition is a client error.
+    /// </summary>
+    [Fact]
+    public async Task ShiftAxis_WithoutShiftDefinition_Throws()
+    {
+        var source = new FakeAoiSource(_postReflow);
+        var filter = new ParetoFilter(_oneDay, ParetoAxis.Shift);
+
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await ParetoReport.Instance.RunAsync(
+                source, filter, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>
+    /// Weight=Dpmo flips the ranking compared to Weight=Count. Using
+    /// the boss-approved A vs B scenario: A has 10 defects on 100
+    /// opportunities (DPMO 100 000); B has 5 defects on 20
+    /// opportunities (DPMO 250 000). Volume ranks A first, DPMO
+    /// ranks B first.
+    /// </summary>
+    [Fact]
+    public async Task Weight_Dpmo_ReversesVolumeRanking()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var objects = new List<TestedObjectRow>();
+        // Product A: 100 opps, 10 defects
+        for (var i = 0; i < 100; i++)
+        {
+            var hasDefect = i < 10;
+            objects.Add(Obj(
+                machineId: 10, date: start + 60 + i, objectId: 10_000 + i,
+                objectTypeId: ComponentType,
+                errorTable: hasDefect ? BitObjectMissing : 0,
+                errorTableAr: hasDefect ? BitObjectMissing : 0,
+                productId: 100));
+        }
+        // Product B: 20 opps, 5 defects
+        for (var i = 0; i < 20; i++)
+        {
+            var hasDefect = i < 5;
+            objects.Add(Obj(
+                machineId: 10, date: start + 200 + i, objectId: 20_000 + i,
+                objectTypeId: ComponentType,
+                errorTable: hasDefect ? BitObjectMissing : 0,
+                errorTableAr: hasDefect ? BitObjectMissing : 0,
+                productId: 200));
+        }
+        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+
+        var byCount = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Product, Weight: ParetoWeight.Count),
+            TestContext.Current.CancellationToken);
+        var byDpmo = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Product, Weight: ParetoWeight.Dpmo),
+            TestContext.Current.CancellationToken);
+
+        // Count view: Product A first.
+        Assert.Equal("100", byCount.Rows[0].GroupKey);
+        Assert.Equal(10, byCount.Rows[0].WeightedScore);
+        // Dpmo view: Product B first with score 250 000; A second with 100 000.
+        Assert.Equal("200", byDpmo.Rows[0].GroupKey);
+        Assert.Equal(250_000d, byDpmo.Rows[0].WeightedScore);
+        Assert.Equal("100", byDpmo.Rows[1].GroupKey);
+        Assert.Equal(100_000d, byDpmo.Rows[1].WeightedScore);
+        SnapshotAssert.Match(byDpmo, "Pareto_Weight_Dpmo");
+    }
+
+    /// <summary>
+    /// Weight=Ppm is a display alias for Weight=Dpmo â€” the numeric
+    /// output must be byte-identical.
+    /// </summary>
+    [Fact]
+    public async Task Weight_Ppm_ProducesSameNumbersAsDpmo()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var objects = new List<TestedObjectRow>();
+        for (var i = 0; i < 100; i++)
+        {
+            var hasDefect = i < 10;
+            objects.Add(Obj(
+                machineId: 10, date: start + 60 + i, objectId: 10_000 + i,
+                objectTypeId: ComponentType,
+                errorTable: hasDefect ? BitObjectMissing : 0,
+                errorTableAr: hasDefect ? BitObjectMissing : 0,
+                productId: 100));
+        }
+        for (var i = 0; i < 20; i++)
+        {
+            var hasDefect = i < 5;
+            objects.Add(Obj(
+                machineId: 10, date: start + 200 + i, objectId: 20_000 + i,
+                objectTypeId: ComponentType,
+                errorTable: hasDefect ? BitObjectMissing : 0,
+                errorTableAr: hasDefect ? BitObjectMissing : 0,
+                productId: 200));
+        }
+        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+
+        var byDpmo = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Product, Weight: ParetoWeight.Dpmo),
+            TestContext.Current.CancellationToken);
+        var byPpm = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Product, Weight: ParetoWeight.Ppm),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(byDpmo.Rows.Count, byPpm.Rows.Count);
+        for (var i = 0; i < byDpmo.Rows.Count; i++)
+        {
+            Assert.Equal(byDpmo.Rows[i].GroupKey, byPpm.Rows[i].GroupKey);
+            Assert.Equal(byDpmo.Rows[i].WeightedScore, byPpm.Rows[i].WeightedScore);
+            Assert.Equal(byDpmo.Rows[i].DpmoPpm, byPpm.Rows[i].DpmoPpm);
+        }
+    }
 }
+

@@ -39,6 +39,9 @@ public static partial class ReportEndpoints
             .WithTags("Reports")
             .RequireAuthorization();
 
+        group.MapGet("/home", ListHomeReportsAsync)
+            .WithName("ReportsHome");
+
         group.MapGet("/panel-yield", RunPanelYieldAsync)
             .WithName("ReportsPanelYield");
 
@@ -66,6 +69,15 @@ public static partial class ReportEndpoints
         group.MapGet("/pareto/export.xlsx", ExportParetoXlsxAsync)
             .WithName("ReportsParetoExportXlsx");
 
+        group.MapGet("/deviation", RunDeviationAsync)
+            .WithName("ReportsDeviation");
+
+        group.MapGet("/trend", RunTrendAsync)
+            .WithName("ReportsTrend");
+
+        MapReportPdfEndpoints(group);
+        MapReportExportEndpoints(group);
+
         return routes;
     }
 
@@ -80,7 +92,6 @@ public static partial class ReportEndpoints
     /// <param name="endUtc">Window end, exclusive. Must be strictly after <paramref name="startUtc"/>.</param>
     /// <param name="machineIds">Optional comma-separated list of machine ids to include.</param>
     /// <param name="productIds">Optional comma-separated list of product ids to include.</param>
-    /// <param name="recipeIds">Optional comma-separated list of recipe ids to include.</param>
     /// <param name="onlyLastInspection">
     /// When <c>true</c> (default), restrict to each panel's latest inspection
     /// on sources that support <see cref="Capabilities.IsLastInspectionFilter"/>.
@@ -94,14 +105,13 @@ public static partial class ReportEndpoints
         string? endUtc,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
         var built = TryBuildPanelYieldRequest(
-            sourceId, startUtc, endUtc, machineIds, productIds, recipeIds,
+            sourceId, startUtc, endUtc, machineIds, productIds,
             onlyLastInspection, sources);
         if (built.Error is not null)
         {
@@ -136,7 +146,6 @@ public static partial class ReportEndpoints
         string? endUtc,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
@@ -145,7 +154,7 @@ public static partial class ReportEndpoints
         ArgumentNullException.ThrowIfNull(context);
 
         var built = TryBuildPanelYieldRequest(
-            sourceId, startUtc, endUtc, machineIds, productIds, recipeIds,
+            sourceId, startUtc, endUtc, machineIds, productIds,
             onlyLastInspection, sources);
         if (built.Error is not null)
         {
@@ -249,7 +258,6 @@ public static partial class ReportEndpoints
         string? endUtc,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
@@ -258,7 +266,7 @@ public static partial class ReportEndpoints
         ArgumentNullException.ThrowIfNull(context);
 
         var built = TryBuildPanelYieldRequest(
-            sourceId, startUtc, endUtc, machineIds, productIds, recipeIds,
+            sourceId, startUtc, endUtc, machineIds, productIds,
             onlyLastInspection, sources);
         if (built.Error is not null)
         {
@@ -406,7 +414,6 @@ public static partial class ReportEndpoints
         string? endUtc,
         string? machineIds,
         string? productIds,
-        string? recipeIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources)
     {
@@ -465,7 +472,6 @@ public static partial class ReportEndpoints
             Window: window,
             MachineIds: ParseIntList(machineIds),
             ProductIds: ParseIntList(productIds),
-            RecipeIds: ParseIntList(recipeIds),
             OnlyLastInspection: onlyLastInspection ?? true);
 
         return (source, filter, null);

@@ -85,7 +85,6 @@ public sealed class DpmoTableReport : IReport<DpmoTableFilter, DpmoTableResult>
             Window = filter.Window,
             MachineIds = filter.MachineIds,
             ProductIds = filter.ProductIds,
-            RecipeIds = filter.RecipeIds,
         };
 
         await foreach (var obj in source.StreamTestedObjectsAsync(query, cancellationToken).ConfigureAwait(false))

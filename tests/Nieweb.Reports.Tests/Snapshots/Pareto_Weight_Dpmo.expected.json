@@ -1,0 +1,60 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "PinLevel, IsLastInspectionFilter, BarcodeProductView"
+  },
+  "window": {
+    "startUtc": "2026-01-01T00:00:00+00:00",
+    "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+    "startEpochSeconds": 1767225600,
+    "endEpochSecondsExclusive": 1767312000,
+    "duration": "1.00:00:00"
+  },
+  "axis": "Product",
+  "numerator": "Real",
+  "opportunity": "All",
+  "weight": "Dpmo",
+  "appliedFilters": {
+    "machineIds": [],
+    "productIds": [],
+    "defectBits": [],
+    "topologies": [],
+    "partNumbers": [],
+    "jedecNames": []
+  },
+  "overall": {
+    "testedObjectCount": 120,
+    "opportunityCount": 120,
+    "defectBitCount": 15,
+    "dpmoPpm": 125000
+  },
+  "rows": [
+    {
+      "groupKey": "200",
+      "groupName": null,
+      "defectCount": 5,
+      "weightedScore": 250000,
+      "opportunityCount": 20,
+      "opportunitySharePercent": 16.666666666666668,
+      "dpmoPpm": 250000,
+      "defectSharePercent": 33.333333333333336,
+      "cumulativePercent": 33.333333333333336,
+      "isVitalFew": true
+    },
+    {
+      "groupKey": "100",
+      "groupName": null,
+      "defectCount": 10,
+      "weightedScore": 100000,
+      "opportunityCount": 100,
+      "opportunitySharePercent": 83.33333333333333,
+      "dpmoPpm": 100000,
+      "defectSharePercent": 66.66666666666667,
+      "cumulativePercent": 100,
+      "isVitalFew": true
+    }
+  ],
+  "othersBucket": null
+}

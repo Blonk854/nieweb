@@ -71,7 +71,6 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
                 Window = filter.Window,
                 MachineIds = filter.MachineIds,
                 ProductIds = filter.ProductIds,
-                RecipeIds = filter.RecipeIds,
                 OnlyLastInspection = filter.OnlyLastInspection,
             };
             await foreach (var panel in source.StreamPanelsAsync(panelQuery, cancellationToken).ConfigureAwait(false))
@@ -93,7 +92,6 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
                 Window = filter.Window,
                 MachineIds = filter.MachineIds,
                 ProductIds = filter.ProductIds,
-                RecipeIds = filter.RecipeIds,
             };
             await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
             {

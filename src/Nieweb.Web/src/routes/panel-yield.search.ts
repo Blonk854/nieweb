@@ -4,7 +4,7 @@ import type { SourceInfo } from "../api/sources";
  * Filter state for the Panel Yield by Line report. Every field is
  * URL-serialised via TanStack Router's search-params (see router.ts's
  * validateSearch on the panel-yield route) so the whole report state -
- * source, window, machine/product/recipe selection, last-inspection
+ * source, window, machine/product selection, last-inspection
  * toggle - can be shared, bookmarked, and reloaded verbatim.
  */
 export type PanelYieldSearch = {
@@ -18,8 +18,6 @@ export type PanelYieldSearch = {
     machineIds?: number[];
     /** Integer product ids. */
     productIds?: number[];
-    /** Integer recipe ids. */
-    recipeIds?: number[];
     /** Post-reflow sources only; ignored otherwise. */
     onlyLastInspection?: boolean;
 };
@@ -40,9 +38,6 @@ export function toApiQuery(search: PanelYieldSearch): Record<string, string> {
     if (search.productIds && search.productIds.length > 0) {
         out.productIds = search.productIds.join(",");
     }
-    if (search.recipeIds && search.recipeIds.length > 0) {
-        out.recipeIds = search.recipeIds.join(",");
-    }
     if (typeof search.onlyLastInspection === "boolean") {
         out.onlyLastInspection = String(search.onlyLastInspection);
     }
@@ -61,7 +56,6 @@ export function validatePanelYieldSearch(raw: Record<string, unknown>): PanelYie
         endUtc: toStringOrUndef(raw.endUtc),
         machineIds: toNumberArray(raw.machineIds),
         productIds: toNumberArray(raw.productIds),
-        recipeIds: toNumberArray(raw.recipeIds),
         onlyLastInspection: toBoolOrUndef(raw.onlyLastInspection),
     };
 }

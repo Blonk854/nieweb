@@ -1,4 +1,5 @@
 using Nieweb.DataSources;
+using Nieweb.Reports.Common;
 using Nieweb.Reports.Common.Defects;
 
 namespace Nieweb.Reports;
@@ -16,8 +17,7 @@ namespace Nieweb.Reports;
 /// The report streams
 /// <see cref="IAoiSource.StreamTestedObjectsAsync"/> once, applying
 /// DB-level filters (<see cref="ParetoFilter.MachineIds"/>,
-/// <see cref="ParetoFilter.ProductIds"/>,
-/// <see cref="ParetoFilter.RecipeIds"/>) as query parameters and the
+/// <see cref="ParetoFilter.ProductIds"/>) as query parameters and the
 /// in-memory narrowing filters
 /// (<see cref="ParetoFilter.DefectBits"/>,
 /// <see cref="ParetoFilter.Topologies"/>,
@@ -65,12 +65,6 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(filter);
 
-        if (filter.Weight != ParetoWeight.Count)
-        {
-            throw new NotSupportedException(
-                $"ParetoWeight.{filter.Weight} is not implemented yet. " +
-                "Only ParetoWeight.Count (absolute defect count, boss-approved volume weighting) ships in TR3.");
-        }
         if (filter.TopN is int n and <= 0)
         {
             throw new ArgumentOutOfRangeException(
@@ -83,6 +77,41 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 filter.VitalFewThresholdPercent,
                 "VitalFewThresholdPercent must be between 0 and 100.");
         }
+        if (!Enum.IsDefined(filter.Weight))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(filter), filter.Weight, "Unknown ParetoWeight.");
+        }
+        if (filter.Axis == ParetoAxis.Shift && filter.Shifts is null)
+        {
+            throw new ArgumentException(
+                "ParetoAxis.Shift requires ParetoFilter.Shifts to be set.",
+                nameof(filter));
+        }
+
+        // Pre-decompose the window into buckets when the axis is
+        // time-based. Buckets are contiguous inside the window, so a
+        // binary search on StartEpochSeconds routes every incoming
+        // row to at most one bucket in O(log n).
+        var timeZone = filter.SiteTimeZone ?? TimeZoneInfo.Utc;
+        var timeBuckets = filter.Axis switch
+        {
+            ParetoAxis.Day => TimeBucketer.Decompose(
+                filter.Window.StartUtc,
+                filter.Window.EndUtcExclusive,
+                TimeBucket.Day,
+                timeZone),
+            ParetoAxis.Shift => TimeBucketer.Decompose(
+                filter.Window.StartUtc,
+                filter.Window.EndUtcExclusive,
+                TimeBucket.Shift,
+                timeZone,
+                filter.Shifts),
+            _ => null,
+        };
+        var bucketStartEpochs = timeBuckets is null
+            ? null
+            : timeBuckets.Select(b => b.StartUtc.ToUnixTimeSeconds()).ToArray();
 
         var overall = new Accumulator();
         var perGroup = new Dictionary<GroupKey, Accumulator>();
@@ -104,7 +133,6 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             Window = filter.Window,
             MachineIds = filter.MachineIds,
             ProductIds = filter.ProductIds,
-            RecipeIds = filter.RecipeIds,
         };
 
         await foreach (var obj in source.StreamTestedObjectsAsync(query, cancellationToken).ConfigureAwait(false))
@@ -166,7 +194,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 continue;
             }
 
-            AddToGroups(perGroup, filter, obj, isOpportunity, defectBits);
+            AddToGroups(perGroup, filter, obj, isOpportunity, defectBits, timeBuckets, bucketStartEpochs);
         }
 
         // Resolve display names only for axes that need them.
@@ -241,12 +269,14 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             }
         }
 
-        // Step 2: sort descending by DefectCount (== WeightedScore
-        // under ParetoWeight.Count), break ties on GroupKey for stable
-        // snapshots.
+        // Step 2: sort descending by WeightedScore for the active
+        // weight. Under ParetoWeight.Count the score is DefectCount
+        // (volume-weighted, boss default); under Dpmo / Ppm it is
+        // 1e6 * defect / opportunity (rate-weighted). Ties break on
+        // GroupKey for stable snapshots.
         unranked.Sort((a, b) =>
         {
-            var byScore = b.DefectCount.CompareTo(a.DefectCount);
+            var byScore = ScoreFor(filter.Weight, b).CompareTo(ScoreFor(filter.Weight, a));
             return byScore != 0 ? byScore : StringComparer.Ordinal.Compare(a.Key, b.Key);
         });
 
@@ -293,7 +323,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 GroupKey: u.Key,
                 GroupName: u.Name,
                 DefectCount: u.DefectCount,
-                WeightedScore: u.DefectCount,
+                WeightedScore: ScoreFor(filter.Weight, u),
                 OpportunityCount: u.OpportunityCount,
                 OpportunitySharePercent: oppSharePct,
                 DpmoPpm: dpmo,
@@ -322,7 +352,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 GroupKey: null,
                 GroupName: "Others",
                 DefectCount: othersDefects,
-                WeightedScore: othersDefects,
+                WeightedScore: ScoreFor(filter.Weight, new Unranked(null, null, othersDefects, othersOpps)),
                 OpportunityCount: othersOpps,
                 OpportunitySharePercent: othersOppSharePct,
                 DpmoPpm: othersDpmo,
@@ -348,7 +378,9 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 => productNames.TryGetValue(pid, out var name) ? name : null,
             ParetoAxis.ReferenceDesignator
                 or ParetoAxis.PartNumber
-                or ParetoAxis.Jedec => key.StringValue,
+                or ParetoAxis.Jedec
+                or ParetoAxis.Day
+                or ParetoAxis.Shift => key.StringValue,
             _ => null,
         };
     }
@@ -366,7 +398,9 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         ParetoFilter filter,
         TestedObjectRow obj,
         bool isOpportunity,
-        int defectBits)
+        int defectBits,
+        IReadOnlyList<TimeBucketRange>? timeBuckets,
+        long[]? bucketStartEpochs)
     {
         switch (filter.Axis)
         {
@@ -385,6 +419,22 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             case ParetoAxis.Jedec:
                 Bump(perGroup, GroupKey.String(obj.JedecName), isOpportunity, defectBits);
                 break;
+            case ParetoAxis.Day:
+            case ParetoAxis.Shift:
+            {
+                var bucket = FindBucket(timeBuckets!, bucketStartEpochs!, obj.PanelNumericDate);
+                if (bucket is null)
+                {
+                    // Row is outside every decomposed bucket. This
+                    // should not happen once the DB-level window
+                    // filter is honoured, but skipping is the safe
+                    // fallback — count-only KPIs stay correct
+                    // because the row is already tallied in Overall.
+                    return;
+                }
+                Bump(perGroup, GroupKey.String(bucket.Label), isOpportunity, defectBits);
+                break;
+            }
             case ParetoAxis.Defect:
                 // Handled inline in RunAsync so the denominator can
                 // be the overall opportunity count.
@@ -394,6 +444,34 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 throw new ArgumentOutOfRangeException(
                     nameof(filter), filter.Axis, "Unknown ParetoAxis.");
         }
+    }
+
+    /// <summary>
+    /// Binary search: returns the bucket whose half-open
+    /// [StartEpochSeconds, next-bucket start) contains
+    /// <paramref name="panelNumericDate"/>, or <c>null</c> when the
+    /// timestamp falls outside the last bucket's exclusive end.
+    /// </summary>
+    private static TimeBucketRange? FindBucket(
+        IReadOnlyList<TimeBucketRange> buckets,
+        long[] bucketStartEpochs,
+        int panelNumericDate)
+    {
+        long panelEpoch = panelNumericDate;
+        var idx = Array.BinarySearch(bucketStartEpochs, panelEpoch);
+        if (idx < 0)
+        {
+            // Array.BinarySearch returns bitwise complement of the
+            // insertion point. Walk one step back to the bucket that
+            // actually contains the panel timestamp.
+            idx = ~idx - 1;
+            if (idx < 0)
+            {
+                return null;
+            }
+        }
+        var bucket = buckets[idx];
+        return panelEpoch < bucket.EndUtcExclusive.ToUnixTimeSeconds() ? bucket : null;
     }
 
     private static void Bump(
@@ -409,6 +487,24 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         }
         bucket.Add(isOpportunity, defectBits);
     }
+
+    /// <summary>
+    /// Bar-height metric for the active <see cref="ParetoWeight"/>.
+    /// <see cref="ParetoWeight.Count"/> returns the absolute defect
+    /// count (volume weight); <see cref="ParetoWeight.Dpmo"/> and
+    /// <see cref="ParetoWeight.Ppm"/> return
+    /// <c>1e6 · defect count / opportunity count</c> (rate weight,
+    /// zero when there are no opportunities).
+    /// </summary>
+    private static double ScoreFor(ParetoWeight weight, Unranked row) => weight switch
+    {
+        ParetoWeight.Count => row.DefectCount,
+        ParetoWeight.Dpmo or ParetoWeight.Ppm
+            => row.OpportunityCount == 0
+                ? 0d
+                : 1_000_000d * row.DefectCount / row.OpportunityCount,
+        _ => row.DefectCount,
+    };
 
     private static long BuildDefectBitMask(IReadOnlyCollection<int>? bits)
     {
@@ -449,7 +545,6 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         return new ParetoAppliedFilters(
             MachineIds: filter.MachineIds is null ? [] : [.. filter.MachineIds],
             ProductIds: filter.ProductIds is null ? [] : [.. filter.ProductIds],
-            RecipeIds: filter.RecipeIds is null ? [] : [.. filter.RecipeIds],
             DefectBits: filter.DefectBits is null ? [] : [.. filter.DefectBits],
             Topologies: filter.Topologies is null ? [] : [.. filter.Topologies],
             PartNumbers: filter.PartNumbers is null ? [] : [.. filter.PartNumbers],

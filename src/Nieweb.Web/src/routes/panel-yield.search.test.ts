@@ -15,7 +15,6 @@ describe("validatePanelYieldSearch", () => {
             endUtc: undefined,
             machineIds: undefined,
             productIds: undefined,
-            recipeIds: undefined,
             onlyLastInspection: undefined,
         });
     });
@@ -27,7 +26,6 @@ describe("validatePanelYieldSearch", () => {
             endUtc: "2026-07-01T00:00:00Z",
             machineIds: "1,2,3",
             productIds: "7",
-            recipeIds: "42,7",
             onlyLastInspection: "true",
         });
         expect(s.sourceId).toBe("postreflow");
@@ -35,7 +33,6 @@ describe("validatePanelYieldSearch", () => {
         expect(s.endUtc).toBe("2026-07-01T00:00:00Z");
         expect(s.machineIds).toEqual([1, 2, 3]);
         expect(s.productIds).toEqual([7]);
-        expect(s.recipeIds).toEqual([42, 7]);
         expect(s.onlyLastInspection).toBe(true);
     });
 
@@ -92,7 +89,6 @@ describe("toApiQuery", () => {
                 endUtc: "2026-07-01T00:00:00.000Z",
                 machineIds: [1, 2],
                 productIds: [7],
-                recipeIds: [42],
                 onlyLastInspection: false,
             }),
         ).toEqual({
@@ -101,7 +97,6 @@ describe("toApiQuery", () => {
             endUtc: "2026-07-01T00:00:00.000Z",
             machineIds: "1,2",
             productIds: "7",
-            recipeIds: "42",
             onlyLastInspection: "false",
         });
     });

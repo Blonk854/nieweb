@@ -27,14 +27,6 @@ export type ProductOption = {
     revision: string | null;
 };
 
-/** `/api/sources/{id}/recipes` response item. */
-export type RecipeOption = {
-    id: number;
-    name: string;
-    productId: number;
-    variantName: string | null;
-};
-
 export function fetchSources(): Promise<SourceInfo[]> {
     return apiFetch<SourceInfo[]>("/api/sources");
 }
@@ -48,11 +40,5 @@ export function fetchMachines(sourceId: string): Promise<MachineOption[]> {
 export function fetchProducts(sourceId: string): Promise<ProductOption[]> {
     return apiFetch<ProductOption[]>(
         `/api/sources/${encodeURIComponent(sourceId)}/products`,
-    );
-}
-
-export function fetchRecipes(sourceId: string): Promise<RecipeOption[]> {
-    return apiFetch<RecipeOption[]>(
-        `/api/sources/${encodeURIComponent(sourceId)}/recipes`,
     );
 }
