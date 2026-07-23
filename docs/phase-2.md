@@ -251,9 +251,16 @@ time — sequence matters more than clock estimates.
 **Progress snapshot (2026-07-21).** Report infra (§7.1) is fully
 landed. Table reports (§7.2) are landed on the server + export
 layers; the frontend and the #18915 regression are the remaining
-gap. Chart reports (§7.3) have the Pareto flavour shipped end-to-end;
-Deviation and Trend charts are not started. Nothing else in §7.4 –
-§7.11 has code yet.
+gap. Chart reports (§7.3): Pareto (`CR1`), Deviation (`CR2`) and
+Trend (`CR3`) are all shipped end-to-end on the server + endpoint
+layers — the shared time-decomposition selector (`F12`) and the
+per-chart frontend tiles are the remaining gap. Report composition
+(§7.6): `RC1` is landed — entities, migrations, `IReports`
+service and admin CRUD are all in place, and `ReportEntity`
+collapses Vieweb's six report-entity subclasses into a
+`(TileType, ConfigJson)` pair so RC2's editor can pick from a
+data-driven tile catalogue. RC2 (SPA editor) is the next open
+item in §7.6. Nothing else in §7.4 – §7.11 has code yet.
 
 ### 7.1 Report infrastructure (M)
 
@@ -279,35 +286,105 @@ Deviation and Trend charts are not started. Nothing else in §7.4 –
   error-type / after-diagnostic detail columns). Uses the
   `Error_Table` / `Error_Table_AR` bit-decoding described in the
   `vit-aoi-database` skill. Endpoints wired in `5bc39a6`.
-- `TR3` 🟡 partial `a01475c` — CSV + XLSX exports for DPMO and Pareto
-  endpoints landed. **Still open:** PDF export for every table
-  entity, and the **#18915 regression test** on a >250-column DPMO
-  table (no test currently asserts the cap is gone).
+- `TR3` ✅ done — CSV + XLSX exports for every table entity
+  (Panel Yield, DPMO, Pareto) plus PDF export via QuestPDF 2025.1.0
+  Community in the new `Nieweb.Pdf` project. Three PDF renderers
+  (`PanelYieldPdf`, `DpmoTablePdf`, `ParetoPdf`) share a header
+  band (Nieweb + BSS Green Premium logos, source, window,
+  filters). Three endpoints ship under
+  `/api/reports/{report}/export.pdf`; the SPA exposes them as
+  "Export PDF" anchors on the panel-yield and Pareto routes with
+  en / fr i18n keys. **#18915 regression** covered by dedicated
+  300-column CSV + XLSX round-trip tests. All 149 API tests +
+  152 vitest tests green.
 
 ### 7.3 Chart reports (M)
 
-- `CR1` 🟡 partial `03a544e` — **Pareto** (Error) chart shipped as a
-  SPA page (`/report/pareto`) with histogram + cumulative-percent
-  overlay + drill-down table, plus the CSV/XLSX exports from `TR3`.
-  **Still open:** day / shift / top-10 grouping selector, DPMO / PPM
-  / real-value scale toggles (the current chart is fixed to the
-  post-review "real defects" numerator).
-- `CR2` ⬜ open — **Deviation** chart on X / Y / Z / surface / theta
+- `CR1` ✅ done — **Pareto** (Error) chart shipped as a SPA page
+  (`/report/pareto`) with histogram + cumulative-percent overlay +
+  drill-down table + CSV / XLSX / PDF exports. Extended with
+  `ParetoAxis.Day` and `ParetoAxis.Shift` (bucketing via
+  `TimeBucketer` with configurable `SiteTimeZone` / `Shifts`) and
+  `ParetoWeight.Dpmo` / `ParetoWeight.Ppm` scale toggles (rate-view
+  ranking; `Ppm` is a display alias for `Dpmo`). The `Numerator`
+  toggle (`Aoi` / `Real` / `Dummy`) has always been wired and stays
+  the boss-approved default. Top-N cap and vital-few threshold
+  round out the selector. Snapshot-tested; 123 Reports tests + 149
+  API tests + 152 vitest all green.
+- `CR2` ✅ done — **Deviation** chart on X / Y / Z / surface / theta
   with `±tolerance`, average, `±3σ` overlays; tolerance intervals
-  sourced from `AppParameter`.
-- `CR3` ⬜ open — **Trend** chart with time-bucket decomposition;
-  supports Cp, Cpk, DPMO\*, FPY\*, panel vs board. Reuse `RI2`
-  bucketing.
+  sourced from `AppParameter`. Extends `TestedObjectRow` with five
+  trailing nullable `Delta_*` columns (back-compatible with existing
+  call sites) and the `Nieweb.DataSources.Sql` polymorphic mapper
+  reads them via a new `ReadNullableDouble` helper; both are covered
+  in `MapperColumnTypeTests`. The report itself
+  (`Nieweb.Reports.DeviationChartReport`) uses Welford's online
+  algorithm for mean / sample-stddev (constant memory regardless of
+  window size), a fixed uniform-bin histogram over
+  `[Min, Max]` (unit-width fallback when `Min == Max`, tolerance
+  envelope fallback when count == 0), and out-of-tolerance counting
+  with symmetric or one-sided bounds. `DeviationFilter` accepts an
+  explicit `Lower/UpperTolerance` pair; when both are omitted the
+  endpoint auto-resolves them from `AppParameter`
+  (`tolerance.{component|paste}.{itx|ity}` keys, mm × 1000 ÷ 2 →
+  ±µm envelope) for `(DeltaX|DeltaY) × (Components|Paste)`. Fake
+  source seeds deterministic deviations via a Marsaglia-polar
+  transform over an LCG so the histogram is reproducible across
+  runs. Endpoint at `GET /api/reports/deviation` reuses the shared
+  `TryBuildBaseRequest` / `TryParseEnumAlias` helpers and emits
+  event id 3401. Because the report may return `NaN` for
+  `mean` / `±3σ` on empty windows, the API JSON options now include
+  `AllowNamedFloatingPointLiterals`. 10 new `DeviationChartReport`
+  unit tests + 10 new `Deviation` endpoint tests + 1 new mapper
+  round-trip test (total 382, was 361).
+- `CR3` ✅ done — **Trend** chart with time-bucket decomposition;
+  supports Cp, Cpk, DPMO\*, FPY\*, panel vs board vs defect counts.
+  New `TrendChartReport` (in `Nieweb.Reports`) streams panels only
+  when a panel-shaped metric is requested (FPY / PanelCount), streams
+  cards only for BoardCount, and streams tested objects for DPMO /
+  DefectCount / Cp / Cpk — so a caller asking for only PanelCount
+  never touches `TESTED_OBJECT`. Bucket routing uses the same
+  `Array.BinarySearch` + upper-bound trick as `ParetoReport`; each
+  bucket accumulates panels/cards/opportunities/defects independently
+  and Welford (sample stddev) for the deviation axis when Cp/Cpk are
+  requested. Cp requires both spec limits; Cpk falls back to the
+  one-sided ratio when only one limit is set. Requested metric list
+  is deduped in insertion order so `metrics=fpy-aoi,dpmo-real,fpy-aoi`
+  produces two `Series` entries. Endpoint at `GET /api/reports/trend`
+  reuses `TryBuildBaseRequest`, `TryParseEnumAlias`, `TryParseTimeZone`
+  and `TryParseShifts` from the Pareto endpoint; when `bucket=shift`
+  and no explicit `shifts=` query is supplied, the endpoint falls
+  back to `IShifts.BuildShiftDefinitionAsync` (returns 400 only when
+  the site cycle is also unconfigured). LoggerMessage event id 3402.
+  12 new `TrendChartReport` unit tests + 9 new `Trend` endpoint tests
+  (total 403, was 382).
 
 ### 7.4 Process Capability (M)
 
-- `PC1` ⬜ open — Process Capability dashboard: per production line
-  grid of DPMO, FPY_Diag, Machine efficiency, Avg cycle duration,
-  Nb inspections. The Cp/Cpk compo & paste rows render a "MSA source
-  not configured" placeholder until the dedicated MSA DB is
-  commissioned (see §10 Q1). Depends on `PL1`.
-- `PL1` ⬜ open — Production line + machine grouping + shift
-  breakpoints, EF entities + admin CRUD.
+> `PC1` (Process Capability dashboard) moved to §7.7 **Optional
+> (post-MVP)** on 2026-07-21 — deferred until explicitly requested
+> by a design partner. The infrastructure it depended on (`PL1`
+> production lines + shifts) is still delivered here since Pareto,
+> Trend and future dashboards use `IShifts.BuildShiftDefinitionAsync()`.
+
+- `PL1` ✅ done — Production line + machine grouping + shift
+  breakpoints, EF entities + admin CRUD. Ships three new internal-DB
+  entities (`ProductionLine`, `ProductionLineMachine`, `ShiftBreakpoint`)
+  plus `Nieweb.Data.Migrations.{Sqlite,Npgsql}` migrations. A physical
+  machine belongs to at most one line at a time (unique index on
+  `(SourceId, MachineId)`, mirroring Vieweb's nullable
+  `machine.PRODUCTION_LINE_ID` FK). Two admin-role endpoint groups
+  under `/api/admin/production-lines/*` (list / create / update /
+  delete + `/machines` sub-resource) and `/api/admin/shifts`
+  (list + PUT-replace the whole cycle atomically, matching Vieweb's
+  §2.4.4 UX). Every write emits an audit row
+  (`production.line.{created,updated,deleted}`,
+  `production.line.machine.{added,removed}`, `shifts.replaced`).
+  `IShifts.BuildShiftDefinitionAsync()` returns a `ShiftDefinition?`
+  consumable by `TimeBucketer` so CR1 Pareto / CR3 Trend / PC1
+  dashboards can pull the site-wide cycle without going through the
+  URL. Tests: 12 for production lines + 10 for shifts = 171/171
+  API green (was 149).
 
 > **MSA report deferred.** The `templatemsa` entity (Cp / Cpk / EV /
 > %EV / GR&R on a dedicated empty-panel DB) is not delivered in
@@ -316,35 +393,653 @@ Deviation and Trend charts are not started. Nothing else in §7.4 –
 > and the corresponding admin-parameter rows.
 ### 7.5 Traceability (M)
 
-- `TC1` ⬜ open — Panel-level drill-down: panel → subpanel → tested
-  object → pin (post-reflow / `IPinLevelSource` only).
-- `TC2` ⬜ open — Per-board drill-down (both DBs).
-- `TC3` ⬜ open — Panel-bar-code lookup entry point on the home page
-  + saved-view integration.
+- `TC1` ✅ done — Panel-level drill-down: panel → subpanel → tested
+  object → pin (post-reflow / `IPinLevelSource` only). New
+  `Nieweb.Reports.Traceability` project exposes
+  `TraceabilityReport` with `GetPanelDetailAsync`,
+  `GetPanelDetailByBarcodeAsync`, `ListSubpanelsForPanelAsync`,
+  `GetSubpanelDetailAsync`, `ListTestedObjectsForSubpanelAsync`,
+  `GetTestedObjectDetailAsync`. `IAoiSource` gained four
+  drill-down methods (`GetPanelByIdAsync`,
+  `GetPanelByBarcodeAsync`, `ListCardsForPanelAsync`,
+  `ListTestedObjectsForSubpanelAsync`) and `IPinLevelSource`
+  gained `ListPinsForObjectAsync(long testedObjectId, ct)` — the
+  new `PinRow` record mirrors `dbo.PIN` (surrogate `Pin_Id`,
+  joined via `Tested_Object_Id`, not the composite key).
+  `HlyaoiSource` implements `IPinLevelSource`; `MeaoiSource`
+  deliberately does not (v4.3.1 lacks `PIN`/`PIN_MEASURE`). Five
+  endpoints ship under `/api/traceability/panels/{sourceId}/…`
+  (all `RequireAuthorization`); when the resolved source does
+  not implement `IPinLevelSource`, `TraceabilityTestedObject`
+  returns `PinsAvailable = false` and an empty pin list.
+  Covered by 12 unit tests (`TraceabilityReportTests`) + 10
+  endpoint tests (`TraceabilityEndpointsTests`). SPA
+  integration is deliberately deferred to TC3.
+- `TC2` ✅ done — Per-board drill-down (both DBs). New
+  `GET /api/traceability/boards/by-barcode?barcode=X` fans the
+  lookup across every configured `IAoiSource` and returns one
+  `BoardStageTrace` per source so the future SPA (TC3) can render
+  side-by-side tables — one per DB stage. `TraceabilityReport.GetBoardByBarcodeAsync`
+  wraps each source in per-stage try/catch so a single-DB outage
+  never crashes the whole payload (the failing stage's `Error`
+  field carries the message; other stages still return). Barcode
+  scanned on only one line (e.g. pre-reflow scanner missed the
+  serial number) is a first-class case: the other stage returns
+  `Panel = null`, `Cards = []`, no error, and the endpoint still
+  responds 200. Endpoint contract: 400 on missing/oversized (>64)
+  barcode, 404 only when every stage is empty *and* no errors,
+  otherwise 200 with a fixed stage list so clients can render a
+  stable column layout. `PinsAvailable` is echoed per stage as a
+  hint for the SPA to offer a "drill into pins" link that goes
+  through the existing TC1 tested-object endpoint — TC2 itself
+  never carries pin rows, keeping the response small. Covered by
+  6 new unit tests (`TraceabilityReportTests` — including a
+  `ThrowingAoiSource` stub proving error isolation) + 6 new
+  endpoint tests (`TraceabilityEndpointsTests` — including a
+  `PinlessAoiSource` shim so the pre-reflow stage correctly
+  reports `PinsAvailable = false`). SPA integration deferred to
+  TC3.
+- `TC3` ✅ done — Panel-bar-code lookup entry point on the home page
+  + saved-view integration. New SPA route `/traceability/board`
+  (validated by `validateTraceabilityBoardSearch` — a single
+  `barcode?: string` URL param, ≤64 chars, whitespace-trimmed; empty
+  URL renders an "enter a barcode above to start" empty state).
+  Component fetches TC2's `GET /api/traceability/boards/by-barcode`
+  and renders one `<StageCard>` per source side-by-side (`SimpleGrid
+  cols={{ base: 1, md: stages.length }}`); each stage shows
+  found/error/not-seen badges, the `PinsAvailable` capability, a
+  panel-meta strip (`Panel ID`, UTC timestamp, status, product,
+  recipe, machine, review flag) and a sub-panels table
+  (`cardIdOnPanel`, `cardStatus`, `nbOfTestedObject`,
+  `nbOfErrorObject`). Per-stage `Error` from TC2 renders as an
+  inline `<Alert color="red">` so a single-DB outage never blanks
+  the other stage — mirrors the TC2 server contract. Not-found
+  (404) surfaces as a yellow "Barcode not found" alert; other
+  errors surface as a red generic error alert.
+  Home page (`HomeRoute`) gains a prominent `<BarcodeLookupCard />`
+  above the sources card — a self-contained form component with
+  1..64-char client-side validation that navigates to
+  `/traceability/board?barcode=X`. Same shell nav gains a
+  `Board trace` `NavLink` (Tabler `IconBarcode`) between the report
+  routes and the admin section, with EN/FR i18n keys
+  (`nav.boardTrace`).
+  Saved-view integration reuses the generic
+  `<SavedViewsMenu<TraceabilityBoardSearch> reportKey="traceability-board" …>`
+  so users can bookmark frequently-checked barcodes (golden
+  samples, complaint boards) alongside their saved Pareto and
+  Panel-Yield views — no new API needed, the existing
+  `/api/saved-views` `filterJson` is just the `{barcode}` object.
+  New pieces: `src/Nieweb.Web/src/api/traceability.ts` (typed
+  mirrors of every TC1/TC2 DTO plus `fetchBoardByBarcode` and TC1
+  drill-down helpers already staged for TC5),
+  `src/Nieweb.Web/src/routes/traceability-board.{tsx,search.ts}`,
+  `src/Nieweb.Web/src/components/BarcodeLookupCard.tsx`, and
+  bilingual `traceability.board.*` + `nav.boardTrace` bundle keys
+  (EN canonical, FR parity). Covered by 5 `BarcodeLookupCard` +
+  6 `TraceabilityBoardRoute` vitest tests (+11 total; suite now
+  204 tests, only the 2 pre-existing flaky admin-users timeouts
+  fail). Drill-in from a stage's sub-panel row into the
+  tested-object table is deliberately deferred to TC5 (TC3 only
+  exposes the summary).
+- `TC4` 🟡 in progress — Board-SVG asset pipeline. Prerequisite for TC5.
+  Each AOI machine (both pre- and post-reflow lines) generates and
+  stores a panel-layout SVG per product locally on the machine's
+  filesystem. The SVG is a full production artifact: it contains
+  the panel outline, each `<g class="sub-panel" index="N">` with
+  its geometry (matches `CARD_ID_ON_PANEL`), and one
+  `<g class="component" sub-panel-index="N" reference="U1"
+  topo="U1" transform="rotate(θ centroidX centroidY)" ...>` per
+  tested object. Coordinates are in micrometers (viewBox
+  ≈ `0 0 213360 124460`). Verified against
+  `docs/design/samples/panel-svg/HA010522401_*.svg` and
+  `HA013125002_*.svg`. Because both DBs share the CAD program the
+  post-reflow SVG is dimensionally identical to pre-reflow's, so
+  we only cache one file per product name. New pieces:
+  1. **Admin config page**: a per-machine list of
+     `{machineName, uncPath}` rows persisted in
+     `NiewebDbContext` (new entity `BoardSvgSource` +
+     Sqlite/Npgsql migration). Same audit-event pattern as PL1
+     (`board.svg.source.{added,updated,removed}`).
+  2. **Local cache directory**: configurable via
+     `appsettings.json` (`Nieweb:BoardSvgCacheDir`, default
+     `./data/board-svgs`). **Cache key is `productId`, not
+     `productName`** — symmetric top/bottom panels are two
+     separate `PRODUCT` rows in Superviseur, each with its own
+     SVG covering its subset of subpanels. Filename convention
+     `{productId}.svg`. Ingestion resolves machine-side filename
+     → productId via program metadata (not by parsing the
+     `_1st` / `_2nd` suffix, which is only run-order).
+  3. **Sync `IHostedService`**: polls every configured source at
+     a configurable interval (default 1 hour). For each unique
+     `ProductName` returned by
+     `IAoiSource.ListProductsAsync` across every configured
+     source, if the local cache is missing that product's SVG,
+     copy the newest matching file from any reachable machine
+     path. Never deletes local files (products may age out of
+     the DB but the historical SVG must remain). All copies
+     audited (`board.svg.synced`, `board.svg.sync.failed`).
+  4. **Admin "sync now" button** + status endpoint
+     (`GET /api/admin/board-svgs/status` returns cache-hit /
+     -miss list and last-sync timestamps per source).
+  5. **Read endpoint**:
+     `GET /api/board-svgs/{productName}` returns the cached SVG
+     with `ETag` (file mtime) and long `Cache-Control` (assets
+     are effectively immutable per product+recipe version). 404
+     if not yet synced.
+  6. **Read-only guarantee**: sync copies via a plain file
+     read + write; **never** shells to `robocopy /MIR` or
+     anything else that could delete on the source. Access via
+     UNC only — no SMB write scope.
+  > **Filename suffix `_1st`/`_2nd` clarified (2026-07-22)**: it
+  > is a runtime artefact indicating the order the operator ran
+  > the two programs — **not** a top/bottom side split. Some
+  > products are panelised symmetrically with alternating
+  > top-side / bottom-side subpanels, and each side gets its
+  > own inspection program (i.e. its own `PRODUCT` row). So the
+  > two files `HA010522401_1st.svg` and `_2nd.svg` belong to
+  > two different PRODUCTs, and each SVG contains only the
+  > subpanels its PRODUCT owns. No `?side=` query needed — the
+  > SPA navigates between siblings by picking the other PRODUCT.
+  >
+  > **Phase A ✅ shipped (2026-07-22)** — `BoardSvgSource`
+  > entity + `NiewebDbContext` registration + dual
+  > Sqlite/Npgsql migration (`BoardSvgSources`, unique index on
+  > `MachineName`, 1024-char UNC path, nullable
+  > `LastSyncedUtc`/`LastSyncErrorUtc`/`LastSyncError`) +
+  > `IBoardSvgSources`/`EfBoardSvgSources` repository (with
+  > sync-status helpers `RecordSyncSuccessAsync` /
+  > `RecordSyncFailureAsync` for Phase B) + admin CRUD under
+  > `/api/admin/board-svgs/sources` (list/get/create/update/
+  > delete, admin-role gated, audit via
+  > `board.svg.source.{added,updated,removed}`) + 12 endpoint
+  > tests. Green: 510/510 dotnet. Sub-parts 2–6 (cache dir,
+  > sync `IHostedService`, status endpoint, "sync now",
+  > read endpoint, SPA) land in Phases B / C / D.
+  >
+  > **Phase B ✅ shipped (2026-07-22)** — sync engine + admin
+  > operations. New: `BoardSvgSyncOptions`
+  > (`Nieweb:BoardSvgSync:{CacheDirectory,IntervalSeconds,Enabled}`,
+  > defaults `./data/board-svgs`, 3600 s, enabled) +
+  > `IBoardSvgFileSystem`/`DiskBoardSvgFileSystem` (test-seam
+  > over `System.IO`) + `IBoardSvgSyncCoordinator`/
+  > `BoardSvgSyncCoordinator` (per-source failure isolation,
+  > path-traversal guard, case-insensitive filename dedupe,
+  > newest-wins across enabled+reachable sources, audit
+  > `board.svg.synced` / `board.svg.sync.failed`) +
+  > `BoardSvgSyncService` `BackgroundService` (singleton
+  > `PeriodicTimer` with per-tick scope, catches
+  > exceptions to keep timer alive) + admin endpoints
+  > `POST /api/admin/board-svgs/sync` (on-demand sweep) and
+  > `GET /api/admin/board-svgs/status` (cache inventory +
+  > source health + known/missing product union). **Cache key
+  > is `productName`, not `productId`** — machine-side files
+  > are named after the ProductName (e.g.
+  > `HA010522401_1st.svg`) and ProductId is not stable across
+  > pre/post-reflow instances; the spec's "productId" wording
+  > from sub-part 2 is superseded by this decision. Green:
+  > 527/527 dotnet (+9 coordinator + +8 endpoint tests).
+  > Sub-parts 5–6 (read endpoint, SPA viewer) land in
+  > Phases C / D.
+  >
+  > **Phase C ✅ shipped (2026-07-22)** — public read endpoint
+  > `GET /api/board-svgs/{productName}` served by
+  > `BoardSvgsEndpoints`. Auth: `RequireAuthorization()` (any
+  > signed-in user; matches TC1/TC2). Behaviour:
+  > (a) rejects names containing `..` or
+  > `Path.GetInvalidFileNameChars()` with HTTP 400 (audit-log
+  > EventId 3540) — same guard as the coordinator so a hostile
+  > client can't escape the cache dir; (b) 404 when the SVG
+  > isn't yet cached (`IBoardSvgFileSystem.GetFileInfo` returns
+  > null); (c) otherwise returns the raw bytes with
+  > `Content-Type: image/svg+xml`, a weak ETag
+  > `W/"{lastWriteTicks}-{sizeBytes}"`, `Last-Modified`, and
+  > `Cache-Control: private, max-age=3600, must-revalidate`
+  > (`BoardSvgsEndpoints.DefaultCacheMaxAgeSeconds`);
+  > (d) honours `If-None-Match` — both an exact match and `*`
+  > return 304 (Not Modified) with the ETag echoed. New method
+  > `IBoardSvgFileSystem.GetFileInfo(path)` returns
+  > `BoardSvgFileInfo?` without reading bytes; implemented on
+  > both `DiskBoardSvgFileSystem` and the test-only
+  > `FakeBoardSvgFileSystem` (which now normalises `\` → `/` so
+  > tests running on Windows via `Path.Combine` hit the same
+  > dictionary entry as the seed helper). 7 new endpoint tests
+  > (401 without token; 200 body + ETag + Cache-Control;
+  > 404 for missing product; 304 for matching ETag; 200 for
+  > stale ETag; 304 for `*` wildcard; 400 for path-traversal
+  > name). Green: 534/534 dotnet (527 → +7). Sub-part 6 (SPA
+  > viewer) lands in Phase D.
+  >
+  > **Phase D ✅ shipped (2026-07-22)** — admin SPA page at
+  > `/admin/board-svgs` (nav label `nav.adminBoardSvgs`, admin-
+  > only, `IconPhoto`). Combines three panels:
+  > (a) **Status card** — cache directory path with badge
+  > showing whether it already exists, background-sync
+  > enabled/disabled badge, interval badge, known-products
+  > count, table of cached files (product / file / size / last
+  > write UTC), and a list of `MissingProducts` if any known
+  > product has no cached SVG yet.
+  > (b) **Sources table** — one row per configured AOI machine
+  > (machine, path, enabled badge, last-synced UTC, last-error
+  > excerpt) with per-row **Edit** and red **Delete** buttons
+  > and a table-header **Add source** button. All three modal
+  > forms use `useForm` + `useMutation`, invalidate both the
+  > sources and status query keys on success, surface 409 as
+  > `admin.boardSvgs.sources.create.conflict`, and route
+  > `ValidationProblem` bodies through `extractValidationDetail`
+  > for a "Server rejected the input:" detail line.
+  > (c) **"Sync now" button** in the header (`IconCloudDownload`)
+  > that POSTs to `/api/admin/board-svgs/sync`. On success it
+  > opens a large modal listing per-source outcome (Reachable /
+  > Unreachable badge, files enumerated, error) and per-product
+  > outcome (Copied / Already cached / Error badge, source
+  > machine, bytes copied). Errors surface a dismissable red
+  > alert at the top of the page. On success both `sources` and
+  > `status` queries are invalidated so the header timestamps
+  > refresh.
+  >
+  > New files:
+  > `src/Nieweb.Web/src/api/adminBoardSvgs.ts` (typed API client
+  > mirroring `AdminBoardSvgSourcesEndpoints` +
+  > `AdminBoardSvgOperationsEndpoints`),
+  > `src/Nieweb.Web/src/routes/admin-board-svgs.tsx` (route
+  > component + status/sources cards + 4 modals),
+  > `src/Nieweb.Web/src/routes/admin-board-svgs.test.tsx`
+  > (7 vitest cases: forbidden-alert for non-admin; render
+  > sources + cache + missing-products; load-error banner;
+  > create-source modal happy path incl. list refetch; 409
+  > conflict surfaces alert inside dialog; sync-now opens result
+  > modal with per-source / per-product rows; delete confirm
+  > modal DELETEs and refetches).
+  > i18n: `nav.adminBoardSvgs` + `admin.boardSvgs.*` (title,
+  > subtitle, forbidden, reload, syncNow/syncRunning/syncSuccess/
+  > syncError, `status.*`, `sources.*` incl. create/edit/delete
+  > sub-trees, `syncResult.*`) added to `TranslationBundle`,
+  > `en.ts`, and `fr.ts`. `RootLayout.tsx` gains an admin-only
+  > `NavLink` under Audit trail. `router.ts` adds
+  > `adminBoardSvgsRoute` at `/admin/board-svgs` with
+  > `requireAuthentication` up front and Admin-role gating
+  > inside the component. Green: **534/534 dotnet, 211/211
+  > vitest** (previously 202/204 — the flaky admin-users
+  > timeouts settled during this run).
+- `TC5` 🚧 in progress — Board viewer SPA component with dual-stage
+  highlight. Depends on TC4 (asset pipeline) and TC3 (barcode
+  lookup UI). The viewer renders the cached SVG for the current
+  product and overlays circle markers on failed tested objects.
+
+  Sub-phases:
+  - **Phase A ✅ done** — Shared `<BoardViewer>` primitive under
+    `src/Nieweb.Web/src/components/BoardViewer/`. Fetches the SVG
+    from `GET /api/board-svgs/{productName}` (TC4 Phase C),
+    injects it inline, parses component centroids from
+    `transform="rotate(θ cx cy)"` on `<g class="component"
+    sub-panel-index="…" reference="…">` nodes, and appends its
+    own `<g data-nieweb-highlights="true">` overlay above the
+    source `#components` layer (never mutates the cache). Post-
+    reflow markers are solid red `#d32f2f`; pre-reflow are
+    dashed purple `#9c27b0`; radius = 60 % of the largest
+    `getBBox()` side (with a sensible fallback for jsdom). A
+    `primaryHighlight` prop promotes one marker with a thicker
+    stroke + drop-shadow; clicking any marker calls
+    `onPrimaryChange`, and clicking the primary again clears it.
+    404 from the API renders a localised "Board layout not yet
+    available" banner with a Retry button. New public API:
+    `src/Nieweb.Web/src/api/boardSvgs.ts` (`fetchBoardSvg`
+    returning `{svg, etag, lastModified}`). New i18n keys under
+    `boardViewer.*` (EN + FR). Tests: **13 new** (7
+    component-level + 6 pure-parsing). Green: **534/534
+    dotnet, 224/224 vitest** (2 pre-existing home-suite
+    pollution flakes still present when run alongside; both
+    pass 7/7 in isolation).
+  - **Phase B ✅ done** — Server-side enrichment on
+    `TestedObjectRow` (Nieweb.DataSources). Added nine new
+    nullable fields: `Face` / `FaceNumber` (from
+    `PANELS.Face` + `PANELS.Face_Number`), `FeederName` (from
+    `FEEDER.Feeder_Machine` via `LEFT JOIN` on
+    `TESTED_OBJECT.Feeder_Id`), `RepairState` (from
+    `Repair_State_Result`), `RepairUtc` (from
+    `Repair_Numeric_Date_Hour`; ANSI `time_t`),
+    `RepairButtonComment`, `RepairErrorComment`,
+    `RepairOperatorComment` (from `Repair_Operator_Comments` —
+    plural in the AOI schema), and `RepairOperatorId` (from
+    `Operator_Id`). All nine columns verified against
+    `tools/db/out/{postreflow,prereflow}/05_tested_object_columns.csv`
+    on both live DBs — same names, same types, same nullability.
+    `SqlServerAoiSourceBase.BuildTestedObjectsQuery` +
+    `ListTestedObjectsForSubpanelAsync` both extended with the
+    same SELECT list; `MapTestedObjectRow` reads slots 17..25
+    with `IsDBNull` guards. TypeScript mirror in
+    `src/Nieweb.Web/src/api/traceability.ts` updated in
+    lockstep. **No new decoder written** — the existing
+    `Nieweb.Reports.Common.Defects.DefectBitDecoder` already
+    covers the "SOLDER + Bridging + TEXT" style formatting the
+    spec calls for; TC5 Phase D will call it (or a TS-side
+    equivalent) for row rendering. Tests: **+1 dotnet** (round-
+    trip through the mapper for all nine new fields) + the
+    existing null-mapping test grew to cover the new slots.
+    Green: **535/535 dotnet** (was 534, +1), **224/224 vitest
+    unchanged**.
+  - **Phase C ✅ done** — New API endpoint
+    `GET /api/traceability/panels/{sourceId}/{panelId:int}/failed-objects`
+    returning `FailedObjectsResponse(TraceabilityPanel Panel,
+    IReadOnlyList<TestedObjectRow> Objects)`. The panel breadcrumb
+    is included so the SPA renders "Panel …" context without a
+    second round-trip. Objects are the Phase-B-enriched
+    `TestedObjectRow` (Face / Feeder / Repair fields populated),
+    aggregated across every sub-panel of the panel, ordered by
+    `Card_Number` then `Tested_Object_Id`, and server-side filtered
+    to `Error_Table_AR != 0` (post-review defects only — false
+    calls cleared during review do not appear). 404 for unknown
+    source or unknown panel; 200 with an empty list when the panel
+    exists but has no failures. Added
+    `ListFailedTestedObjectsForPanelAsync(long panelId, ct)` to
+    `IAoiSource` as a default interface method (fans out via
+    `ListCardsForPanelAsync` + `ListTestedObjectsForSubpanelAsync`,
+    skipping cards whose `NbOfErrorObject == 0` for perf); overridden
+    in `SqlServerAoiSourceBase` with a single-round-trip SQL query
+    that reuses the same enriched projection as
+    `ListTestedObjectsForSubpanelAsync` and pushes the filter into
+    the WHERE clause (`{arColumn} <> 0`). The `arColumn`
+    capability-gate keeps behaviour identical across v5.0 post-
+    reflow (`t.Error_Table_AR`) and v4.3.1 pre-reflow (`t.Error_Table`
+    mirrored into both slots). Report layer:
+    `TraceabilityReport.ListFailedObjectsForPanelAsync`. TS client:
+    `fetchFailedObjectsForPanel(sourceId, panelId)` plus a
+    `FailedObjectsResponse` type mirror in
+    `src/Nieweb.Web/src/api/traceability.ts`. Tests: **+9 dotnet**
+    (4 report — null-panel, empty-panel, mixed pass/false-call/
+    fail across two subpanels, skip-clean-card branch; 5 endpoint
+    — 401, 404 unknown source, 404 unknown panel, happy path with
+    filter, empty-panel 200). Green: **544/544 dotnet** (was 535,
+    +9), **224/224 vitest unchanged**, `tsc --noEmit` clean.
+  - **Phase D ✅ shipped (2026-07-22)** — Route integration in
+    `/traceability/board`: opening the drill-down (either via the
+    per-stage **View failures** button or by clicking any subpanel
+    row on a stage with `nbOfErrorObject > 0`) surfaces an inline
+    drill-down section below the stage cards. The section renders
+    a shared `BoardViewer` for the active stage plus one
+    `FailedObjectsTable` per stage side-by-side. Post-reflow is
+    the default active stage; clicking a row in the pre-reflow
+    table promotes pre-reflow to active and swaps the SVG +
+    highlights. Row ↔ marker two-way binding is symmetric: row
+    click sets `primaryHighlight`, marker click via
+    `BoardViewer.onPrimaryChange` sets the same state, and the
+    matching table row shows `data-selected="true"`. Product
+    name is resolved client-side by fanning
+    `fetchProducts(sourceId)` and looking up the panel's
+    `productId`; if unresolved the viewer degrades to an
+    alert while the tables continue to render. New TS files:
+    `src/Nieweb.Web/src/i18n/defectBits.ts` (25-entry SPA mirror
+    of `DefectBitDecoder` with `decodeDefectBits` /
+    `countDefectBits` / `formatDefectBits`) and
+    `src/Nieweb.Web/src/components/FailedObjectsTable/`
+    (18-column enriched grid: Panel ID, Board ID, Ref. Des,
+    Face, Error type, Part Number, Package, Feeder, Dev X/Y/θ/S/
+    Thickness, Repair result, Repair date, Repair comment,
+    Repair operator, Operator comment). i18n additions:
+    `traceability.board.drilldown.*`, `traceability.board.failures.*`
+    (columns + `repairState.{notInspected,notDetected,pending,
+    repaired,falseCall,confirmed,unknown}`), `defect.bits.*`
+    (25 keys) in both EN and FR. Tests: **+30 vitest** (15
+    defectBits unit + 8 FailedObjectsTable component + 7
+    traceability-board drill-down: no-button-on-clean-panel,
+    button opens drill-down, close hides it, subpanel-row click
+    opens, pre-reflow row promotes stage, primary highlight
+    on row click). Green: **544/544 dotnet unchanged, 253/253
+    vitest** (was 224, +29 net — 1 pre-existing admin-users flake
+    ignored), `tsc --noEmit` clean.
+
+  Rules:
+  - **Data source per stage**: the pre-reflow and post-reflow
+    tested-object lists are already carried side-by-side by TC2
+    plus a per-stage drill-down via TC1
+    (`GET /api/traceability/panels/{sourceId}/{panelId}/subpanels/{cardId}/objects`).
+  - **Active stage model**: exactly one stage is "focused" at a
+    time. **Post-reflow (HLYAOI2024) is the default focus** when
+    the panel first loads. Clicking anywhere in the pre-reflow
+    table (or a keyboard focus event on it) makes pre-reflow the
+    active stage; the post-reflow highlights are removed and the
+    pre-reflow highlights are drawn in their place. Never both
+    at once — showing both sets simultaneously with different
+    Ref Des would be confusing.
+  - **Colour scheme (colour-blind-safe pair)**: post-reflow =
+    red `#d32f2f`, pre-reflow = purple `#9c27b0`. The stage
+    name in the table header uses the same colour as a visual
+    anchor. Also apply a distinct stroke pattern (solid vs
+    dashed) as a redundant channel for accessibility.
+  - **Highlight geometry**: circle centred on the component's
+    centroid (extracted from the `transform="rotate(θ cx cy)"`
+    attribute — parse once at load, cache in memory). Radius =
+    ~60 % of `max(bbox.width, bbox.height)` obtained via
+    `SVGGraphicsElement.getBBox()` at render time, so the marker
+    scales with the component (an 0402 stays small, a QFP looks
+    big). Circles live in an overlay `<g class="highlights">`
+    appended above the `#components` layer — never mutate the
+    source SVG's own class list, so the cache file is
+    interchangeable across users.
+  - **Lookup**: for each failed row, join on
+    `(sub-panel-index, reference)` ↔
+    `(CARD_ID_ON_PANEL, TESTED_OBJECT.Reference)`. Both fields
+    are already in the SVG element attributes. Note: `reference`
+    ≠ `topo` in the general case (they happen to match in the
+    sample panels but the authoritative attribute is
+    `reference`).
+  - **Table interaction**: highlights are *batched* by default
+    (every failing Ref Des in the active stage). Clicking a
+    specific row promotes that Ref Des to "primary" with a
+    thicker stroke + a subtle glow; siblings stay drawn but at
+    normal weight. Clicking the same row again clears the
+    primary emphasis.
+  - **Table columns** (matches
+    `docs/design/samples/reference_pics/Screenshot 2026-07-22 035149.png`):
+    Panel ID, Board ID, Ref. Des, Face, **Error type** (printed
+    text, not the Vieweb symbol icons; auto-expand the cell and
+    concatenate with `+` when a component fails multiple
+    conditions, e.g. `SOLDER + Bridging + TEXT`), Part Number,
+    Package, Feeder, Dev X, Dev Y, Dev T, Dev S, Dev Thickness,
+    Repair result, Repair date, Repair comment, Repair operator,
+    Operator comment.
+  - **No pin / lead / pad level**: officially abandoned across
+    both stages. If a component fails for a pin-level defect
+    (solder, bridging, etc.) we surface the aggregated error
+    type at the component level only. Paste-inspection was
+    never in scope for either AOI DB (it lives in the upstream
+    inline SPI) — the pre-reflow stage still highlights on the
+    component centroid, same as post-reflow.
+  - **Disagreement handling**: the two DBs may list slightly
+    different Ref Des if one machine's CAD program is stale.
+    UI shows only the *currently-active* stage's failures
+    against the SVG — no cross-checking, no inconsistency
+    badges. (Explicit design decision so operators don't chase
+    ghosts.)
+  - **404 SVG**: if `TC4` has not yet cached the SVG for this
+    product, the viewer degrades to just the two tables (no
+    overlay), with a small "Board layout not yet available"
+    banner and a "Retry sync" button that hits the TC4 admin
+    endpoint. Never blocks the traceability view.
+  - Recommended reuse: the same viewer component is applicable
+    to Pareto / DPMO / deviation drill-downs later — treat it
+    as a shared SPA primitive under
+    `Nieweb.Web/src/components/BoardViewer/`.
 
 ### 7.6 Report composition (M)
 
-- `RC1` ⬜ open — `Report` + `ReportGroup` + `ReportEntity` entities
-  and admin CRUD.
-- `RC2` ⬜ open — Report editor SPA route: pick entities from a
-  palette, drop onto a canvas, edit filters per entity, save.
-- `RC3` ⬜ open — Locked reports (owner-set password; anyone can
-  Duplicate).
-- `RC4` ⬜ open — Home-page pinning (`HomeReport`).
-- `RC5` ⬜ open — Print / XLSX / PDF at report level (multi-entity).
-- `RC6` ⬜ open — Comment entity (free-text markdown).
+- `RC1` ✅ done — `Report` + `ReportGroup` + `ReportEntity` entities,
+  Sqlite + Npgsql migrations (`ReportComposition`), `IReports`
+  service (`EfReports`) and admin CRUD under
+  `/api/admin/report-groups` and `/api/admin/reports` (plus
+  `/{id}/entities` for tiles). Nine new `AuditEventTypes`
+  (`report.group.*`, `report.*`, `report.entity.*`) and three new
+  `AuditTargetTypes`. `ReportEntity` collapses Vieweb's six report-
+  entity subclasses into `(TileType, ConfigJson)` so the tile
+  catalogue is data-driven for RC2. Deleting a group nulls the
+  `ReportGroupId` on child reports (Vieweb parity: reports outlive
+  their group); deleting a report cascades its tiles. Refresh
+  frequency must be positive when set (else 400).
+  `LoggerMessage` event ids 3301-3309. Tests: 16 new (auth-gate,
+  group CRUD + uniqueness + null-on-delete, report CRUD +
+  invalid-refresh + unknown-group 409, full lifecycle with three
+  tiles + auto-append + update + remove + cascade, audit trail).
+- `RC2` ✅ done — Report editor SPA delivered as two new admin
+  routes: `/admin/reports` (groups + reports list, create/rename/
+  delete modals) and `/admin/reports/$id` (header form + tile
+  palette + per-tile config editor). Wraps the RC1 admin API
+  through a typed `adminReports.ts` client (12 functions covering
+  the 3 group and 5 report endpoints plus 3 tile-entity
+  endpoints). Tile palette is fed by the existing
+  `TILE_TYPES` / `TILE_LABEL_KEYS` catalogue reused from `<ReportCanvas>`,
+  so any tile added to the F10 registry becomes selectable in the
+  editor with no server change. Move-up / move-down swap the two
+  neighbours' `DisplayOrder` via two sequential PUTs; remove and
+  add hit the entity endpoints directly (server auto-appends when
+  `displayOrder = -1`). Per-tile config editor validates JSON
+  client-side (invalid JSON surfaces a localised error alert
+  without touching the network). Header form covers title,
+  description, group, refresh cadence, display order, locked,
+  pinned. Unknown tile types (older payloads whose type no longer
+  exists in the catalogue) are still selectable via a
+  `admin.reports.editor.tiles.unknownType` label so admins can
+  migrate them by hand. `RootLayout` sidebar gains an admin-gated
+  "Reports" `NavLink`. Full EN + FR i18n coverage under
+  `admin.reports.*` (~60 keys). Setup shim adds a `document.fonts`
+  stub so Mantine's autosize `Textarea` mounts under jsdom. New
+  tests: 5 for the list route (forbidden, list rendering, load
+  error, 409 on group create, POST on report create) and 5 for
+  the editor route (forbidden, load, invalid JSON alert, empty
+  state, add-tile POST) — 180/180 vitest green, 419/419 dotnet
+  still green.
+- `RC3` ✅ done — Locked reports (owner-set password; anyone can
+  Duplicate). Added `Report.LockPasswordHash` (nullable Argon2id
+  PHC, HasMaxLength 500) + Sqlite + Npgsql migrations
+  `ReportLockPassword`. Extended `IReports` with `LockReportAsync` /
+  `UnlockReportAsync` / `DuplicateReportAsync` + `LockOutcome` /
+  `UnlockOutcome` / `LockResult` / `UnlockResult` /
+  `DuplicateReportInput`. `EfReports` now takes
+  `IPasswordHasher<Report>` (bound to the same
+  `Argon2idPasswordHasher<TUser>` used for `NiewebUser`), `Create`
+  forces `IsLocked=false`, `Update` preserves the existing lock
+  bit + hash, `Duplicate` clones tiles unlocked with new ids.
+  New endpoints `POST /api/admin/reports/{id}/lock` / `/unlock` /
+  `/duplicate` with `ReportPasswordRequest` / `DuplicateReportRequest`,
+  `LoggerMessage` ids 3310–3313, and audit event types
+  `report.locked` / `report.unlocked` / `report.duplicated`. SPA
+  gains a `LockActionsCard` in the editor (Lock / Unlock / Duplicate
+  with `PasswordInput` + status badge) and a Duplicate row action
+  on the list page, plus `admin.reports.editor.lock.*` and
+  `admin.reports.list.duplicate.*` bundles in EN + FR. Password
+  hashes are never returned in any DTO. Tests: 13 new server tests
+  (lock happy-path + rotate + empty + unknown; unlock happy-path +
+  wrong password + not-locked + unknown; update preserves lock;
+  create ignores IsLocked; duplicate clones + defaults title +
+  unknown; audit trail) — 220 Api + 145 Reports + 21 Identity +
+  47 DataSources.Sql = 433/433 dotnet green, 180/180 vitest green.
+- `RC4` ✅ done — Home-page pinning (`HomeReport`). Pin state is
+  already carried on `Report.IsPinnedHome` and toggled from the
+  editor via `PUT /api/admin/reports/{id}`; this item wires up the
+  read surface. Added `IReports.ListHomeReportsAsync` (`AsNoTracking`,
+  `Where(IsPinnedHome)`, ordered by `DisplayOrder` then `Title`) and
+  `GET /api/reports/home` (auth-gated Reader+, not Admin) returning
+  a compact `HomeReportDto` (id, title, description, group id/name,
+  owner display name, `IsLocked`, refresh frequency, display order,
+  entity count, `LastModifiedUtc`). Locked pinned reports are
+  intentionally included so users can discover and unlock them; the
+  SPA renders a Lock badge on the tile. `HomeRoute` now renders a
+  `PinnedReportsCard` above the sources card as a responsive
+  Mantine `SimpleGrid` of clickable cards (`Link` to
+  `/admin/reports/{id}`, freshness suffix from
+  `relativeFromNow`, pluralised tile count). New i18n bundle
+  `home.pinned.*` in EN + FR (heading, empty, errorTitle, errorBody,
+  locked, `tileCount_{one,other}`). Existing router alert test
+  updated to `getAllByRole("alert")` because the home page now
+  surfaces both card errors on failure. Tests: 7 new server tests
+  (401 anon, 200 Reader, pinned filter, order, locked flag preserved,
+  group + entity-count projection, pin/unpin toggle) + 4 new SPA
+  tests (empty state, tile links to editor, locked badge, error
+  alert). 227 Api + 145 Reports + 21 Identity + 47 DataSources.Sql
+  = 440/440 dotnet green, 184/184 vitest green.
+- `RC5` ✅ done — Print / XLSX / PDF at report level (multi-entity).
+  New endpoints `GET /api/reports/{id}/export.xlsx` and
+  `GET /api/reports/{id}/export.pdf` render every tile in a report
+  against a single shared source + UTC window and stream back one
+  workbook / PDF. Server: `Nieweb.Pdf/ReportPdfRenderer` composes
+  a cover page (title, description, source, window, tile-list
+  table) + one page per tile with headers, KPI cards and detail
+  tables; `ReportEndpoints.ReportExport.cs` builds the XLSX with
+  ClosedXML (Cover sheet + one sheet per tile named
+  `NN. Title`, sanitised for Excel and truncated to 31 chars).
+  Both endpoints dispatch on `TileType`: `panelYield` runs
+  `PanelYieldByLineReport`, `pareto` runs `ParetoReport` with
+  defensible defaults (Axis=Defect, Numerator=Real,
+  Opportunity=All, Weight=Count, includeOthersBucket=true,
+  vitalFew=80%), unknown tile types render an "unsupported
+  (skipped)" placeholder so a legacy tile can't break the export.
+  Filters validated via the existing `TryBuildPanelYieldRequest`
+  (404 on unknown source, 400 on bad window / missing sourceId).
+  SPA: new `ExportReportCard` on `/admin/reports/{id}` with source
+  Select (auto-selects first available), UTC start / end
+  `datetime-local` inputs (defaulted to yesterday → today) and
+  XLSX / PDF buttons that use a bearer-aware `fetch → blob →
+  objectURL` helper (`api/reportExport.ts`) so the token in
+  memory is actually sent (the earlier panel-yield anchors are a
+  known limitation). New i18n keys under
+  `admin.reports.editor.export.*` (EN + FR). Print is deferred to
+  a later item — the PDF export doubles as a printable artefact
+  for now. Tests: 12 new server tests
+  (`ReportExportEndpointTests`: 401 anon × 2, 404 unknown report
+  × 2, 400 missing sourceId, 404 unknown source, 400 bad window,
+  200 XLSX empty report cover-only, 200 XLSX with panelYield +
+  pareto tiles verifying sheet names / metric labels, 200 XLSX
+  unknown-tile placeholder, 200 PDF happy path with %PDF- magic
+  bytes, 200 PDF empty report) + 2 new SPA tests (renders panel
+  with enabled XLSX / PDF buttons, Download XLSX issues an
+  authenticated fetch and revokes the object URL). 239 Api + 145
+  Reports + 21 Identity + 47 DataSources.Sql = 452/452 dotnet
+  green, 186/186 vitest green.
+- `RC6` ✅ done — Comment entity (free-text markdown). New tile
+  type `comment` whose `ConfigJson` carries `{"markdown": "..."}`.
+  Server: `ReportPdfRenderer.CommentTileResult` record + PDF
+  composer (paragraphs split on blank lines, italic dimmed
+  placeholder when empty); `ExtractCommentResult` parses the tile
+  config; `WriteCommentSheet` writes the raw markdown into cell
+  `A3` of a dedicated worksheet with `WrapText=true` and a wide
+  column, degrading to `(empty comment)` on missing / malformed
+  payloads. SPA: added `"comment"` to `TILE_TYPES` /
+  `TILE_LABEL_KEYS` / `TILE_REGISTRY`; new `<CommentTile>` canvas
+  placeholder (the canvas doesn't yet plumb tile config through);
+  `<TileRow>` swaps the raw-JSON `Textarea` for a dedicated
+  "Markdown" `Textarea` when `tileType === "comment"` and
+  serialises to `JSON.stringify({markdown: text})` on save. i18n:
+  new `canvas.tiles.comment.{title,placeholder}` and
+  `admin.reports.editor.tiles.{commentLabel,commentHint,commentPlaceholder}`
+  keys in `en` + `fr`. Tests: 4 new server tests (XLSX with
+  markdown / empty markdown / malformed config / PDF happy path)
+  and 2 new SPA tests (Comment appears in the palette, editing a
+  comment tile shows the markdown textarea and PUTs the wrapped
+  JSON). 243 Api + 145 Reports + 21 Identity + 47 DataSources.Sql
+  = 456/456 dotnet green, 188/188 vitest green.
 
-### 7.7 Automatic treatments (M)
+### 7.7 Optional (post-MVP, deferred until explicitly requested)
 
-- `AT1` ⬜ open — `Nieweb.Scheduling` BackgroundService +
-  `AutomaticTreatment` entity + concurrency lease.
-- `AT2` ⬜ open — `Nieweb.Mail` (MailKit) with per-attempt audit rows.
-  **#9699 regression test.** Blocked on §10.2 Q1 (SMTP host).
-- `AT3` ⬜ open — File-output batch to configured directory.
-- `AT4` ⬜ open — Admin UI: schedule + recipients + enable/disable +
-  master switch + failure inspector.
-- `AT5` ⬜ open — **#12421 regression test**: assert weekly totals ==
-  sum of daily totals over the same window.
+Items here are intentionally out of scope for Phase 2 delivery. They
+remain useful and legacy-Vieweb-parity-relevant, but no design partner
+has asked for them yet, and every item below has a reasonable
+substitute in the shipped feature set:
+
+- **Process Capability dashboard** (was `PC1`) — per-production-line
+  grid of DPMO, FPY_Diag, Machine efficiency, Avg cycle duration,
+  Nb inspections, with a "MSA source not configured" placeholder
+  for the Cp/Cpk compo & paste rows. Substitute today: users can
+  compose an equivalent view by dropping panel-yield, DPMO-table
+  and Pareto tiles into a single report via §7.6 report
+  composition. Depends on `PL1` (delivered) and would need to be
+  revived alongside the MSA source in Phase 3.
+- **Automatic treatments** (was §7.7 `AT1`..`AT5`) — background
+  scheduler + `AutomaticTreatment` entity + mail / file-output
+  sinks + admin UI. Legacy Vieweb bug #9699 (email send fails)
+  and #12421 (weekly ≠ Σ daily) regression tests move with this
+  bucket. Substitute today: users export XLSX / PDF from the
+  editor (§7.6 `RC5`) on demand. Revive when a design partner
+  requests scheduled email or file drops **and** SMTP details from
+  §10.2 Q1 are resolved.
 
 ### 7.8 Defect bit fixes (S)
 
@@ -357,42 +1052,237 @@ Deviation and Trend charts are not started. Nothing else in §7.4 –
 
 ### 7.9 Frontend (M)
 
-- `F10` 🟡 partial `03a544e` — Reusable "report canvas" component
-  (drag-drop entities). The Pareto page shipped a report-shaped
-  layout (filter form + chart + drill-down table + export buttons)
-  that will become the template for the canvas; the drag-drop editor
-  itself is still open.
-- `F11` ⬜ open — Filter builder component honouring the operator
-  matrix.
-- `F12` ⬜ open — Time-decomposition selector shared by every chart.
-- `F13` ⬜ open — Admin pages: production lines / shifts / app
-  parameters / automatic treatments / tolerance intervals. (§7.1
-  RI3's admin CRUD covers `AppParameter` at the API layer; a
-  dedicated SPA route is still pending.)
-- `F14` ⬜ open — Home-page pin/unpin.
-- `F15` ⬜ open — PDF preview modal.
+- `F10` ✅ done — Reusable `<ReportCanvas>` React component +
+  `<CanvasFilterProvider>` shared filter context ("deeper" mode
+  with filter fanout). Ships a demo route `/report/canvas-demo`
+  that lets a user pick source / window / narrowing filters once
+  and adds / reorders / removes Panel-Yield or Pareto tiles that
+  all inherit those filters through the provider. Tile catalogue
+  is registry-driven so RC2 (the full report editor) can extend
+  it without touching the canvas. Move-up / move-down / remove
+  controls are keyboard-accessible; native HTML5 drag is
+  intentionally deferred to RC2. New tests: 3 for FilterContext,
+  5 for ReportCanvas, 7 for canvas-demo.search — 170/170 vitest
+  green.
+- `F11` ✅ done — Reusable `<FilterBuilder>` component honouring
+  the Vieweb §3.1.2 operator matrix. Client-side mirror of
+  `Nieweb.Filters` lives in
+  [filterMetadata.ts](../src/Nieweb.Web/src/filters/filterMetadata.ts)
+  (fields, operators, arity, value kinds, allowed sets,
+  structural validator) with a 45-case parity spec
+  ([filterMetadata.test.ts](../src/Nieweb.Web/src/filters/filterMetadata.test.ts))
+  that fails fast if the server-side matrix drifts. The
+  component itself
+  ([FilterBuilder.tsx](../src/Nieweb.Web/src/filters/FilterBuilder.tsx))
+  renders an editable stack of clauses: field picker (searchable
+  Select) → operator picker restricted to the field's allowed
+  set → arity-aware value controls (single TextInput /
+  NumberInput / DateTimePicker / Switch, `In`/`NotIn` TagsInput,
+  `Between`/`NotBetween` min+max pair). Field/operator changes
+  auto-coerce the values array to the new arity and snap the
+  operator to a legal default so nothing dangling is ever
+  emitted. Emits an array of `FilterClause` for the parent to
+  wrap into `FilterRequest` and POST. Ships with a companion
+  `<FilterBuilderErrorSummary>` for banner-style validation
+  reporting. New tests: 45 metadata + 8 component = 53 vitest
+  (266 → 319 net). Full EN/FR i18n under `filters.builder.*`.
+  Server-side `FilterValidator` remains the authoritative gate;
+  jsdom scrollIntoView stub added to
+  [setupTests.ts](../src/Nieweb.Web/src/setupTests.ts) so
+  Mantine 9 Combobox mounts cleanly.
+- `F12` ✅ done — Time-decomposition selector shared by every
+  chart. New
+  [timeDecomposition.ts](../src/Nieweb.Web/src/charts/timeDecomposition.ts)
+  mirrors the server `Nieweb.Reports.Common.TimeBucket` enum
+  (`Hour1`..`Month`) and emits the kebab-case slugs
+  (`hour-1`, `hour-3`, `hour-6`, `hour-12`, `shift`, `day`, `week`,
+  `month`) that
+  [ReportEndpoints.Dpmo.cs](../src/Nieweb.Api/Endpoints/ReportEndpoints.Dpmo.cs)
+  (via `TryParseEnumAlias`) and every other trend / DPMO / FPY
+  endpoint already accept. Ships with `parseTimeBucket` (tolerates
+  PascalCase / kebab / snake), `timeBucketFixedMinutes` (60/180/
+  360/720 for the `Hour*` variants, 1440/10080 for `Day`/`Week`,
+  `null` for the variable-length `Shift` / `Month`), and the shared
+  reusable
+  [TimeDecompositionSelect.tsx](../src/Nieweb.Web/src/charts/TimeDecompositionSelect.tsx)
+  Mantine 9 `<Select>` with `exclude` (drop buckets that don't
+  apply) and `disable` (grey-out buckets that would exceed the
+  requested time window) props. Also gracefully surfaces the
+  current bucket as a disabled "(unavailable)" option if the caller
+  excludes it so state never becomes invisible. New tests:
+  24 metadata + 5 component = 29 vitest (319 → 348 net). Full EN/FR
+  i18n under `charts.timeDecomposition.*` (`buckets.{Hour1..Month}`
+  labels).
+- `F13` ✅ done — Admin SPA pages for production lines / shifts /
+  application parameters (which cover tolerance intervals via the
+  `tolerance.{component|paste}.{itx|ity|its}` keys seeded by
+  `AppParameterDefaults`). Automatic-treatments admin travels with
+  the deferred §7.7 bucket.
+  - **`/admin/parameters`** — lists every `AppParameter` row with an
+    add / edit / delete affordance. System rows (tolerance
+    intervals, MSA constants, `batch.enabled`) show a blue "System"
+    badge and hide the Delete button; the DELETE endpoint's HTTP
+    409 is surfaced as a localised "system parameter" alert as a
+    safety net. Upsert modal drives the shared PUT
+    `/api/admin/parameters/{key}` endpoint with a value-type
+    dropdown (`decimal` / `int` / `bool` / `string`).
+  - **`/admin/production-lines`** — table of lines with inline
+    create / rename / reorder / delete. An expand-row chevron
+    fetches `GET /api/admin/production-lines/{id}` and renders the
+    assigned-machines table with add / remove. The Add-machine
+    modal pulls `/api/sources` + `/api/sources/{id}/machines` so
+    the admin picks from the live Superviseur inventory instead of
+    typing a raw `MACHINE_ID`; the picker auto-fills name /
+    category. Line-name and machine-uniqueness 409s from the
+    server are shown verbatim in-modal.
+  - **`/admin/shifts`** — editable table of breakpoints (hour +
+    minute + optional label). "Save cycle" atomically replaces the
+    whole cycle via PUT `/api/admin/shifts` (matching the server's
+    single-write semantics), then shows a green "Shift cycle saved"
+    banner. Validation errors from the server surface with the
+    per-field detail.
+  - **API clients** — new
+    [adminParameters.ts](src/Nieweb.Web/src/api/adminParameters.ts),
+    [adminProductionLines.ts](src/Nieweb.Web/src/api/adminProductionLines.ts),
+    [adminShifts.ts](src/Nieweb.Web/src/api/adminShifts.ts) mirror
+    the RI3 / PL1 endpoints one-for-one.
+  - **Routing + navigation** — three new admin routes wired into
+    [router.ts](src/Nieweb.Web/src/router/router.ts) with the same
+    `requireAuthentication` guard + defence-in-depth Admin role
+    check pattern used by the other admin routes; three new
+    admin-only nav links (`IconRoute`, `IconClock`,
+    `IconSettings`) in
+    [RootLayout.tsx](src/Nieweb.Web/src/router/RootLayout.tsx).
+  - **i18n** — `nav.adminParameters` / `nav.adminProductionLines`
+    / `nav.adminShifts` and the full `admin.parameters.*` /
+    `admin.productionLines.*` / `admin.shifts.*` sub-trees in the
+    typed bundle + EN / FR locales.
+  - **Tests** — 4 parameter tests (forbidden gate; list; PUT edit;
+    409 system-protected on delete), 4 shift tests (forbidden;
+    hydrate; PUT replace + success banner; add-row), 5 production-
+    line tests (forbidden; list; POST create; 409 conflict;
+    expand-row loads machine detail) = **13 new vitest** (253 →
+    266). No backend changes — 544/544 dotnet unchanged.
+- `F14` ✅ done — Home-page pin/unpin. RC4 shipped the read
+  surface (`GET /api/reports/home` + `PinnedReportsCard`);
+  `F14` adds the write-side toggle so admins can pin/unpin
+  without opening the editor.
+  - **Server** — `POST /api/admin/reports/{id}/pin` and
+    `/unpin` on `AdminReportsEndpoints`, both Admin-gated,
+    idempotent, `NotFound` on unknown id, `Ok<ReportDto>` on
+    success. Backed by `IReports.SetPinnedHomeAsync(id,
+    pinned, ct)` on `EfReports` (touches `LastModifiedUtc`
+    even for a no-op flip so audit callers can observe the
+    action). New audit event types `report.pinned` /
+    `report.unpinned`; new `LoggerMessage` ids 3314 / 3315.
+  - **Home page** — admin-only `IconPinnedOff` action on
+    each pinned tile. Tile refactored from `Card
+    component={Link}` to a plain `Card` with `<Anchor
+    component={Link}>` around the title so the unpin button
+    is a sibling, not nested inside an anchor. Unpin
+    invalidates both the pinned query
+    (`["home","pinned-reports"]`) and the admin list
+    (`["admin","reports"]`) so badges disappear everywhere
+    on success.
+  - **Admin reports list** — `IconPin` / `IconPinnedOff`
+    toggle next to Duplicate on each row; loading state is
+    driven by `togglePinMutation.variables?.id`. Same query
+    invalidation as the home page.
+  - **i18n** — `home.pinned.unpinAction` and
+    `admin.reports.list.actions.{pin,unpin}` in the typed
+    bundle + EN/FR locales.
+  - **Tests** — 8 new server tests
+    (`Reports_Pin_HappyPath_Sets_IsPinnedHome`,
+    `Reports_Unpin_HappyPath_Clears_IsPinnedHome`,
+    `Reports_Pin_Is_Idempotent`,
+    `Reports_Pin_Unknown_Returns404`,
+    `Reports_Unpin_Unknown_Returns404`,
+    `Reports_Pin_NonAdmin_Returns403`,
+    `Reports_Pin_Anonymous_Returns401`,
+    `Reports_Pin_Writes_Audit_Event`) + 3 SPA home tests
+    (`hides_unpin_for_non_admin`, `shows_unpin_for_admin`,
+    `calls_unpin_endpoint_and_refetches`) + 2 admin-list
+    tests (`toggle_posts_pin`, `toggle_posts_unpin`).
+    Baselines: 251 Api / 464 dotnet total, 193 vitest.
+- `F15` ✅ done — PDF preview modal. New shared component
+  [PdfPreviewModal.tsx](../src/Nieweb.Web/src/components/PdfPreviewModal.tsx)
+  fetches the PDF at the given URL with the session's bearer
+  token (working around the plain-anchor auth caveat documented
+  in [reportExport.ts](../src/Nieweb.Web/src/api/reportExport.ts)),
+  wraps the returned bytes in an object URL, and renders them
+  inline in an `<iframe>` at 640 px height inside a Mantine
+  `Modal` sized to 90 % of the viewport. Provides a `Download`
+  button that saves the same blob under the server-provided
+  filename (via `Content-Disposition`) or a caller-supplied
+  fallback. Aborts the in-flight fetch and revokes the object
+  URL when the modal is closed. Wired into three call sites next
+  to the existing "Export PDF" affordance: `Preview PDF` link on
+  [panel-yield](../src/Nieweb.Web/src/routes/panel-yield.tsx)
+  (test id `panel-yield-preview-pdf`), on
+  [pareto](../src/Nieweb.Web/src/routes/pareto.tsx) (test id
+  `pareto-preview-pdf`), and a `Preview PDF` button in the
+  report-level export card of
+  [admin-report-editor](../src/Nieweb.Web/src/routes/admin-report-editor.tsx)
+  (test id `admin-report-editor-preview-pdf`). All three point
+  at the *same* server endpoints already covered by RC5 /
+  panel-yield / pareto PDF renderers — no new API. New tests: 7
+  vitest for the component itself (loads and renders inline,
+  forwards Bearer token, surfaces non-2xx errors, saves with
+  server filename, falls back when disposition missing, revokes
+  the blob URL on close, does not fetch when closed or with a
+  null URL) — 348 → 355 net. Full EN/FR i18n under
+  `common.pdfPreview.*`.
 
 ### 7.10 Deployment & ops (S)
 
-- `O5` ⬜ open — SMTP configuration + secret rotation guidance in
-  `docs/deploy.md`. Blocked on §10.2 Q1.
-- `O6` ⬜ open — `%ProgramData%\Nieweb\batch` writable-directory
-  bootstrap in `install-service.ps1`.
-- `O7` ⬜ open — Metrics: `/health/scheduler` reports lag (max
-  NextRunUtc overdue) + last-run outcomes.
+- ~~`O5`~~ moved to §7.7 **Optional (post-MVP)** — SMTP config +
+  secret-rotation guidance travels with the automatic-treatments
+  bucket (was blocked on §10.2 Q1 anyway).
+- ~~`O6`~~ moved to §7.7 **Optional (post-MVP)** —
+  `%ProgramData%\Nieweb\batch` writable-directory bootstrap is only
+  needed by the file-output treatment sink (`AT3`).
+- ~~`O7`~~ moved to §7.7 **Optional (post-MVP)** — `/health/scheduler`
+  metrics only make sense once we ship a scheduler.
 
 ### 7.11 Test coverage (S)
 
-- `T3` 🟡 partial — Per-report snapshot fixtures for the shipped
+- `T3` ✅ done — Per-report snapshot fixtures for the shipped
   reports (FPY table, DPMO table, Pareto) land alongside their
   respective commits via the `Nieweb.Reports.TestKit` scaffold from
-  `RI1`. **Still open:** two-DB parity fixtures once `HlyaoiSource`
-  and `MeaoiSource` have snapshot cassettes wired.
-- `T4` ⬜ open — Playwright happy-path smoke per report type (the
-  MVP smoke in `7005dd7` covers panel-yield only).
-- `T5` ⬜ open — Scheduler integration test: enable a fake treatment
-  with a 1-minute cadence and assert two consecutive runs write
-  audit rows.
+  `RI1`. **Two-DB parity fixtures shipped** as
+  `tests/Nieweb.Reports.Tests/Parity/TwoDbParityTests.cs` (11
+  tests) with shared `ParityDescriptors.PostReflow` / `PreReflow`
+  fakes that mirror `HlyaoiSource` / `MeaoiSource` capability
+  bitsets. Documented deltas: `Panel_Status=3` (pre-only, both
+  classify consistently) and `ErrorTableAr=0` on pre-reflow (DPMO
+  Real always 0). Doubles as a change-guard — the parity
+  assertions fail if any report starts branching on
+  `source.Descriptor.Caps`.
+- `T4` ✅ closed — Playwright happy-path smokes per report type
+  ship in `src/Nieweb.Web/e2e/`:
+  - `panel-yield.spec.ts` (MVP smoke from `7005dd7`).
+  - `pareto.spec.ts` — login → open Pareto with `axis=Defect` →
+    assert "Total defects" KPI renders, Export CSV anchor points
+    at the correct endpoint, and the JSON API returns numeric
+    parity with the fixture (15 defect-bits, 200 opportunities,
+    DPMO = 75 000, 5 defect-axis rows). Also fetches the CSV via
+    bearer and checks row count.
+  - `traceability-board.spec.ts` — login → look up defective panel
+    barcode `E2E-005` via the SPA form → assert stage card renders
+    with the fixture panel ID + sub-panel row. Second test asserts
+    the "barcode not found" alert path.
+  - `reports-api.spec.ts` — API-only smokes for the tile-only
+    report types that have no dedicated SPA route: DPMO table
+    (groupBy=Defect), Trend (bucket=Hour1, metric=FpyAoi), and
+    Deviation (axis=DeltaX, opportunity=Components). Asserts
+    numeric parity with the FakeAoiSource fixture (160
+    component-level tested objects, 5 defect bits, non-null FPY
+    values across the 08–10 UTC buckets).
+  - Shared helpers (`loginForToken`, `signInViaSpa`, fixture
+    constants) live in `e2e/support.ts`.
+  - Local wall-clock: 11 tests / 34 s on Chromium.
+- ~~`T5`~~ moved to §7.7 **Optional (post-MVP)** — Scheduler
+  integration test travels with the automatic-treatments bucket.
 
 ### 7.12 Design-partner integration (S, ongoing)
 
