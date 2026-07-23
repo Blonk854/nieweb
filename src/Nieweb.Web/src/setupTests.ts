@@ -31,6 +31,28 @@ if (typeof globalThis.ResizeObserver === "undefined") {
         ResizeObserverStub as unknown as typeof ResizeObserver;
 }
 
+// jsdom does not implement `document.fonts`. Mantine's autosize
+// Textarea subscribes to `document.fonts.addEventListener("loadingdone")`
+// on mount, so stub it with a no-op FontFaceSet-like object.
+if (typeof document !== "undefined" && !(document as Document & { fonts?: unknown }).fonts) {
+    (document as Document & { fonts: FontFaceSet }).fonts = {
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    } as unknown as FontFaceSet;
+}
+
+// jsdom does not implement Element.prototype.scrollIntoView. Mantine's
+// Combobox calls it to keep the active option in view when the user
+// navigates the dropdown, and throws a hard "not a function" error
+// otherwise. Stub with a no-op so Select / TagsInput mount cleanly.
+if (
+    typeof Element !== "undefined" &&
+    typeof Element.prototype.scrollIntoView !== "function"
+) {
+    Element.prototype.scrollIntoView = function scrollIntoViewStub() {};
+}
+
 // Initialise i18next once for the whole test process. Individual tests
 // that need a specific language can call i18n.changeLanguage(...) in
 // beforeEach / afterEach.

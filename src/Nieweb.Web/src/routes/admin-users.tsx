@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Alert,
     Badge,
@@ -36,6 +36,7 @@ import {
     type UpdateUserRequest,
 } from "../api/adminUsers";
 import { ApiError } from "../api/client";
+import { useDateTimeFormatter } from "../i18n/formatters";
 import { useSessionStore } from "../state/session";
 import { relativeFromNow } from "../components/freshness";
 
@@ -122,7 +123,7 @@ function extractValidationDetail(body: string): string | undefined {
 }
 
 export function AdminUsersRoute() {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const roles = useSessionStore((s) => s.user?.roles ?? []);
     const isAdmin = roles.includes("Admin");
     const queryClient = useQueryClient();
@@ -137,14 +138,10 @@ export function AdminUsersRoute() {
         refetchOnWindowFocus: false,
     });
 
-    const dateFormatter = useMemo(
-        () =>
-            new Intl.DateTimeFormat(i18n.language, {
-                dateStyle: "medium",
-                timeStyle: "short",
-            }),
-        [i18n.language],
-    );
+    const dateFormatter = useDateTimeFormatter({
+        dateStyle: "medium",
+        timeStyle: "short",
+    });
 
     if (!isAdmin) {
         return (

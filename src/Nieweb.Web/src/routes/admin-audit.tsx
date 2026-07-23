@@ -25,6 +25,7 @@ import {
     type AuditListParams,
     type AuditListResponse,
 } from "../api/adminAudit";
+import { useDateTimeFormatter } from "../i18n/formatters";
 import { useSessionStore } from "../state/session";
 
 /**
@@ -64,7 +65,7 @@ const EMPTY_FILTERS: FilterFormState = {
 const ADMIN_AUDIT_QUERY_KEY = ["admin", "audit"] as const;
 
 export function AdminAuditRoute() {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const roles = useSessionStore((s) => s.user?.roles ?? []);
     const isAdmin = roles.includes("Admin");
 
@@ -97,15 +98,10 @@ export function AdminAuditRoute() {
         placeholderData: (previous) => previous,
     });
 
-    const dateFormatter = useMemo(
-        () =>
-            new Intl.DateTimeFormat(i18n.language, {
-                dateStyle: "short",
-                timeStyle: "medium",
-                timeZone: "UTC",
-            }),
-        [i18n.language],
-    );
+    const dateFormatter = useDateTimeFormatter({
+        dateStyle: "short",
+        timeStyle: "medium",
+    });
 
     if (!isAdmin) {
         return (

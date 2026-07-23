@@ -2,6 +2,7 @@ import { Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import {
     AppShell,
+    Box,
     Burger,
     Container,
     Group,
@@ -12,12 +13,19 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
+    IconAdjustments,
     IconChartBar,
     IconClipboardList,
+    IconClock,
+    IconDatabase,
     IconHome,
     IconKey,
     IconLogin,
     IconLogout,
+    IconBarcode,
+    IconPhoto,
+    IconRoute,
+    IconSettings,
     IconUsers,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -88,6 +96,17 @@ function SideNav() {
     const { t } = useTranslation();
     const user = useSessionStore((s) => s.user);
     const isAdmin = user?.roles.includes("Admin") ?? false;
+    // The Settings parent groups the low-frequency admin + account
+    // pages so the top-level nav stays focused on reports. It renders
+    // whenever *any* child would render (an admin sees all 6 admin
+    // items + change-password; a non-admin sees only change-password).
+    // Auto-expanded when the current URL matches a child so a deep
+    // link lands with the correct branch open.
+    const settingsActive =
+        active.startsWith("/admin/") ||
+        active.startsWith("/account/") ||
+        active.startsWith("/settings/");
+    const showSettings = isAdmin || Boolean(user);
     return (
         <>
             <NavLink
@@ -111,32 +130,123 @@ function SideNav() {
                 leftSection={<IconChartBar size={18} />}
                 active={active.startsWith("/report/pareto")}
             />
+            <NavLink
+                component={Link}
+                to="/report/canvas-demo"
+                label={t("nav.canvasDemo")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/canvas-demo")}
+            />
+            <NavLink
+                component={Link}
+                to="/traceability/board"
+                label={t("nav.boardTrace")}
+                leftSection={<IconBarcode size={18} />}
+                active={active.startsWith("/traceability/board")}
+            />
             {isAdmin && (
                 <NavLink
                     component={Link}
-                    to="/admin/users"
-                    label={t("nav.adminUsers")}
-                    leftSection={<IconUsers size={18} />}
-                    active={active.startsWith("/admin/users")}
+                    to="/admin/reports"
+                    label={t("nav.adminReports")}
+                    leftSection={<IconChartBar size={18} />}
+                    active={active.startsWith("/admin/reports")}
                 />
             )}
-            {isAdmin && (
-                <NavLink
-                    component={Link}
-                    to="/admin/audit"
-                    label={t("nav.adminAudit")}
-                    leftSection={<IconClipboardList size={18} />}
-                    active={active.startsWith("/admin/audit")}
-                />
-            )}
-            {user && (
-                <NavLink
-                    component={Link}
-                    to="/account/password"
-                    label={t("nav.changePassword")}
-                    leftSection={<IconKey size={18} />}
-                    active={active.startsWith("/account/password")}
-                />
+            {showSettings && (
+                <Box data-testid="nav-settings-branch">
+                    <NavLink
+                        label={t("nav.settings")}
+                        leftSection={<IconSettings size={18} />}
+                        childrenOffset={28}
+                        defaultOpened={settingsActive}
+                        data-testid="nav-settings"
+                    >
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/users"
+                            label={t("nav.adminUsers")}
+                            leftSection={<IconUsers size={18} />}
+                            active={active.startsWith("/admin/users")}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/audit"
+                            label={t("nav.adminAudit")}
+                            leftSection={<IconClipboardList size={18} />}
+                            active={active.startsWith("/admin/audit")}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/board-svgs"
+                            label={t("nav.adminBoardSvgs")}
+                            leftSection={<IconPhoto size={18} />}
+                            active={active.startsWith("/admin/board-svgs")}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/production-lines"
+                            label={t("nav.adminProductionLines")}
+                            leftSection={<IconRoute size={18} />}
+                            active={active.startsWith(
+                                "/admin/production-lines",
+                            )}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/shifts"
+                            label={t("nav.adminShifts")}
+                            leftSection={<IconClock size={18} />}
+                            active={active.startsWith("/admin/shifts")}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/parameters"
+                            label={t("nav.adminParameters")}
+                            leftSection={<IconAdjustments size={18} />}
+                            active={active.startsWith("/admin/parameters")}
+                        />
+                    )}
+                    {user && (
+                        <NavLink
+                            component={Link}
+                            to="/settings/timezone"
+                            label={t("nav.settingsTimezone")}
+                            leftSection={<IconClock size={18} />}
+                            active={active.startsWith("/settings/timezone")}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/settings/databases"
+                            label={t("nav.settingsDatabases")}
+                            leftSection={<IconDatabase size={18} />}
+                            active={active.startsWith("/settings/databases")}
+                        />
+                    )}
+                    {user && (
+                        <NavLink
+                            component={Link}
+                            to="/account/password"
+                            label={t("nav.changePassword")}
+                            leftSection={<IconKey size={18} />}
+                            active={active.startsWith("/account/password")}
+                        />
+                    )}
+                </NavLink>
+                </Box>
             )}
             <NavLink
                 component={Link}

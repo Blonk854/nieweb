@@ -92,9 +92,13 @@ describe("Router", () => {
 
         renderRouteAt("/");
 
-        await waitFor(() =>
-            expect(screen.getByRole("alert")).toHaveTextContent(/HTTP 500/),
-        );
+        // Home now renders two cards (pinned reports + sources); when
+        // fetch fails for everything, both surface an alert. We just
+        // want to see that the sources HTTP 500 propagates.
+        await waitFor(() => {
+            const alerts = screen.getAllByRole("alert");
+            expect(alerts.some((a) => /HTTP 500/.test(a.textContent ?? ""))).toBe(true);
+        });
     });
 
     it("navigates to the Panel Yield route at /report/panel-yield", async () => {

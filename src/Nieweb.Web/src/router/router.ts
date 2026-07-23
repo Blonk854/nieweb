@@ -11,12 +11,24 @@ import { PanelYieldRoute } from "../routes/panel-yield";
 import { validatePanelYieldSearch } from "../routes/panel-yield.search";
 import { ParetoRoute } from "../routes/pareto";
 import { validateParetoSearch } from "../routes/pareto.search";
+import { CanvasDemoRoute } from "../routes/canvas-demo";
+import { validateCanvasDemoSearch } from "../routes/canvas-demo.search";
+import { TraceabilityBoardRoute } from "../routes/traceability-board";
+import { validateTraceabilityBoardSearch } from "../routes/traceability-board.search";
 import { LoginRoute } from "../routes/login";
 import { validateLoginSearch } from "../routes/login.search";
 import { OidcReturnRoute } from "../routes/oidc-return";
 import { AdminUsersRoute } from "../routes/admin-users";
 import { AdminAuditRoute } from "../routes/admin-audit";
+import { AdminReportsRoute } from "../routes/admin-reports";
+import { AdminReportEditorRoute } from "../routes/admin-report-editor";
+import { AdminBoardSvgsRoute } from "../routes/admin-board-svgs";
+import { AdminParametersRoute } from "../routes/admin-parameters";
+import { AdminProductionLinesRoute } from "../routes/admin-production-lines";
+import { AdminShiftsRoute } from "../routes/admin-shifts";
 import { ChangePasswordRoute } from "../routes/change-password";
+import { SettingsTimezoneRoute } from "../routes/settings-timezone";
+import { SettingsDatabasesRoute } from "../routes/settings-databases";
 import { useSessionStore } from "../state/session";
 import { redirect } from "@tanstack/react-router";
 
@@ -45,6 +57,25 @@ const paretoRoute = createRoute({
     component: ParetoRoute,
     validateSearch: validateParetoSearch,
     // Same auth-gating story as panelYieldRoute.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const canvasDemoRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/canvas-demo",
+    component: CanvasDemoRoute,
+    validateSearch: validateCanvasDemoSearch,
+    // Same auth-gating story as the other report routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const traceabilityBoardRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/traceability/board",
+    component: TraceabilityBoardRoute,
+    validateSearch: validateTraceabilityBoardSearch,
+    // TC3 board trace requires an authenticated user — the underlying
+    // TC2 API is `RequireAuthorization()`.
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
@@ -87,6 +118,58 @@ const adminAuditRoute = createRoute({
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
+const adminReportsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/reports",
+    component: AdminReportsRoute,
+    // Same defence-in-depth story as the other admin routes: the
+    // component itself renders a localised forbidden alert for
+    // signed-in-but-not-admin callers.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const adminReportEditorRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/reports/$id",
+    component: AdminReportEditorRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const adminBoardSvgsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/board-svgs",
+    component: AdminBoardSvgsRoute,
+    // Same defence-in-depth story as the other admin routes: bounce
+    // anonymous visitors up front; the Admin role check lives in
+    // the component so signed-in-but-not-admin users see a
+    // localised forbidden panel.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const adminParametersRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/parameters",
+    component: AdminParametersRoute,
+    // F13: same defence-in-depth story as the other admin routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const adminProductionLinesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/production-lines",
+    component: AdminProductionLinesRoute,
+    // F13: same defence-in-depth story as the other admin routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const adminShiftsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/shifts",
+    component: AdminShiftsRoute,
+    // F13: same defence-in-depth story as the other admin routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
 const changePasswordRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/account/password",
@@ -109,15 +192,46 @@ const changePasswordRoute = createRoute({
     },
 });
 
+// Purely browser-local preference: no API calls, no server state,
+// no auth requirement. The Settings NavLink that surfaces this route
+// is itself only shown to signed-in users (see RootLayout SideNav),
+// but if someone bookmarks the URL and hits it while anonymous the
+// page still works and their preference persists to localStorage.
+const settingsTimezoneRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/timezone",
+    component: SettingsTimezoneRoute,
+});
+
+// Admin-only Databases screen (Phase C). The component renders a
+// localised forbidden panel for signed-in-but-not-admin users, but
+// bounce anonymous visitors up front for defence in depth.
+const settingsDatabasesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/settings/databases",
+    component: SettingsDatabasesRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
 const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
     paretoRoute,
+    canvasDemoRoute,
+    traceabilityBoardRoute,
     loginRoute,
     oidcReturnRoute,
     adminUsersRoute,
     adminAuditRoute,
+    adminReportsRoute,
+    adminReportEditorRoute,
+    adminBoardSvgsRoute,
+    adminParametersRoute,
+    adminProductionLinesRoute,
+    adminShiftsRoute,
     changePasswordRoute,
+    settingsTimezoneRoute,
+    settingsDatabasesRoute,
 ]);
 
 // Re-export the typed route so components (../routes/panel-yield.tsx)
@@ -125,6 +239,8 @@ const routeTree = rootRoute.addChildren([
 // PanelYieldSearch back.
 export { panelYieldRoute };
 export { paretoRoute };
+export { canvasDemoRoute };
+export { traceabilityBoardRoute };
 
 export const router = createRouter({
     routeTree,
