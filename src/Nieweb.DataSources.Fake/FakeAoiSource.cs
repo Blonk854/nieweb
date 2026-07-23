@@ -43,7 +43,10 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
         _machines =
         [
-            new Machine(MachineId: 1, MachineType: 100, MachineName: "AOI-E2E-1", MachineTypeName: "Vision3D CR4"),
+            // MachineType 1 = AOI in the Superviseur enum (see
+            // IAoiSource.ListMachinesAsync docstring). The fake fixture
+            // mirrors that so the seed is schema-accurate.
+            new Machine(MachineId: 1, MachineType: 1, MachineName: "AOI-E2E-1", MachineTypeName: "Vision3D CR4"),
         ];
         _products =
         [

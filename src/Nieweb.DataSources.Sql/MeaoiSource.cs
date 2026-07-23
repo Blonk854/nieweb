@@ -29,10 +29,16 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
 
     public override Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
     {
-        // MACHINE columns are identical between v4.3.1 and v5.0.
+        // MACHINE columns are identical between v4.3.1 and v5.0, and
+        // so is the Machine_Type enum (1 = AOI, 2 = Review station).
+        // See HlyaoiSource.ListMachinesAsync for the full rationale;
+        // we intentionally exclude review / repair stations so the
+        // filter dropdown and admin pickers only see Vision AOI
+        // machines.
         const string Sql = """
             SELECT Machine_Id, Machine_Type, Machine_Name, Machine_Type_Name
             FROM   dbo.MACHINE WITH (NOLOCK)
+            WHERE  Machine_Type = 1
             ORDER  BY Machine_Id;
             """;
 

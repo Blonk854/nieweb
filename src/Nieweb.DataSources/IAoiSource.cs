@@ -40,6 +40,14 @@ public interface IAoiSource
     /// </summary>
     IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct);
 
+    /// <summary>
+    /// Returns AOI/inspection machines only
+    /// (Superviseur <c>MACHINE.Machine_Type = 1</c>). Review stations
+    /// (<c>Machine_Type = 2</c>, sometimes called "repair PCs") are
+    /// excluded because they never appear as producers of
+    /// <c>PANELS</c>/<c>CARDS</c> rows and would only pollute the
+    /// filter dropdown and the admin Production Lines picker.
+    /// </summary>
     Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
 
     Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct);

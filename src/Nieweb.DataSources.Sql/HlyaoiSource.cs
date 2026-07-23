@@ -36,9 +36,18 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase, IPinLevelSource
 
     public override Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
     {
+        // Machine_Type is a canonical enum in the Superviseur schema
+        // (see 'Database fields and constants (Vision3D CR4).pdf' §5.10):
+        //   1 = AOI  (Vision3D / Vision20 inspection machines)
+        //   2 = Review station (repair PC)
+        // We only ever want to expose AOI machines: review stations do
+        // not produce PANELS/CARDS rows, so surfacing them in the filter
+        // dropdown, in the admin Production Lines picker, or in the
+        // report display-name lookup is confusing and never useful.
         const string Sql = """
             SELECT Machine_Id, Machine_Type, Machine_Name, Machine_Type_Name
             FROM   dbo.MACHINE WITH (NOLOCK)
+            WHERE  Machine_Type = 1
             ORDER  BY Machine_Id;
             """;
 
