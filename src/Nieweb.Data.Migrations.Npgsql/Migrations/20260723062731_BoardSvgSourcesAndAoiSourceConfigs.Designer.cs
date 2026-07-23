@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nieweb.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nieweb.Data.Migrations.Npgsql.Migrations
 {
     [DbContext(typeof(NiewebDbContext))]
-    partial class NiewebDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723062731_BoardSvgSourcesAndAoiSourceConfigs")]
+    partial class BoardSvgSourcesAndAoiSourceConfigs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

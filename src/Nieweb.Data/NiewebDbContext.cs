@@ -49,6 +49,50 @@ public sealed class NiewebDbContext : IdentityDbContext<
     /// </summary>
     public DbSet<AppParameter> AppParameters => Set<AppParameter>();
 
+    /// <summary>
+    /// Named groups of AOI / SPI machines that make up a physical SMT
+    /// production line. See <see cref="ProductionLine"/>.
+    /// </summary>
+    public DbSet<ProductionLine> ProductionLines => Set<ProductionLine>();
+
+    /// <summary>
+    /// Per-line machine assignments. See <see cref="ProductionLineMachine"/>.
+    /// </summary>
+    public DbSet<ProductionLineMachine> ProductionLineMachines => Set<ProductionLineMachine>();
+
+    /// <summary>
+    /// Site-wide shift breakpoints. See <see cref="ShiftBreakpoint"/>.
+    /// </summary>
+    public DbSet<ShiftBreakpoint> ShiftBreakpoints => Set<ShiftBreakpoint>();
+
+    /// <summary>
+    /// Per-machine folders that produce board-layout SVG files (TC4).
+    /// See <see cref="BoardSvgSource"/>.
+    /// </summary>
+    public DbSet<BoardSvgSource> BoardSvgSources => Set<BoardSvgSource>();
+
+    /// <summary>
+    /// Named containers for <see cref="Report"/> entries. See
+    /// <see cref="ReportGroup"/>.
+    /// </summary>
+    public DbSet<ReportGroup> ReportGroups => Set<ReportGroup>();
+
+    /// <summary>
+    /// User-composed dashboards. See <see cref="Report"/>.
+    /// </summary>
+    public DbSet<Report> Reports => Set<Report>();
+
+    /// <summary>
+    /// Individual tiles inside a report. See <see cref="ReportEntity"/>.
+    /// </summary>
+    public DbSet<ReportEntity> ReportEntities => Set<ReportEntity>();
+
+    /// <summary>
+    /// Configured AOI data-source connections. See <see cref="AoiSourceConfig"/>.
+    /// Rows are authoritative once seeded; edits require an API restart.
+    /// </summary>
+    public DbSet<AoiSourceConfig> AoiSourceConfigs => Set<AoiSourceConfig>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -121,6 +165,145 @@ public sealed class NiewebDbContext : IdentityDbContext<
             b.Property(p => p.CreatedUtc).IsRequired();
             b.Property(p => p.LastModifiedUtc).IsRequired();
             b.HasIndex(p => p.IsSystem);
+        });
+
+        builder.Entity<ProductionLine>(b =>
+        {
+            b.ToTable("ProductionLines");
+            b.HasKey(l => l.Id);
+            b.Property(l => l.Name).HasMaxLength(200).IsRequired();
+            b.Property(l => l.CreatedUtc).IsRequired();
+            b.Property(l => l.LastModifiedUtc).IsRequired();
+            b.HasIndex(l => l.Name).IsUnique();
+            b.HasIndex(l => l.DisplayOrder);
+        });
+
+        builder.Entity<ProductionLineMachine>(b =>
+        {
+            b.ToTable("ProductionLineMachines");
+            b.HasKey(m => m.Id);
+            b.Property(m => m.SourceId).HasMaxLength(64).IsRequired();
+            b.Property(m => m.MachineName).HasMaxLength(200).IsRequired();
+            b.Property(m => m.Category).HasMaxLength(100);
+            b.Property(m => m.CreatedUtc).IsRequired();
+            b.HasOne(m => m.ProductionLine)
+                .WithMany(l => l.Machines)
+                .HasForeignKey(m => m.ProductionLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // A physical machine belongs to at most one line at a time
+            // (mirroring Vieweb's nullable machine.PRODUCTION_LINE_ID FK).
+            b.HasIndex(m => new { m.SourceId, m.MachineId }).IsUnique();
+            b.HasIndex(m => m.ProductionLineId);
+        });
+
+        builder.Entity<ShiftBreakpoint>(b =>
+        {
+            b.ToTable("ShiftBreakpoints");
+            b.HasKey(s => s.Id);
+            b.Property(s => s.Label).HasMaxLength(100);
+            b.Property(s => s.CreatedUtc).IsRequired();
+            b.Property(s => s.LastModifiedUtc).IsRequired();
+            // (Hour, Minute) is the natural key: a breakpoint is a
+            // single wall-clock moment on the 24-hour cycle.
+            b.HasIndex(s => new { s.Hour, s.Minute }).IsUnique();
+        });
+
+        builder.Entity<BoardSvgSource>(b =>
+        {
+            b.ToTable("BoardSvgSources");
+            b.HasKey(s => s.Id);
+            b.Property(s => s.MachineName).HasMaxLength(200).IsRequired();
+            // UNC paths can get long (server + share + nested dirs); leave
+            // headroom on both providers. 1024 is comfortably below the
+            // Windows MAX_PATH of \\?\-prefixed extended paths.
+            b.Property(s => s.UncPath).HasMaxLength(1024).IsRequired();
+            b.Property(s => s.LastSyncError).HasMaxLength(500);
+            b.Property(s => s.CreatedUtc).IsRequired();
+            b.Property(s => s.LastModifiedUtc).IsRequired();
+            b.HasIndex(s => s.MachineName).IsUnique();
+        });
+
+        builder.Entity<ReportGroup>(b =>
+        {
+            b.ToTable("ReportGroups");
+            b.HasKey(g => g.Id);
+            b.Property(g => g.Name).HasMaxLength(200).IsRequired();
+            b.Property(g => g.CreatedUtc).IsRequired();
+            b.Property(g => g.LastModifiedUtc).IsRequired();
+            b.HasIndex(g => g.Name).IsUnique();
+            b.HasIndex(g => g.DisplayOrder);
+        });
+
+        builder.Entity<Report>(b =>
+        {
+            b.ToTable("Reports");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.Title).HasMaxLength(200).IsRequired();
+            b.Property(r => r.Description).HasMaxLength(1000);
+            b.Property(r => r.OwnerDisplayName).HasMaxLength(200).IsRequired();
+            // Argon2id PHC-encoded lock password (RC3). ~200 chars fits
+            // comfortably in the default 500 cap.
+            b.Property(r => r.LockPasswordHash).HasMaxLength(500);
+            b.Property(r => r.CreatedUtc).IsRequired();
+            b.Property(r => r.LastModifiedUtc).IsRequired();
+            // ChromeJson is small on both providers but may hold
+            // richer chrome config in the future; leave it unbounded.
+            b.HasOne(r => r.Group)
+                .WithMany(g => g.Reports)
+                .HasForeignKey(r => r.ReportGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+            b.HasIndex(r => r.ReportGroupId);
+            b.HasIndex(r => r.OwnerUserId);
+            b.HasIndex(r => r.IsPinnedHome);
+            b.HasIndex(r => r.DisplayOrder);
+        });
+
+        builder.Entity<ReportEntity>(b =>
+        {
+            b.ToTable("ReportEntities");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.TileType).HasMaxLength(100).IsRequired();
+            b.Property(e => e.Title).HasMaxLength(200);
+            b.Property(e => e.ConfigJson).IsRequired();
+            b.Property(e => e.CreatedUtc).IsRequired();
+            b.Property(e => e.LastModifiedUtc).IsRequired();
+            b.HasOne(e => e.Report)
+                .WithMany(r => r.Entities)
+                .HasForeignKey(e => e.ReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+            b.HasIndex(e => new { e.ReportId, e.DisplayOrder });
+        });
+
+        builder.Entity<AoiSourceConfig>(b =>
+        {
+            b.ToTable("AoiSourceConfigs");
+            b.HasKey(c => c.Id);
+            // Key is the stable identifier consumed by URL params and
+            // audit rows - unique across the tenant, immutable after
+            // create. 64 chars comfortably fits every existing id
+            // ("postreflow", "prereflow", "fake") and any future ones.
+            b.Property(c => c.Key).HasMaxLength(64).IsRequired();
+            b.Property(c => c.DisplayName).HasMaxLength(200).IsRequired();
+            // Kind is one of the AoiSourceKinds constants. 32 chars
+            // leaves headroom for future adapters ("MySql", ...).
+            b.Property(c => c.Kind).HasMaxLength(32).IsRequired();
+            b.Property(c => c.Server).HasMaxLength(200);
+            b.Property(c => c.Database).HasMaxLength(200);
+            b.Property(c => c.User).HasMaxLength(200);
+            // EncryptedPassword is the raw output of
+            // IDataProtector.Protect(UTF8(plaintext)). BLOB on both
+            // providers so the payload survives verbatim.
+            b.Property(c => c.EncryptedPassword);
+            b.Property(c => c.ConnectTimeoutSeconds).IsRequired();
+            b.Property(c => c.QueryTimeoutSeconds).IsRequired();
+            b.Property(c => c.TrustServerCertificate).IsRequired();
+            b.Property(c => c.Encrypt).IsRequired();
+            b.Property(c => c.IsEnabled).IsRequired();
+            b.Property(c => c.LastTestError).HasMaxLength(500);
+            b.Property(c => c.CreatedUtc).IsRequired();
+            b.Property(c => c.LastModifiedUtc).IsRequired();
+            b.HasIndex(c => c.Key).IsUnique();
+            b.HasIndex(c => c.IsEnabled);
         });
     }
 }

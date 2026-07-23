@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nieweb.Data;
 
@@ -10,9 +11,11 @@ using Nieweb.Data;
 namespace Nieweb.Data.Migrations.Sqlite.Migrations
 {
     [DbContext(typeof(NiewebDbContext))]
-    partial class NiewebDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722003915_ProductionLines")]
+    partial class ProductionLines
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -116,83 +119,6 @@ namespace Nieweb.Data.Migrations.Sqlite.Migrations
                     b.ToTable("UserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Nieweb.Data.Entities.AoiSourceConfig", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ConnectTimeoutSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Database")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Encrypt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<byte[]>("EncryptedPassword")
-                        .HasColumnType("BLOB");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastTestError")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool?>("LastTestSucceeded")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("LastTestedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("QueryTimeoutSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Server")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("TrustServerCertificate")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("User")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsEnabled");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.ToTable("AoiSourceConfigs", (string)null);
-                });
-
             modelBuilder.Entity("Nieweb.Data.Entities.AppParameter", b =>
                 {
                     b.Property<string>("Key")
@@ -278,49 +204,6 @@ namespace Nieweb.Data.Migrations.Sqlite.Migrations
                     b.HasIndex("TargetType", "TargetId");
 
                     b.ToTable("AuditEvents", (string)null);
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.BoardSvgSource", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastSyncError")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastSyncErrorUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastSyncedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("MachineName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UncPath")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MachineName")
-                        .IsUnique();
-
-                    b.ToTable("BoardSvgSources", (string)null);
                 });
 
             modelBuilder.Entity("Nieweb.Data.Entities.NiewebRole", b =>
@@ -524,138 +407,6 @@ namespace Nieweb.Data.Migrations.Sqlite.Migrations
                     b.ToTable("ProductionLineMachines", (string)null);
                 });
 
-            modelBuilder.Entity("Nieweb.Data.Entities.Report", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ChromeJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsPinnedHome")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LockPasswordHash")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OwnerDisplayName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("OwnerUserId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("RefreshFrequencySeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("ReportGroupId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DisplayOrder");
-
-                    b.HasIndex("IsPinnedHome");
-
-                    b.HasIndex("OwnerUserId");
-
-                    b.HasIndex("ReportGroupId");
-
-                    b.ToTable("Reports", (string)null);
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.ReportEntity", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ConfigJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ReportId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("TileType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReportId", "DisplayOrder");
-
-                    b.ToTable("ReportEntities", (string)null);
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.ReportGroup", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DisplayOrder");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("ReportGroups", (string)null);
-                });
-
             modelBuilder.Entity("Nieweb.Data.Entities.SavedView", b =>
                 {
                     b.Property<int>("Id")
@@ -797,40 +548,9 @@ namespace Nieweb.Data.Migrations.Sqlite.Migrations
                     b.Navigation("ProductionLine");
                 });
 
-            modelBuilder.Entity("Nieweb.Data.Entities.Report", b =>
-                {
-                    b.HasOne("Nieweb.Data.Entities.ReportGroup", "Group")
-                        .WithMany("Reports")
-                        .HasForeignKey("ReportGroupId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Group");
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.ReportEntity", b =>
-                {
-                    b.HasOne("Nieweb.Data.Entities.Report", "Report")
-                        .WithMany("Entities")
-                        .HasForeignKey("ReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Report");
-                });
-
             modelBuilder.Entity("Nieweb.Data.Entities.ProductionLine", b =>
                 {
                     b.Navigation("Machines");
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.Report", b =>
-                {
-                    b.Navigation("Entities");
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.ReportGroup", b =>
-                {
-                    b.Navigation("Reports");
                 });
 #pragma warning restore 612, 618
         }

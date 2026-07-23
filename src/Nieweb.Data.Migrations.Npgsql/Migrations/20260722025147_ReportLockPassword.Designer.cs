@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Nieweb.Data;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Nieweb.Data.Migrations.Npgsql.Migrations
 {
     [DbContext(typeof(NiewebDbContext))]
-    partial class NiewebDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722025147_ReportLockPassword")]
+    partial class ReportLockPassword
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -125,85 +128,6 @@ namespace Nieweb.Data.Migrations.Npgsql.Migrations
                     b.ToTable("UserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Nieweb.Data.Entities.AoiSourceConfig", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ConnectTimeoutSeconds")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Database")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<bool>("Encrypt")
-                        .HasColumnType("boolean");
-
-                    b.Property<byte[]>("EncryptedPassword")
-                        .HasColumnType("bytea");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Key")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastTestError")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool?>("LastTestSucceeded")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastTestedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("QueryTimeoutSeconds")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Server")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<bool>("TrustServerCertificate")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("User")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsEnabled");
-
-                    b.HasIndex("Key")
-                        .IsUnique();
-
-                    b.ToTable("AoiSourceConfigs", (string)null);
-                });
-
             modelBuilder.Entity("Nieweb.Data.Entities.AppParameter", b =>
                 {
                     b.Property<string>("Key")
@@ -291,51 +215,6 @@ namespace Nieweb.Data.Migrations.Npgsql.Migrations
                     b.HasIndex("TargetType", "TargetId");
 
                     b.ToTable("AuditEvents", (string)null);
-                });
-
-            modelBuilder.Entity("Nieweb.Data.Entities.BoardSvgSource", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("LastModifiedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastSyncError")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("LastSyncErrorUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("LastSyncedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("MachineName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("UncPath")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MachineName")
-                        .IsUnique();
-
-                    b.ToTable("BoardSvgSources", (string)null);
                 });
 
             modelBuilder.Entity("Nieweb.Data.Entities.NiewebRole", b =>
