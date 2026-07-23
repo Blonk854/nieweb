@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Nieweb.DataSources\Nieweb.DataSources.csproj" />
+    <ProjectReference Include="..\Nieweb.Reports\Nieweb.Reports.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      QuestPDF 2024.x. The Community MIT licence covers every use as
+      long as the licensee's annual gross revenue is under USD 1M
+      (per https://www.questpdf.com/license/). Nieweb activates that
+      licence at startup in NiewebPdfLicense.EnsureLicenseActivated().
+    -->
+    <PackageReference Include="QuestPDF" Version="2025.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Brand SVGs live under the repo-root logo/ folder. Embed them so
+      Nieweb.Pdf ships as a single self-contained assembly and does
+      not depend on repo-relative paths at run time. The
+      LogicalName forces a stable manifest name
+      ("Nieweb.Pdf.Assets.<file>.svg") regardless of build machine.
+    -->
+    <EmbeddedResource Include="..\..\logo\logo.svg" LogicalName="Nieweb.Pdf.Assets.logo.svg" />
+    <EmbeddedResource Include="..\..\logo\bss_green_premium_no_pod.svg" LogicalName="Nieweb.Pdf.Assets.bss_green_premium_no_pod.svg" />
+  </ItemGroup>
+
+</Project>

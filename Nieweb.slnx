@@ -9,7 +9,9 @@
     <Project Path="src/Nieweb.DataSources/Nieweb.DataSources.csproj" />
     <Project Path="src/Nieweb.Filters/Nieweb.Filters.csproj" />
     <Project Path="src/Nieweb.Identity/Nieweb.Identity.csproj" />
+    <Project Path="src/Nieweb.Pdf/Nieweb.Pdf.csproj" />
     <Project Path="src/Nieweb.Reports.Common/Nieweb.Reports.Common.csproj" />
+    <Project Path="src/Nieweb.Reports.Traceability/Nieweb.Reports.Traceability.csproj" />
     <Project Path="src/Nieweb.Reports/Nieweb.Reports.csproj" />
   </Folder>
   <Folder Name="/tools/">
