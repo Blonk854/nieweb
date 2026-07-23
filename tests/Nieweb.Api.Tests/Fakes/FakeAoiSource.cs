@@ -9,7 +9,7 @@ namespace Nieweb.Api.Tests.Fakes;
 /// query methods throw <see cref="NotImplementedException"/> unless
 /// a test explicitly opts in by supplying data.
 /// </summary>
-internal sealed class FakeAoiSource : IAoiSource
+internal sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 {
     public FakeAoiSource(SourceDescriptor descriptor, DateTime? latestPanelUtc = null, Exception? latestPanelThrows = null)
     {
@@ -33,6 +33,12 @@ internal sealed class FakeAoiSource : IAoiSource
     public IReadOnlyList<Recipe> SeededRecipes { get; init; } = [];
 
     public IReadOnlyList<TestedObjectRow> SeededTestedObjects { get; init; } = [];
+
+    /// <summary>Rows returned by <see cref="ListCardsForPanelAsync"/> (TC1 traceability).</summary>
+    public IReadOnlyList<CardRow> SeededCards { get; init; } = [];
+
+    /// <summary>Rows returned by <see cref="ListPinsForObjectAsync"/> (TC1 traceability).</summary>
+    public IReadOnlyList<PinRow> SeededPins { get; init; } = [];
 
     public Task<DateTime?> GetLatestPanelUtcAsync(CancellationToken ct)
     {
@@ -73,10 +79,6 @@ internal sealed class FakeAoiSource : IAoiSource
                 continue;
             }
             if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(panel.ProductId))
-            {
-                continue;
-            }
-            if (query.RecipeIds is { Count: > 0 } && !query.RecipeIds.Contains(panel.RecipeId))
             {
                 continue;
             }
@@ -142,4 +144,33 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct)
         => Task.FromResult(SeededRecipes);
+
+    public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct)
+        => Task.FromResult<PanelRow?>(SeededPanels.FirstOrDefault(p => p.PanelId == panelId));
+
+    public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        var match = SeededPanels
+            .Where(p => string.Equals(p.PanelBarCode, barcode, StringComparison.Ordinal))
+            .OrderByDescending(p => p.PanelNumericDate)
+            .ThenByDescending(p => p.PanelId)
+            .FirstOrDefault();
+        return Task.FromResult<PanelRow?>(match);
+    }
+
+    public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<CardRow>>(
+            SeededCards.Where(c => c.PanelId == panelId).ToList());
+
+    public Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(
+        long panelId, int cardIdOnPanel, CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<TestedObjectRow>>(
+            SeededTestedObjects
+                .Where(o => o.PanelId == panelId && o.CardIdOnPanel == cardIdOnPanel)
+                .ToList());
+
+    public Task<IReadOnlyList<PinRow>> ListPinsForObjectAsync(long testedObjectId, CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<PinRow>>(
+            SeededPins.Where(p => p.TestedObjectId == testedObjectId).ToList());
 }

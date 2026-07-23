@@ -12,7 +12,7 @@ namespace Nieweb.DataSources.Fake;
 /// which only wires the source when
 /// <c>Nieweb:Aoi:Fake:Enabled</c> is true.
 /// </summary>
-public sealed class FakeAoiSource : IAoiSource
+public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 {
     /// <summary>Fixed source id, referenced from the E2E spec URLs.</summary>
     public const string SourceId = "fake";
@@ -22,6 +22,7 @@ public sealed class FakeAoiSource : IAoiSource
     private readonly IReadOnlyList<Product> _products;
     private readonly IReadOnlyList<Recipe> _recipes;
     private readonly IReadOnlyList<TestedObjectRow> _testedObjects;
+    private readonly IReadOnlyList<PinRow> _pins;
 
     /// <summary>
     /// Builds the singleton with the canonical E2E fixture: one machine,
@@ -38,7 +39,7 @@ public sealed class FakeAoiSource : IAoiSource
             Id: SourceId,
             DisplayName: "Fake AOI (E2E fixture)",
             SchemaVersion: "5.0",
-            Caps: Capabilities.IsLastInspectionFilter);
+            Caps: Capabilities.IsLastInspectionFilter | Capabilities.PinLevel);
 
         _machines =
         [
@@ -89,6 +90,7 @@ public sealed class FakeAoiSource : IAoiSource
         }
         _panels = panels;
         _testedObjects = BuildTestedObjects(panels);
+        _pins = BuildPins(_testedObjects);
     }
 
     public SourceDescriptor Descriptor { get; }
@@ -171,6 +173,85 @@ public sealed class FakeAoiSource : IAoiSource
     public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct)
         => Task.FromResult(_recipes);
 
+    // ---- Traceability drill-down (TC1) ------------------------------------
+
+    public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct)
+        => Task.FromResult<PanelRow?>(FindPanel(panelId));
+
+    public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        // Return the most recent inspection matching the barcode (see
+        // SqlServerAoiSourceBase.GetPanelByBarcodeAsync for the
+        // rationale). Ordinal comparison — barcodes are ASCII on the
+        // wire.
+        PanelRow? best = null;
+        foreach (var panel in _panels)
+        {
+            if (string.Equals(panel.PanelBarCode, barcode, StringComparison.Ordinal)
+                && (best is null || panel.PanelNumericDate > best.PanelNumericDate))
+            {
+                best = panel;
+            }
+        }
+        return Task.FromResult<PanelRow?>(best);
+    }
+
+    public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
+    {
+        // Fixture topology: every panel has exactly one card. Return
+        // an empty list when the panel is unknown so the drill-down
+        // endpoint layer can distinguish 404-on-panel from
+        // empty-subpanels.
+        var parent = FindPanel(panelId);
+        if (parent is null)
+        {
+            return Task.FromResult<IReadOnlyList<CardRow>>([]);
+        }
+
+        var row = new CardRow(
+            PanelId: parent.PanelId,
+            CardIdOnPanel: 1,
+            CardStatus: parent.PanelStatus,
+            AnomalyBr: parent.AnomalyBr,
+            AnomalyAr: parent.AnomalyAr,
+            NbOfTestedObject: parent.NbOfTestedObject,
+            NbOfErrorObject: parent.NbOfErrorObject,
+            MachineId: parent.MachineId,
+            ProductId: parent.ProductId,
+            PanelNumericDate: parent.PanelNumericDate);
+        return Task.FromResult<IReadOnlyList<CardRow>>([row]);
+    }
+
+    public Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(
+        long panelId, int cardIdOnPanel, CancellationToken ct)
+    {
+        var rows = new List<TestedObjectRow>();
+        foreach (var obj in _testedObjects)
+        {
+            if (obj.PanelId == panelId && obj.CardIdOnPanel == cardIdOnPanel)
+            {
+                rows.Add(obj);
+            }
+        }
+        return Task.FromResult<IReadOnlyList<TestedObjectRow>>(rows);
+    }
+
+    // ---- IPinLevelSource (TC1) --------------------------------------------
+
+    public Task<IReadOnlyList<PinRow>> ListPinsForObjectAsync(long testedObjectId, CancellationToken ct)
+    {
+        var rows = new List<PinRow>();
+        foreach (var pin in _pins)
+        {
+            if (pin.TestedObjectId == testedObjectId)
+            {
+                rows.Add(pin);
+            }
+        }
+        return Task.FromResult<IReadOnlyList<PinRow>>(rows);
+    }
+
     private IEnumerable<PanelRow> FilterPanels(PanelQuery query)
     {
         foreach (var panel in _panels)
@@ -188,10 +269,6 @@ public sealed class FakeAoiSource : IAoiSource
                 continue;
             }
             if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(panel.ProductId))
-            {
-                continue;
-            }
-            if (query.RecipeIds is { Count: > 0 } && !query.RecipeIds.Contains(panel.RecipeId))
             {
                 continue;
             }
@@ -241,10 +318,6 @@ public sealed class FakeAoiSource : IAoiSource
             {
                 continue;
             }
-            if (query.RecipeIds is { Count: > 0 } && !query.RecipeIds.Contains(panel.RecipeId))
-            {
-                continue;
-            }
             yield return panel;
         }
     }
@@ -268,19 +341,6 @@ public sealed class FakeAoiSource : IAoiSource
             if (query.ProductIds is { Count: > 0 } && !query.ProductIds.Contains(obj.ProductId))
             {
                 continue;
-            }
-            // RecipeIds filtering happens at the panel level; every
-            // fixture panel belongs to recipe 1 so a mismatch means
-            // no rows anyway. We look the parent panel up so the
-            // filter is honoured even if a caller narrows on
-            // recipe alone.
-            if (query.RecipeIds is { Count: > 0 })
-            {
-                var parent = FindPanel(obj.PanelId);
-                if (parent is null || !query.RecipeIds.Contains(parent.RecipeId))
-                {
-                    continue;
-                }
             }
             yield return obj;
         }
@@ -334,6 +394,7 @@ public sealed class FakeAoiSource : IAoiSource
                 var (typeId, topology, partNumber, jedec) = LayoutFor(i);
                 var (errAoi, errReal) = DefectFor(panel.PanelId, i);
                 var status = errAoi == 0L ? 0 : 1;
+                var (dx, dy, dth, dz, ds) = DeviationFor(panel.PanelId, i);
 
                 rows.Add(new TestedObjectRow(
                     PanelId: panel.PanelId,
@@ -348,7 +409,12 @@ public sealed class FakeAoiSource : IAoiSource
                     PanelNumericDate: panel.PanelNumericDate,
                     Topology: topology,
                     PartNumberName: partNumber,
-                    JedecName: jedec));
+                    JedecName: jedec,
+                    DeltaXUm: dx,
+                    DeltaYUm: dy,
+                    DeltaThetaDeg: dth,
+                    DeltaThicknessUm: dz,
+                    DeltaSurface: ds));
             }
         }
 
@@ -394,5 +460,93 @@ public sealed class FakeAoiSource : IAoiSource
             _ => 0L,
         };
         return (mask, mask);
+    }
+
+    /// <summary>
+    /// Deterministic pseudo-random deviation values for the CR2
+    /// Deviation chart. Uses an LCG seeded by
+    /// <c>(panelId, objectIndex)</c> so a fixture rebuild reproduces
+    /// byte-identical values. Distribution is roughly normal centred on
+    /// zero with an occasional out-of-tolerance outlier so bin counts,
+    /// mean, and ±3σ overlays all have non-trivial values to assert.
+    /// </summary>
+    private static (double DxUm, double DyUm, double DthetaDeg, double DzUm, double DsRatio) DeviationFor(
+        int panelId, int i)
+    {
+        var seed = unchecked((uint)((panelId * 397) ^ i));
+        // Two independent samples via Box–Muller, then scaled to
+        // realistic AOI magnitudes.
+        var dx = SampleNormal(ref seed) * 20.0;   // µm  σ≈20
+        var dy = SampleNormal(ref seed) * 20.0;   // µm  σ≈20
+        var dtheta = SampleNormal(ref seed) * 0.5;// deg σ≈0.5
+        var dz = SampleNormal(ref seed) * 15.0;   // µm  σ≈15
+        var ds = 1.0 + SampleNormal(ref seed) * 0.05; // ratio, centred at 1.0
+        return (Round(dx), Round(dy), Round(dtheta), Round(dz), Round(ds));
+
+        static double Round(double v) => Math.Round(v, 3, MidpointRounding.AwayFromZero);
+    }
+
+    private static double SampleNormal(ref uint state)
+    {
+        // Marsaglia polar: pair of independent normals per iteration.
+        while (true)
+        {
+            var u = NextUnitFloat(ref state) * 2.0 - 1.0;
+            var v = NextUnitFloat(ref state) * 2.0 - 1.0;
+            var s = u * u + v * v;
+            if (s > 0 && s < 1)
+            {
+                return u * Math.Sqrt(-2.0 * Math.Log(s) / s);
+            }
+        }
+    }
+
+    private static double NextUnitFloat(ref uint state)
+    {
+        // Numerical Recipes minimal LCG (period 2^32) — plenty of
+        // determinism for a 5-panel × 20-object fixture.
+        state = unchecked(state * 1_664_525u + 1_013_904_223u);
+        return (state >> 8) / (double)(1u << 24);
+    }
+
+    /// <summary>
+    /// Emits four pins per component-typed tested object (one per
+    /// side N/E/S/W). Paste-pad objects (<c>ObjectTypeId = 16</c>) get
+    /// zero pins — pads have no pin structure in the real
+    /// Superviseur schema either. Pin defect bits are inherited from
+    /// the parent tested object so drill-down FPY is consistent with
+    /// component-level FPY.
+    /// </summary>
+    private static List<PinRow> BuildPins(IReadOnlyList<TestedObjectRow> objects)
+    {
+        var pins = new List<PinRow>();
+        long nextPinId = 1;
+        foreach (var obj in objects)
+        {
+            // Paste pads carry no pins in the real DB either.
+            if (obj.ObjectTypeId != ComponentObjectType)
+            {
+                continue;
+            }
+            for (var side = 0; side < 4; side++)
+            {
+                pins.Add(new PinRow(
+                    PinId: nextPinId++,
+                    TestedObjectId: obj.ObjectId,
+                    ComponentSide: side,
+                    PinIndexOnSide: 0,
+                    // IPC index is deterministic per pin so drill-down
+                    // rendering has stable order.
+                    IpcPinNb: side + 1,
+                    // Only one pin per object carries the defect —
+                    // side 0 (N) — so the pin-level table is faithful
+                    // to how a real AOI stores the bit on the
+                    // offending joint rather than on every pin.
+                    ErrorTable: side == 0 ? obj.ErrorTable : 0L,
+                    ErrorTableAr: side == 0 ? obj.ErrorTableAr : 0L,
+                    ReviewSanction: 0));
+            }
+        }
+        return pins;
     }
 }

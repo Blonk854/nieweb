@@ -235,36 +235,4 @@ public sealed class SourceEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal("Widget-B", options[2].Name);
         Assert.Equal("R1", options[1].Revision);
     }
-
-    [Fact]
-    public async Task ListRecipes_ReturnsSortedOptions()
-    {
-        var source = new FakeAoiSource(
-            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None))
-        {
-            SeededRecipes =
-            [
-                new Recipe(7, "prog-B", 1, "alice", 1, "top", null, null, "V2"),
-                new Recipe(3, "prog-A", 1, "bob", 1, "top", null, null, null),
-            ],
-        };
-
-        await using var factory = _factory.WithWebHostBuilder(builder =>
-            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
-
-        using var client = factory.CreateClient();
-        var token = await IssueTokenAsync(client, "sources-recipes-list@nieweb.test");
-
-        using var authed = factory.CreateClient();
-        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        using var response = await authed.GetAsync(new Uri("/api/sources/postreflow/recipes", UriKind.Relative));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var options = await response.Content.ReadFromJsonAsync<SourceEndpoints.RecipeOption[]>(_responseJson);
-        Assert.NotNull(options);
-        Assert.Equal(2, options!.Length);
-        Assert.Equal("prog-A", options[0].Name);
-        Assert.Equal("prog-B", options[1].Name);
-        Assert.Equal("V2", options[1].VariantName);
-    }
 }

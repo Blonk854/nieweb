@@ -53,6 +53,13 @@ public class NiewebApiFactory : WebApplicationFactory<Program>
                 ["Nieweb:Identity:Password:RequireUppercase"] = "false",
                 ["Nieweb:Identity:Password:RequireNonAlphanumeric"] = "false",
                 ["Nieweb:Identity:Password:RequiredUniqueChars"] = "1",
+                // Disable the board-SVG sync background service so the
+                // test host doesn't touch real disk on every boot. The
+                // /sync and /status endpoints still work because they
+                // resolve the coordinator directly.
+                ["Nieweb:BoardSvgSync:Enabled"] = "false",
+                ["Nieweb:BoardSvgSync:CacheDirectory"] = "./test-data/board-svgs",
+                ["Nieweb:BoardSvgSync:IntervalSeconds"] = "3600",
             });
         });
 

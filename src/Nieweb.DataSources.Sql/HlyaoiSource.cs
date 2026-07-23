@@ -1,3 +1,5 @@
+using System.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace Nieweb.DataSources.Sql;
@@ -8,7 +10,7 @@ namespace Nieweb.DataSources.Sql;
 /// same server + service account, DB renamed to <c>HLYAOI2024</c> when the
 /// production line switched to the live catalogue).
 /// </summary>
-public sealed class HlyaoiSource : SqlServerAoiSourceBase
+public sealed class HlyaoiSource : SqlServerAoiSourceBase, IPinLevelSource
 {
     public HlyaoiSource(AoiSourceOptions options, ILogger<SqlServerAoiSourceBase>? logger = null)
         : base(options, logger)
@@ -106,4 +108,43 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase
     // / BuildTestedObjectsQuery and their mappers). v5.0 exposes
     // Error_Table_AR and IS_LAST_INSPECTION, so no capability overrides are
     // needed here.
+
+    // ---- IPinLevelSource (TC1) --------------------------------------------
+    // Post-reflow only: v5.0 ships the PIN table (surrogate Pin_Id, FK
+    // Tested_Object_Id). Pre-reflow v4.3.1 lacks PIN entirely, so MeaoiSource
+    // does not implement this interface. Column names verified against
+    // tools/db/out/postreflow/10_columns_PIN.csv.
+
+    public async Task<IReadOnlyList<PinRow>> ListPinsForObjectAsync(
+        long testedObjectId, CancellationToken ct)
+    {
+        const string Sql = """
+            SELECT
+              Pin_Id, Tested_Object_Id, Component_Side, Pin_Index_On_Side,
+              IPC_Pin_Nb, Error_Table, Error_Table_AR, Review_Sanction
+            FROM dbo.PIN WITH (NOLOCK)
+            WHERE Tested_Object_Id = @testedObjectId
+            ORDER BY Component_Side, Pin_Index_On_Side;
+            """;
+
+        return await ExecuteListAsync(
+            Sql,
+            bindParameters: p => p.Add(new SqlParameter("@testedObjectId", SqlDbType.BigInt) { Value = testedObjectId }),
+            map: static r => new PinRow(
+                PinId: r.GetInt64(0),
+                TestedObjectId: r.GetInt64(1),
+                // Component_Side is tinyint; GetByte returns byte.
+                ComponentSide: r.GetByte(2),
+                // Pin_Index_On_Side is smallint.
+                PinIndexOnSide: r.GetInt16(3),
+                // IPC_Pin_Nb is nullable smallint.
+                IpcPinNb: r.IsDBNull(4) ? null : r.GetInt16(4),
+                // Error_Table is int; widen to long to match DTO.
+                ErrorTable: r.GetInt32(5),
+                // Error_Table_AR is bigint.
+                ErrorTableAr: r.GetInt64(6),
+                // Review_Sanction is tinyint.
+                ReviewSanction: r.GetByte(7)),
+            ct).ConfigureAwait(false);
+    }
 }

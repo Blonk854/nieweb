@@ -14,9 +14,6 @@ public abstract record BaseQuery
 
     /// <summary>Optional restriction to specific Product_Id values.</summary>
     public IReadOnlyCollection<int>? ProductIds { get; init; }
-
-    /// <summary>Optional restriction to specific Recipe_Id values.</summary>
-    public IReadOnlyCollection<int>? RecipeIds { get; init; }
 }
 
 /// <summary>Query the PANELS table.</summary>

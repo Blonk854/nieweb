@@ -481,6 +481,208 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             : null;
     }
 
+    // ---- Traceability drill-down (TC1) ------------------------------------
+    // Single-panel / single-subpanel key lookups. No time window because a
+    // specific Panel_Id (or a specific Panel_Bar_Code) is already narrow
+    // enough for the DB engine to seek an index; adding a window here would
+    // just push cycle-time cost onto the live line for no gain.
+
+    /// <inheritdoc />
+    public virtual async Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct)
+    {
+        const string Sql = """
+            SELECT TOP (1)
+              Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
+              Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
+              Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
+              Operator_Id, Product_Id, Recipe_Id
+            FROM dbo.PANELS WITH (NOLOCK)
+            WHERE Panel_Id = @panelId;
+            """;
+
+        PanelRow? found = null;
+        await foreach (var row in ExecuteQueryAsync(
+            Sql,
+            bindParameters: p => p.Add(new SqlParameter("@panelId", SqlDbType.Int) { Value = panelId }),
+            map: MapPanelRow,
+            ct).ConfigureAwait(false))
+        {
+            found = row;
+        }
+        return found;
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        // Panel_Bar_Code is varchar(64). Reject longer inputs before
+        // hitting the DB so a mis-scan can't blow up the query plan.
+        if (barcode.Length > 64)
+        {
+            throw new ArgumentException(
+                $"Panel barcode must be 64 characters or fewer (got {barcode.Length}).",
+                nameof(barcode));
+        }
+
+        // A physical PCB can be re-inspected several times. Return the
+        // most recent inspection so the drill-down entry point lands on
+        // the latest state. Callers wanting the full inspection history
+        // should build a windowed query on Panel_Bar_Code instead.
+        const string Sql = """
+            SELECT TOP (1)
+              Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
+              Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
+              Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
+              Operator_Id, Product_Id, Recipe_Id
+            FROM dbo.PANELS WITH (NOLOCK)
+            WHERE Panel_Bar_Code = @barcode
+            ORDER BY Panel_Numeric_Date DESC, Panel_Id DESC;
+            """;
+
+        PanelRow? found = null;
+        await foreach (var row in ExecuteQueryAsync(
+            Sql,
+            bindParameters: p => p.Add(new SqlParameter("@barcode", SqlDbType.VarChar, 64) { Value = barcode }),
+            map: MapPanelRow,
+            ct).ConfigureAwait(false))
+        {
+            found = row;
+        }
+        return found;
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
+    {
+        // Card_Id / Panel_Id are 32-bit on the wire; a bigint at the
+        // caller layer is a widening convenience. Narrow (checked) so a
+        // future 64-bit PANELS.Panel_Id would fail loudly rather than
+        // silently truncating.
+        var narrow = checked((int)panelId);
+
+        const string Sql = """
+            SELECT
+              c.Panel_Id, c.Card_Number, c.Card_Status,
+              c.Anomaly_BR, c.Anomaly_AR,
+              c.Number_Of_Component, c.Number_Of_Anomaly,
+              p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date
+            FROM dbo.CARDS  c WITH (NOLOCK)
+            JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
+            WHERE c.Panel_Id = @panelId
+            ORDER BY c.Card_Number;
+            """;
+
+        return await ExecuteListAsync(
+            Sql,
+            bindParameters: p => p.Add(new SqlParameter("@panelId", SqlDbType.Int) { Value = narrow }),
+            map: MapCardRow,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(
+        long panelId, int cardIdOnPanel, CancellationToken ct)
+    {
+        var narrow = checked((int)panelId);
+
+        // Same projection as BuildTestedObjectsQuery so MapTestedObjectRow
+        // can be reused verbatim. Error_Table_AR is capability-gated
+        // (v4.3.1 lacks the column; the mapper reads slot 5 uniformly).
+        var arColumn = HasTestedObjectErrorTableAr
+            ? "t.Error_Table_AR"
+            : "t.Error_Table";
+
+        var sql =
+            $"""
+            SELECT
+              p.Panel_Id, c.Card_Number, t.Tested_Object_Id,
+              t.Object_Type_Id, t.Error_Table, {arColumn},
+              t.Topology, p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date,
+              pn.Part_Number, j.Jedec_Name,
+              t.Delta_X, t.Delta_Y, t.Delta_Theta, t.Delta_Thickness, t.Delta_Surface,
+              p.Face, p.Face_Number, f.Feeder_Machine,
+              t.Repair_State_Result, t.Repair_Numeric_Date_Hour,
+              t.Repair_Button_Comment, t.Repair_Error_Comment,
+              t.Repair_Operator_Comments, t.Operator_Id
+            FROM dbo.TESTED_OBJECT t WITH (NOLOCK)
+            JOIN dbo.CARDS  c WITH (NOLOCK) ON c.Card_Id  = t.Card_Id
+            JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
+            LEFT JOIN dbo.PART_NUMBER pn WITH (NOLOCK) ON pn.Part_Number_Id = t.Part_Number_Id
+            LEFT JOIN dbo.JEDEC       j  WITH (NOLOCK) ON j.Jedec_Id       = pn.Jedec_Id
+            LEFT JOIN dbo.FEEDER      f  WITH (NOLOCK) ON f.Feeder_Id      = t.Feeder_Id
+            WHERE p.Panel_Id = @panelId
+              AND c.Card_Number = @cardNumber
+            ORDER BY t.Tested_Object_Id;
+            """;
+
+        return await ExecuteListAsync(
+            sql,
+            bindParameters: p =>
+            {
+                p.Add(new SqlParameter("@panelId", SqlDbType.Int) { Value = narrow });
+                p.Add(new SqlParameter("@cardNumber", SqlDbType.Int) { Value = cardIdOnPanel });
+            },
+            map: MapTestedObjectRow,
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// TC5 Phase C — single-round-trip override of
+    /// <see cref="IAoiSource.ListFailedTestedObjectsForPanelAsync"/>.
+    /// Fans across every sub-panel of the given panel and returns
+    /// only rows where the post-review defect bitfield is non-zero,
+    /// ordered by <c>Card_Number</c> then <c>Tested_Object_Id</c>.
+    /// </summary>
+    /// <remarks>
+    /// Uses the same projection as
+    /// <see cref="ListTestedObjectsForSubpanelAsync"/> so
+    /// <see cref="MapTestedObjectRow"/> can be reused verbatim. The
+    /// <c>Error_Table_AR</c> column is capability-gated (v4.3.1
+    /// pre-reflow lacks the AR column, so the adapter substitutes
+    /// <c>Error_Table</c> in both slots — the WHERE clause and the
+    /// mapper both read from the same expression, so the filter
+    /// stays consistent across schemas).
+    /// </remarks>
+    public virtual async Task<IReadOnlyList<TestedObjectRow>> ListFailedTestedObjectsForPanelAsync(
+        long panelId, CancellationToken ct)
+    {
+        var narrow = checked((int)panelId);
+
+        var arColumn = HasTestedObjectErrorTableAr
+            ? "t.Error_Table_AR"
+            : "t.Error_Table";
+
+        var sql =
+            $"""
+            SELECT
+              p.Panel_Id, c.Card_Number, t.Tested_Object_Id,
+              t.Object_Type_Id, t.Error_Table, {arColumn},
+              t.Topology, p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date,
+              pn.Part_Number, j.Jedec_Name,
+              t.Delta_X, t.Delta_Y, t.Delta_Theta, t.Delta_Thickness, t.Delta_Surface,
+              p.Face, p.Face_Number, f.Feeder_Machine,
+              t.Repair_State_Result, t.Repair_Numeric_Date_Hour,
+              t.Repair_Button_Comment, t.Repair_Error_Comment,
+              t.Repair_Operator_Comments, t.Operator_Id
+            FROM dbo.TESTED_OBJECT t WITH (NOLOCK)
+            JOIN dbo.CARDS  c WITH (NOLOCK) ON c.Card_Id  = t.Card_Id
+            JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
+            LEFT JOIN dbo.PART_NUMBER pn WITH (NOLOCK) ON pn.Part_Number_Id = t.Part_Number_Id
+            LEFT JOIN dbo.JEDEC       j  WITH (NOLOCK) ON j.Jedec_Id       = pn.Jedec_Id
+            LEFT JOIN dbo.FEEDER      f  WITH (NOLOCK) ON f.Feeder_Id      = t.Feeder_Id
+            WHERE p.Panel_Id = @panelId
+              AND {arColumn} <> 0
+            ORDER BY c.Card_Number, t.Tested_Object_Id;
+            """;
+
+        return await ExecuteListAsync(
+            sql,
+            bindParameters: p => p.Add(new SqlParameter("@panelId", SqlDbType.Int) { Value = narrow }),
+            map: MapTestedObjectRow,
+            ct).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Self-inspects the SQL Server session used by this source: returns
     /// the connection's <c>program_name</c> (should equal the
@@ -549,7 +751,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     {
         EnsureUnderInListCap(q.MachineIds, nameof(q.MachineIds));
         EnsureUnderInListCap(q.ProductIds, nameof(q.ProductIds));
-        EnsureUnderInListCap(q.RecipeIds, nameof(q.RecipeIds));
 
         // Panel_Numeric_Date is int32 (ANSI time_t). Fail fast in 2038 rather
         // than silently truncating a bigint parameter.
@@ -579,7 +780,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
         AppendInClause(sb, "Machine_Id", "@m", q.MachineIds);
         AppendInClause(sb, "Product_Id", "@p", q.ProductIds);
-        AppendInClause(sb, "Recipe_Id", "@r", q.RecipeIds);
 
         if (q.Cursor is not null)
         {
@@ -600,7 +800,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
             BindInParameters(p, "@m", q.MachineIds);
             BindInParameters(p, "@p", q.ProductIds);
-            BindInParameters(p, "@r", q.RecipeIds);
 
             if (q.Cursor is PanelCursor c)
             {
@@ -684,7 +883,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     {
         EnsureUnderInListCap(q.MachineIds, nameof(q.MachineIds));
         EnsureUnderInListCap(q.ProductIds, nameof(q.ProductIds));
-        EnsureUnderInListCap(q.RecipeIds, nameof(q.RecipeIds));
 
         var startEpoch = checked((int)q.Window.StartEpochSeconds);
         var endEpoch = checked((int)q.Window.EndEpochSecondsExclusive);
@@ -701,7 +899,26 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         sb.Append("  p.Panel_Id, c.Card_Number, t.Tested_Object_Id,").AppendLine();
         sb.Append("  t.Object_Type_Id, t.Error_Table, ").Append(arColumn).Append(',').AppendLine();
         sb.Append("  t.Topology, p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date,").AppendLine();
-        sb.Append("  pn.Part_Number, j.Jedec_Name").AppendLine();
+        sb.Append("  pn.Part_Number, j.Jedec_Name,").AppendLine();
+        // Delta_X / Delta_Y / Delta_Theta / Delta_Thickness / Delta_Surface
+        // exist on both v5.0 (post-reflow) and v4.3.1 (pre-reflow)
+        // schemas — verified against the live HLYAOI2024 and MEAOI DBs.
+        // Feeds the CR2 Deviation chart. Adapters that lack a column
+        // materialise null in that slot; the mapper honours NULL.
+        sb.Append("  t.Delta_X, t.Delta_Y, t.Delta_Theta, t.Delta_Thickness, t.Delta_Surface,").AppendLine();
+        // TC5 Phase B — panel face, feeder, and repair fields.
+        // Face / Face_Number live on PANELS (they identify the panel
+        // side the whole subpanel is on). Repair_* and Operator_Id
+        // live on TESTED_OBJECT. Feeder_Machine is reached through
+        // a LEFT JOIN so rows whose Feeder_Id has no matching FEEDER
+        // (unheard of on the live DBs but defensively supported)
+        // still project. All new columns exist verbatim on both v5.0
+        // and v4.3.1 — verified against
+        // tools/db/out/{postreflow,prereflow}/05_tested_object_columns.csv.
+        sb.Append("  p.Face, p.Face_Number, f.Feeder_Machine,").AppendLine();
+        sb.Append("  t.Repair_State_Result, t.Repair_Numeric_Date_Hour,").AppendLine();
+        sb.Append("  t.Repair_Button_Comment, t.Repair_Error_Comment,").AppendLine();
+        sb.Append("  t.Repair_Operator_Comments, t.Operator_Id").AppendLine();
         sb.Append(
             """
             FROM dbo.TESTED_OBJECT t WITH (NOLOCK)
@@ -709,6 +926,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
             LEFT JOIN dbo.PART_NUMBER pn WITH (NOLOCK) ON pn.Part_Number_Id = t.Part_Number_Id
             LEFT JOIN dbo.JEDEC       j  WITH (NOLOCK) ON j.Jedec_Id       = pn.Jedec_Id
+            LEFT JOIN dbo.FEEDER      f  WITH (NOLOCK) ON f.Feeder_Id      = t.Feeder_Id
             WHERE p.Panel_Numeric_Date >= @startEpoch
               AND p.Panel_Numeric_Date <  @endEpoch
             """);
@@ -724,7 +942,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
         AppendInClause(sb, "p.Machine_Id", "@m", q.MachineIds);
         AppendInClause(sb, "p.Product_Id", "@p", q.ProductIds);
-        AppendInClause(sb, "p.Recipe_Id",  "@r", q.RecipeIds);
 
         if (q.Cursor is not null)
         {
@@ -748,7 +965,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
             BindInParameters(p, "@m", q.MachineIds);
             BindInParameters(p, "@p", q.ProductIds);
-            BindInParameters(p, "@r", q.RecipeIds);
 
             if (q.Cursor is TestedObjectCursor c)
             {
@@ -808,8 +1024,36 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             PanelNumericDate: r.GetInt32(9),
             Topology: r.IsDBNull(6) ? null : r.GetString(6),
             PartNumberName: r.IsDBNull(10) ? null : r.GetString(10),
-            JedecName: r.IsDBNull(11) ? null : r.GetString(11));
+            JedecName: r.IsDBNull(11) ? null : r.GetString(11),
+            // Deviations (slots 12..16) — SQL Server FLOAT projects
+            // as System.Double; nullable in both schemas.
+            DeltaXUm: ReadNullableDouble(r, 12),
+            DeltaYUm: ReadNullableDouble(r, 13),
+            DeltaThetaDeg: ReadNullableDouble(r, 14),
+            DeltaThicknessUm: ReadNullableDouble(r, 15),
+            DeltaSurface: ReadNullableDouble(r, 16),
+            // TC5 Phase B — panel face, feeder, and repair fields.
+            // PANELS.Face / Face_Number are NOT NULL on both DBs but
+            // we IsDBNull-guard defensively for future schema drift.
+            // FEEDER.Feeder_Machine is reached through LEFT JOIN, so
+            // it CAN be null when the row's Feeder_Id has no match.
+            // Repair_State_Result and Operator_Id are NOT NULL on
+            // both DBs; Repair_Numeric_Date_Hour, Repair_*_Comment,
+            // and Repair_Operator_Comments are NULL when the object
+            // was never reviewed.
+            Face: r.IsDBNull(17) ? null : r.GetString(17),
+            FaceNumber: r.IsDBNull(18) ? null : r.GetInt32(18),
+            FeederName: r.IsDBNull(19) ? null : r.GetString(19),
+            RepairState: r.IsDBNull(20) ? null : r.GetInt32(20),
+            RepairUtc: r.IsDBNull(21) ? null : r.GetInt32(21),
+            RepairButtonComment: r.IsDBNull(22) ? null : r.GetString(22),
+            RepairErrorComment: r.IsDBNull(23) ? null : r.GetString(23),
+            RepairOperatorComment: r.IsDBNull(24) ? null : r.GetString(24),
+            RepairOperatorId: r.IsDBNull(25) ? null : r.GetInt32(25));
     }
+
+    private static double? ReadNullableDouble(DbDataReader r, int ordinal)
+        => r.IsDBNull(ordinal) ? null : r.GetDouble(ordinal);
 
     // ---- Shared CARDS query builder ----------------------------------------
 
@@ -818,7 +1062,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     {
         EnsureUnderInListCap(q.MachineIds, nameof(q.MachineIds));
         EnsureUnderInListCap(q.ProductIds, nameof(q.ProductIds));
-        EnsureUnderInListCap(q.RecipeIds, nameof(q.RecipeIds));
 
         var startEpoch = checked((int)q.Window.StartEpochSeconds);
         var endEpoch = checked((int)q.Window.EndEpochSecondsExclusive);
@@ -850,7 +1093,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
         AppendInClause(sb, "p.Machine_Id", "@m", q.MachineIds);
         AppendInClause(sb, "p.Product_Id", "@p", q.ProductIds);
-        AppendInClause(sb, "p.Recipe_Id",  "@r", q.RecipeIds);
 
         if (q.Cursor is not null)
         {
@@ -873,7 +1115,6 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
             BindInParameters(p, "@m", q.MachineIds);
             BindInParameters(p, "@p", q.ProductIds);
-            BindInParameters(p, "@r", q.RecipeIds);
 
             if (q.Cursor is CardCursor c)
             {

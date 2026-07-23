@@ -75,10 +75,6 @@ internal sealed class FakeAoiSource : IAoiSource
             {
                 continue;
             }
-            if (query.RecipeIds is { Count: > 0 } && !query.RecipeIds.Contains(panel.RecipeId))
-            {
-                continue;
-            }
             yield return panel;
             await Task.Yield();
         }
@@ -150,4 +146,29 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct)
         => Task.FromResult<IReadOnlyList<Recipe>>([]);
+
+    public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct)
+        => Task.FromResult<PanelRow?>(SeededPanels.FirstOrDefault(p => p.PanelId == panelId));
+
+    public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        var match = SeededPanels
+            .Where(p => string.Equals(p.PanelBarCode, barcode, StringComparison.Ordinal))
+            .OrderByDescending(p => p.PanelNumericDate)
+            .ThenByDescending(p => p.PanelId)
+            .FirstOrDefault();
+        return Task.FromResult<PanelRow?>(match);
+    }
+
+    public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<CardRow>>(
+            SeededCards.Where(c => c.PanelId == panelId).ToList());
+
+    public Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(
+        long panelId, int cardIdOnPanel, CancellationToken ct)
+        => Task.FromResult<IReadOnlyList<TestedObjectRow>>(
+            SeededTestedObjects
+                .Where(o => o.PanelId == panelId && o.CardIdOnPanel == cardIdOnPanel)
+                .ToList());
 }

@@ -29,6 +29,8 @@
     <ProjectReference Include="..\Nieweb.Data.Migrations.Sqlite\Nieweb.Data.Migrations.Sqlite.csproj" />
     <ProjectReference Include="..\Nieweb.Identity\Nieweb.Identity.csproj" />
     <ProjectReference Include="..\Nieweb.Reports\Nieweb.Reports.csproj" />
+    <ProjectReference Include="..\Nieweb.Reports.Traceability\Nieweb.Reports.Traceability.csproj" />
+    <ProjectReference Include="..\Nieweb.Pdf\Nieweb.Pdf.csproj" />
     <ProjectReference Include="..\Nieweb.DataSources.Sql\Nieweb.DataSources.Sql.csproj" />
     <!--
       Nieweb.DataSources.Fake is only active when

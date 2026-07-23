@@ -39,9 +39,6 @@ public static partial class SourceEndpoints
         group.MapGet("/{id}/products", ListProductsAsync)
             .WithName("SourcesListProducts");
 
-        group.MapGet("/{id}/recipes", ListRecipesAsync)
-            .WithName("SourcesListRecipes");
-
         return routes;
     }
 
@@ -145,9 +142,6 @@ public static partial class SourceEndpoints
     /// <summary>One item in <c>GET /api/sources/{id}/products</c>.</summary>
     public sealed record ProductOption(int Id, string Name, string? Revision);
 
-    /// <summary>One item in <c>GET /api/sources/{id}/recipes</c>.</summary>
-    public sealed record RecipeOption(int Id, string Name, int ProductId, string? VariantName);
-
     private static IAoiSource? FindSource(IEnumerable<IAoiSource> sources, string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -198,25 +192,6 @@ public static partial class SourceEndpoints
             .Select(p => new ProductOption(p.ProductId, p.ProductName ?? string.Empty, p.Revision))
             .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(p => p.Id)
-            .ToArray();
-        return Results.Ok(options);
-    }
-
-    private static async Task<IResult> ListRecipesAsync(
-        string id,
-        IEnumerable<IAoiSource> sources,
-        CancellationToken cancellationToken)
-    {
-        var source = FindSource(sources, id);
-        if (source is null)
-        {
-            return SourceNotFound(id);
-        }
-        var raw = await source.ListRecipesAsync(cancellationToken).ConfigureAwait(false);
-        var options = raw
-            .Select(r => new RecipeOption(r.RecipeId, r.FileName ?? string.Empty, r.ProductId, r.VariantName))
-            .OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(r => r.Id)
             .ToArray();
         return Results.Ok(options);
     }

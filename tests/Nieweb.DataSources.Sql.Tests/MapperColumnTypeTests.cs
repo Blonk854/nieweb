@@ -83,11 +83,51 @@ public sealed class MapperColumnTypeTests
     }
 
     [Fact]
+    public void MapTestedObjectRow_DeltaColumns_RoundTripAsDoubles()
+    {
+        // CR2 Deviation chart depends on Delta_X..Delta_Surface being
+        // materialised as System.Double from SQL Server FLOAT
+        // (same on v5.0 and v4.3.1). Guards against a future
+        // regression where a Delta_* column is dropped from the SELECT
+        // list or the mapper indexes the wrong slot.
+        using var reader = BuildTestedObjectReader(
+            testedObjectIdType: typeof(long),
+            errorTableArType: typeof(long),
+            testedObjectId: 1L,
+            errorTable: 0,
+            errorTableAr: 0L);
+
+        Assert.True(reader.Read());
+        var row = SqlServerAoiSourceBase.MapTestedObjectRow(reader);
+
+        Assert.Equal(12.5, row.DeltaXUm);
+        Assert.Equal(-7.25, row.DeltaYUm);
+        Assert.Equal(0.5, row.DeltaThetaDeg);
+        Assert.Equal(3.75, row.DeltaThicknessUm);
+        Assert.Equal(0.98, row.DeltaSurface);
+    }
+
+    [Fact]
     public void MapTestedObjectRow_NullTopologyAndPartAndJedec_MapsToNull()
     {
         var dt = NewTestedObjectTable(typeof(int), typeof(int));
         dt.Rows.Add(1, 0, 42, 100, 0, 0, /* Topology */ DBNull.Value, 5, 6, 1700000000,
-                    /* Part_Number */ DBNull.Value, /* Jedec_Name */ DBNull.Value);
+                    /* Part_Number */ DBNull.Value, /* Jedec_Name */ DBNull.Value,
+                    /* Delta_X */ DBNull.Value, /* Delta_Y */ DBNull.Value,
+                    /* Delta_Theta */ DBNull.Value, /* Delta_Thickness */ DBNull.Value,
+                    /* Delta_Surface */ DBNull.Value,
+                    // TC5 Phase B — new nullable slots. Face / Face_Number /
+                    // Repair_State_Result / Operator_Id are NOT NULL on the
+                    // live DBs, but the mapper still IsDBNull-guards them
+                    // for defensiveness against future schema drift.
+                    /* Face */ DBNull.Value, /* Face_Number */ DBNull.Value,
+                    /* Feeder_Machine */ DBNull.Value,
+                    /* Repair_State_Result */ DBNull.Value,
+                    /* Repair_Numeric_Date_Hour */ DBNull.Value,
+                    /* Repair_Button_Comment */ DBNull.Value,
+                    /* Repair_Error_Comment */ DBNull.Value,
+                    /* Repair_Operator_Comments */ DBNull.Value,
+                    /* Operator_Id */ DBNull.Value);
         using var reader = dt.CreateDataReader();
         Assert.True(reader.Read());
 
@@ -96,6 +136,48 @@ public sealed class MapperColumnTypeTests
         Assert.Null(row.Topology);
         Assert.Null(row.PartNumberName);
         Assert.Null(row.JedecName);
+        Assert.Null(row.DeltaXUm);
+        Assert.Null(row.DeltaYUm);
+        Assert.Null(row.DeltaThetaDeg);
+        Assert.Null(row.DeltaThicknessUm);
+        Assert.Null(row.DeltaSurface);
+        Assert.Null(row.Face);
+        Assert.Null(row.FaceNumber);
+        Assert.Null(row.FeederName);
+        Assert.Null(row.RepairState);
+        Assert.Null(row.RepairUtc);
+        Assert.Null(row.RepairButtonComment);
+        Assert.Null(row.RepairErrorComment);
+        Assert.Null(row.RepairOperatorComment);
+        Assert.Null(row.RepairOperatorId);
+    }
+
+    [Fact]
+    public void MapTestedObjectRow_TC5Phase_RepairAndFeederAndFace_RoundTrip()
+    {
+        // TC5 Phase B — verify the new columns round-trip through the
+        // mapper. The default helper populates every slot with a
+        // plausible non-null value; this test asserts the mapper reads
+        // the correct slot and preserves the value verbatim.
+        using var reader = BuildTestedObjectReader(
+            testedObjectIdType: typeof(long),
+            errorTableArType: typeof(long),
+            testedObjectId: 1L,
+            errorTable: 0,
+            errorTableAr: 0L);
+
+        Assert.True(reader.Read());
+        var row = SqlServerAoiSourceBase.MapTestedObjectRow(reader);
+
+        Assert.Equal("Top", row.Face);
+        Assert.Equal(0, row.FaceNumber);
+        Assert.Equal("DNP", row.FeederName);
+        Assert.Equal(1, row.RepairState);
+        Assert.Equal(1_700_000_500, row.RepairUtc);
+        Assert.Equal("Repaired", row.RepairButtonComment);
+        Assert.Equal("Solder", row.RepairErrorComment);
+        Assert.Equal("reflowed", row.RepairOperatorComment);
+        Assert.Equal(42, row.RepairOperatorId);
     }
 
     [Fact]
@@ -246,18 +328,32 @@ public sealed class MapperColumnTypeTests
     {
         var dt = NewTestedObjectTable(testedObjectIdType, errorTableArType);
         dt.Rows.Add(
-            /* Panel_Id           */ 1,
-            /* Card_Number        */ 0,
-            /* Tested_Object_Id   */ testedObjectId,
-            /* Object_Type_Id     */ 100,
-            /* Error_Table        */ errorTable,
-            /* Error_Table_AR     */ errorTableAr,
-            /* Topology           */ "R1",
-            /* Machine_Id         */ 10,
-            /* Product_Id         */ 20,
-            /* Panel_Numeric_Date */ 1_700_000_000,
-            /* Part_Number        */ "PN-1",
-            /* Jedec_Name         */ "0402");
+            /* Panel_Id                 */ 1,
+            /* Card_Number              */ 0,
+            /* Tested_Object_Id         */ testedObjectId,
+            /* Object_Type_Id           */ 100,
+            /* Error_Table              */ errorTable,
+            /* Error_Table_AR           */ errorTableAr,
+            /* Topology                 */ "R1",
+            /* Machine_Id               */ 10,
+            /* Product_Id               */ 20,
+            /* Panel_Numeric_Date       */ 1_700_000_000,
+            /* Part_Number              */ "PN-1",
+            /* Jedec_Name               */ "0402",
+            /* Delta_X                  */ 12.5,
+            /* Delta_Y                  */ -7.25,
+            /* Delta_Theta              */ 0.5,
+            /* Delta_Thickness          */ 3.75,
+            /* Delta_Surface            */ 0.98,
+            /* Face                     */ "Top",
+            /* Face_Number              */ 0,
+            /* Feeder_Machine           */ "DNP",
+            /* Repair_State_Result      */ 1,
+            /* Repair_Numeric_Date_Hour */ 1_700_000_500,
+            /* Repair_Button_Comment    */ "Repaired",
+            /* Repair_Error_Comment     */ "Solder",
+            /* Repair_Operator_Comments */ "reflowed",
+            /* Operator_Id              */ 42);
         return dt.CreateDataReader();
     }
 
@@ -276,6 +372,27 @@ public sealed class MapperColumnTypeTests
         dt.Columns.Add("Panel_Numeric_Date", typeof(int));
         dt.Columns.Add("Part_Number", typeof(string));
         dt.Columns.Add("Jedec_Name", typeof(string));
+        // Delta_* columns — SQL Server FLOAT projects as double,
+        // nullable in both schemas (macros / not-inspected rows
+        // legitimately carry NULL).
+        dt.Columns.Add("Delta_X", typeof(double));
+        dt.Columns.Add("Delta_Y", typeof(double));
+        dt.Columns.Add("Delta_Theta", typeof(double));
+        dt.Columns.Add("Delta_Thickness", typeof(double));
+        dt.Columns.Add("Delta_Surface", typeof(double));
+        // TC5 Phase B — panel face, feeder (LEFT JOIN → nullable),
+        // and repair fields. Face / Face_Number / Repair_State_Result
+        // / Operator_Id are NOT NULL on both live DBs; the others
+        // are nullable.
+        dt.Columns.Add("Face", typeof(string));
+        dt.Columns.Add("Face_Number", typeof(int));
+        dt.Columns.Add("Feeder_Machine", typeof(string));
+        dt.Columns.Add("Repair_State_Result", typeof(int));
+        dt.Columns.Add("Repair_Numeric_Date_Hour", typeof(int));
+        dt.Columns.Add("Repair_Button_Comment", typeof(string));
+        dt.Columns.Add("Repair_Error_Comment", typeof(string));
+        dt.Columns.Add("Repair_Operator_Comments", typeof(string));
+        dt.Columns.Add("Operator_Id", typeof(int));
         return dt;
     }
 

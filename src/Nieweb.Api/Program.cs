@@ -4,11 +4,13 @@ using System.Reflection;
 using System.Text;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 using Nieweb.Api.Auth;
+using Nieweb.Api.DataSources;
 using Nieweb.Api.Endpoints;
 using Nieweb.Api.Startup;
 using Nieweb.Data;
@@ -153,6 +155,12 @@ try
     {
         options.SerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // Deviation-chart responses (CR2) may include NaN for mean /
+        // ±3σ when the sample is empty or degenerate (n < 2). Emit
+        // them as the standard JSON tokens "NaN", "Infinity",
+        // "-Infinity" rather than throwing during serialization.
+        options.SerializerOptions.NumberHandling =
+            System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals;
     });
 
     // Audit log (I4). Written to by admin endpoints, OIDC provisioning,
@@ -165,6 +173,39 @@ try
     // canonical source for tolerance intervals, MSA constants, and the
     // batch master switch.
     builder.Services.AddScoped<Nieweb.Api.Parameters.IAppParameters, Nieweb.Api.Parameters.EfAppParameters>();
+
+    // Production lines + shift cycle (PL1). Back the admin
+    // "Production lines" and "Shift definition" pages and feed the
+    // PC1 dashboard + CR1/CR3 shift bucketing.
+    builder.Services.AddScoped<Nieweb.Api.ProductionLines.IProductionLines, Nieweb.Api.ProductionLines.EfProductionLines>();
+    builder.Services.AddScoped<Nieweb.Api.Shifts.IShifts, Nieweb.Api.Shifts.EfShifts>();
+
+    // Board-SVG sources (TC4 Phase A). Back /api/admin/board-svgs/sources
+    // and are the input list for the Phase B sync worker.
+    builder.Services.AddScoped<Nieweb.Api.BoardSvgs.IBoardSvgSources, Nieweb.Api.BoardSvgs.EfBoardSvgSources>();
+
+    // Board-SVG sync (TC4 Phase B). Options bound to
+    // Nieweb:BoardSvgSync (default 1 h interval, cache under
+    // ./data/board-svgs). Coordinator is scoped so it can share a
+    // DbContext scope with IBoardSvgSources; background service is
+    // singleton and creates a scope per tick.
+    builder.Services
+        .AddOptions<Nieweb.Api.BoardSvgs.BoardSvgSyncOptions>()
+        .Bind(builder.Configuration.GetSection(Nieweb.Api.BoardSvgs.BoardSvgSyncOptions.SectionName))
+        .ValidateDataAnnotations();
+    builder.Services.AddSingleton<Nieweb.Api.BoardSvgs.IBoardSvgFileSystem, Nieweb.Api.BoardSvgs.DiskBoardSvgFileSystem>();
+    builder.Services.AddScoped<Nieweb.Api.BoardSvgs.IBoardSvgSyncCoordinator, Nieweb.Api.BoardSvgs.BoardSvgSyncCoordinator>();
+    builder.Services.AddHostedService<Nieweb.Api.BoardSvgs.BoardSvgSyncService>();
+
+    // Report composition (RC1). Backs /api/admin/report-groups and
+    // /api/admin/reports; consumed by the RC2 SPA editor.
+    builder.Services.AddScoped<Nieweb.Api.Reports.IReports, Nieweb.Api.Reports.EfReports>();
+    // Report lock password hasher (RC3). Reuses the same Argon2id
+    // implementation as the user password hasher via a per-entity
+    // generic instantiation.
+    builder.Services.AddScoped<
+        Microsoft.AspNetCore.Identity.IPasswordHasher<Nieweb.Data.Entities.Report>,
+        Nieweb.Identity.Passwords.Argon2idPasswordHasher<Nieweb.Data.Entities.Report>>();
 
     // OIDC / SSO configuration (I2). Bind unconditionally so
     // /auth/config can inspect it; the actual OpenID Connect handler
@@ -292,12 +333,47 @@ try
             .FindEnvFile(builder.Environment.ContentRootPath);
         builder.Configuration.AddNiewebAoiEnvironment(aoiEnvFile);
     }
-    builder.Services.AddNiewebAoiSources(builder.Configuration);
 
-    // Opt-in in-memory fake source for the Playwright E2E harness (T2).
-    // Enabled only when Nieweb:Aoi:Fake:Enabled=true - stays dormant on
-    // every other host.
-    builder.Services.AddNiewebFakeAoiSource(builder.Configuration);
+    // ASP.NET Core Data Protection: encrypts AOI-source passwords at
+    // rest inside AoiSourceConfigs.EncryptedPassword. Keys live on the
+    // local filesystem (default: ./data/data-protection-keys, git-
+    // ignored) and are scoped by ApplicationName so upgrades and
+    // side-by-side deployments do not steal each other's ciphertexts.
+    var dataProtectionKeysDir = builder.Configuration["Nieweb:DataProtection:KeysDirectory"]
+        ?? Path.Combine(builder.Environment.ContentRootPath, "data", "data-protection-keys");
+    Directory.CreateDirectory(dataProtectionKeysDir);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDir))
+        .SetApplicationName("Nieweb");
+
+    // Supporting services for the Databases settings screen (Phase C).
+    // Registered before AoiSourceBootstrapper so both the bootstrap
+    // path and the runtime endpoints share one IAoiPasswordProtector
+    // via the main DI container.
+    builder.Services.AddSingleton<IAoiPasswordProtector, AoiPasswordProtector>();
+    builder.Services.AddSingleton<IPendingRestartSignal, PendingRestartSignal>();
+    builder.Services.AddScoped<IAoiSourceConfigs, EfAoiSourceConfigs>();
+
+    // AOI sources are now DB-driven: on first boot we seed the
+    // AoiSourceConfigs table from Nieweb:Aoi:* configuration, then
+    // subsequent boots treat the DB rows as authoritative. Row edits
+    // require an API restart to activate live connections - the UI
+    // surfaces this via a pending-restart banner + Restart API button.
+    //
+    // The "Testing" environment (used by NiewebApiFactory) opts out so
+    // integration tests keep their historical in-process wiring.
+    if (!builder.Environment.IsEnvironment("Testing"))
+    {
+        AoiSourceBootstrapper.RegisterFromDatabase(builder);
+    }
+    else
+    {
+        // Legacy config-driven registration path retained for the
+        // integration test harness so xUnit fixtures behave exactly
+        // as they did before Phase C.
+        builder.Services.AddNiewebAoiSources(builder.Configuration);
+        builder.Services.AddNiewebFakeAoiSource(builder.Configuration);
+    }
 
     // Health checks for orchestration probes / load-balancers:
     //   /health/live  -> process is alive (always healthy while
@@ -319,6 +395,13 @@ try
             tags: ["ready", "db"]);
 
     var app = builder.Build();
+
+    // QuestPDF Community MIT licence — must be set once per process
+    // before the first PDF render (see docs/phase-2.md §11 and
+    // Nieweb.Pdf.NiewebPdfLicense). Doing it here means every code
+    // path — endpoints, background scheduler, batch runs — inherits
+    // the activation without repeating themselves.
+    Nieweb.Pdf.NiewebPdfLicense.EnsureLicenseActivated();
 
     app.UseSerilogRequestLogging();
 
@@ -363,9 +446,17 @@ try
     app.MapOidcEndpoints();
     app.MapSourceEndpoints();
     app.MapReportEndpoints();
+    app.MapTraceabilityEndpoints();
     app.MapSavedViewEndpoints();
     app.MapAdminUsersEndpoints();
     app.MapAdminParametersEndpoints();
+    app.MapAdminProductionLinesEndpoints();
+    app.MapAdminShiftsEndpoints();
+    app.MapAdminReportsEndpoints();
+    app.MapAdminBoardSvgSourcesEndpoints();
+    app.MapAdminBoardSvgOperationsEndpoints();
+    app.MapAdminDataSourcesEndpoints();
+    app.MapBoardSvgsEndpoints();
     app.MapAuditEndpoints();
     app.MapHealthEndpoints();
 
