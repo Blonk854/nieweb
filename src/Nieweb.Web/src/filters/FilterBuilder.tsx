@@ -34,6 +34,11 @@ import {
     type FilterOperatorArity,
     type FilterValueKind,
 } from "./filterMetadata";
+import {
+    instantIsoToWallClock,
+    wallClockToInstantIso,
+} from "../i18n/zoneConverters";
+import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 
 /**
  * F11 filter builder component (docs/phase-2.md §7.9).
@@ -415,15 +420,22 @@ function SingleValueInput(props: {
     }
 
     if (kind === "DateTimeUtc") {
+        // `values[]` is the on-the-wire representation, which the
+        // server validator (`FilterValidator.TryParseValue`, kind
+        // `DateTimeUtc`) parses with `AssumeUniversal |
+        // AdjustToUniversal`. We therefore store canonical UTC
+        // ISO-8601 (`YYYY-MM-DDTHH:mm:ss.sssZ`) and interpret the
+        // wall clock the user typed in their configured time zone
+        // (Settings -> Timezone) so a picker reading "14:30" in
+        // Europe/Paris becomes "2026-07-15T12:30:00.000Z" on the
+        // wire. Same tz round-trip as the Panel Yield / Pareto /
+        // Canvas / admin Audit / Report Export filter panels.
         return (
-            <DateTimePicker
+            <DateTimeUtcInput
                 label={label}
-                value={value === "" ? null : value}
-                onChange={(v) => onChange(v ? String(v) : "")}
-                valueFormat="YYYY-MM-DD HH:mm"
-                clearable
-                w={200}
-                data-testid={testId}
+                value={value}
+                onChange={onChange}
+                testId={testId}
                 error={error}
             />
         );
@@ -450,6 +462,66 @@ function SingleValueInput(props: {
             value={value}
             onChange={(event) => onChange(event.currentTarget.value)}
             w={220}
+            data-testid={testId}
+            error={error}
+        />
+    );
+}
+
+/**
+ * Zone-aware date-time picker used for the `DateTimeUtc` value kind.
+ *
+ * `value` is the canonical UTC ISO string stored in `values[]`
+ * (e.g. `"2026-07-15T12:30:00.000Z"`). The picker displays it as
+ * a wall clock in the user's configured time zone, and converts
+ * back to UTC ISO on change. An unparseable stored value (e.g. an
+ * in-progress typed input the server hasn't seen yet) is passed
+ * through to the picker verbatim so the user's edit isn't clobbered
+ * mid-keystroke.
+ */
+function DateTimeUtcInput(props: {
+    label?: string;
+    value: string;
+    onChange: (next: string) => void;
+    testId: string;
+    error?: string;
+}) {
+    const { label, value, onChange, testId, error } = props;
+    const timeZone = resolveTimeZone(
+        usePreferencesStore((s) => s.timeZone),
+    );
+
+    // Mantine expects "YYYY-MM-DD HH:mm" (space separator). We store
+    // ISO; convert only when the stored value is a valid instant.
+    let display: string | null;
+    if (value === "") {
+        display = null;
+    }
+    else {
+        const wall = instantIsoToWallClock(value, timeZone, " ");
+        display = wall === "" ? value : wall;
+    }
+
+    return (
+        <DateTimePicker
+            label={label}
+            value={display}
+            onChange={(v) => {
+                if (!v) {
+                    onChange("");
+                    return;
+                }
+                const wall = String(v);
+                const iso = wallClockToInstantIso(wall, timeZone);
+                // If conversion fails (impossible for values Mantine
+                // itself emits, but guards against future edge cases),
+                // fall back to the raw wall clock — the validator will
+                // surface an error rather than silently drop input.
+                onChange(iso ?? wall);
+            }}
+            valueFormat="YYYY-MM-DD HH:mm"
+            clearable
+            w={200}
             data-testid={testId}
             error={error}
         />
