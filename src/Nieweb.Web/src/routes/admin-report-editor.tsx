@@ -66,6 +66,11 @@ import {
 import { fetchSources, type SourceInfo } from "../api/sources";
 import { TILE_LABEL_KEYS, TILE_TYPES, type TileType } from "../components/canvas/tileTypes";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
+import {
+    instantIsoToWallClock,
+    wallClockToInstantIso,
+} from "../i18n/zoneConverters";
+import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 import { useSessionStore } from "../state/session";
 
 /**
@@ -1067,17 +1072,32 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
         queryFn: fetchSources,
     });
 
-    // Default the window to "yesterday 00:00 UTC → today 00:00 UTC".
+    // Interpret the naive `datetime-local` inputs in the user's
+    // configured time zone (Settings -> Timezone) rather than UTC.
+    const timeZone = resolveTimeZone(
+        usePreferencesStore((s) => s.timeZone),
+    );
+
+    // Default the window to "yesterday 00:00 -> today 00:00" in the
+    // user's configured time zone. Working in the zone rather than
+    // UTC means a user in JST who opens the dialog just after midnight
+    // Tokyo time sees "yesterday" as the day that just ended locally,
+    // not the previous UTC day.
     const defaults = useMemo(() => {
-        const end = new Date();
-        end.setUTCHours(0, 0, 0, 0);
-        const start = new Date(end);
-        start.setUTCDate(start.getUTCDate() - 1);
+        // Today's Y-M-D as it appears in `timeZone`.
+        const todayWall = instantIsoToWallClock(new Date().toISOString(), timeZone, "T");
+        const todayDate = todayWall.slice(0, 10);
+        // Compute yesterday's Y-M-D. Doing string decrement is brittle
+        // around month boundaries, so anchor via a real Date at UTC
+        // noon of `todayDate` (safe for any zone) and subtract a day.
+        const anchor = new Date(`${todayDate}T12:00:00Z`);
+        anchor.setUTCDate(anchor.getUTCDate() - 1);
+        const yesterdayDate = anchor.toISOString().slice(0, 10);
         return {
-            start: toDatetimeLocalUtc(start),
-            end: toDatetimeLocalUtc(end),
+            start: `${yesterdayDate}T00:00`,
+            end: `${todayDate}T00:00`,
         };
-    }, []);
+    }, [timeZone]);
 
     const [sourceId, setSourceId] = useState<string | null>(null);
     const [startLocal, setStartLocal] = useState<string>(defaults.start);
@@ -1108,15 +1128,34 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
         && endLocal.length > 0
         && startLocal < endLocal;
 
+    // Precompute the UTC ISO instants used by the PDF preview URL
+    // (below in JSX). Memoized so `wallClockToInstantIso`'s Intl
+    // work doesn't run on every render — recomputes only when the
+    // wall-clock input or the zone actually changes.
+    const previewStartUtc = useMemo(
+        () => wallClockToInstantIso(startLocal, timeZone),
+        [startLocal, timeZone],
+    );
+    const previewEndUtc = useMemo(
+        () => wallClockToInstantIso(endLocal, timeZone),
+        [endLocal, timeZone],
+    );
+
     async function handleExport(format: ReportExportFormat) {
         if (!canExport || sourceId === null) return;
         setBusy(format);
         setError(null);
         try {
+            const startUtc = wallClockToInstantIso(startLocal, timeZone);
+            const endUtc = wallClockToInstantIso(endLocal, timeZone);
+            if (startUtc === null || endUtc === null) {
+                setError(t("admin.reports.editor.export.errorPrefix"));
+                return;
+            }
             const filter: ReportExportFilter = {
                 sourceId,
-                startUtc: `${startLocal}:00Z`,
-                endUtc: `${endLocal}:00Z`,
+                startUtc,
+                endUtc,
             };
             await downloadReportExport(reportId, format, filter);
         }
@@ -1205,28 +1244,17 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
                 opened={pdfPreviewOpen}
                 onClose={() => setPdfPreviewOpen(false)}
                 pdfUrl={canExport && sourceId !== null
+                    && previewStartUtc !== null && previewEndUtc !== null
                     ? reportExportUrl(reportId, "pdf", {
                         sourceId,
-                        startUtc: `${startLocal}:00Z`,
-                        endUtc: `${endLocal}:00Z`,
+                        startUtc: previewStartUtc,
+                        endUtc: previewEndUtc,
                     } satisfies ReportExportFilter)
                     : null}
                 fallbackFilename={`report-${reportId}.pdf`}
             />
         </Card>
     );
-}
-
-/**
- * Formats a Date as the value expected by <c>&lt;input
- * type="datetime-local"&gt;</c> — <c>YYYY-MM-DDTHH:mm</c> — using
- * the UTC clock so the value round-trips cleanly against server-side
- * UTC filters.
- */
-function toDatetimeLocalUtc(date: Date): string {
-    const pad = (n: number) => n.toString().padStart(2, "0");
-    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`
-        + `T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }
 
 

@@ -38,6 +38,11 @@ import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { KpiCards } from "../components/KpiCards";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
+import {
+    instantIsoToWallClock,
+    wallClockToInstantIso,
+} from "../i18n/zoneConverters";
+import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when a
 // user actually runs a report with per-machine rows.
@@ -70,6 +75,12 @@ export function PanelYieldRoute() {
     const sourcesQuery = useQuery({ queryKey: ["sources"], queryFn: fetchSources });
     const sources = useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
 
+    // Interpret naive wall-clock pickers in the user's configured time
+    // zone (Settings -> Timezone) rather than UTC.
+    const timeZone = resolveTimeZone(
+        usePreferencesStore((s) => s.timeZone),
+    );
+
     // ----- Local form state. Initialised once from the URL search
     // params; the user then edits it freely and Submit pushes the
     // final shape back into the URL (which drives the report query
@@ -77,7 +88,7 @@ export function PanelYieldRoute() {
     // panel but do NOT reset in-progress form edits - keeping the form
     // as URL-driven state would trip react-hooks/set-state-in-effect
     // and cascade re-renders on every keystroke.
-    const [form, setForm] = useState<FormState>(() => searchToForm(search));
+    const [form, setForm] = useState<FormState>(() => searchToForm(search, timeZone));
 
     // Effective source: what the user picked, or a sensible default
     // once the sources list loads. Computed on the fly so we don't
@@ -126,7 +137,7 @@ export function PanelYieldRoute() {
         const next: PanelYieldSearch = formToSearch({
             ...form,
             sourceId: effectiveSourceId,
-        });
+        }, timeZone);
         void navigate({
             to: "/report/panel-yield",
             search: next,
@@ -147,7 +158,7 @@ export function PanelYieldRoute() {
     // (which drives the report query) *and* seeds the form state so
     // the input controls also reflect the loaded view.
     function applySavedFilter(filter: PanelYieldSearch) {
-        setForm(searchToForm(filter));
+        setForm(searchToForm(filter, timeZone));
         void navigate({
             to: "/report/panel-yield",
             search: filter,
@@ -408,45 +419,30 @@ function emptyForm(): FormState {
     };
 }
 
-function searchToForm(s: PanelYieldSearch): FormState {
+function searchToForm(s: PanelYieldSearch, timeZone: string): FormState {
     return {
         sourceId: s.sourceId,
-        from: s.startUtc ? isoToMantine(s.startUtc) : null,
-        to: s.endUtc ? isoToMantine(s.endUtc) : null,
+        from: s.startUtc ? instantIsoToWallClock(s.startUtc, timeZone) : null,
+        to: s.endUtc ? instantIsoToWallClock(s.endUtc, timeZone) : null,
         machineIds: s.machineIds ?? [],
         productIds: s.productIds ?? [],
         onlyLastInspection: s.onlyLastInspection,
     };
 }
 
-function formToSearch(f: FormState): PanelYieldSearch {
+function formToSearch(f: FormState, timeZone: string): PanelYieldSearch {
     return {
         sourceId: f.sourceId,
-        startUtc: f.from ? mantineToIso(f.from) : undefined,
-        endUtc: f.to ? mantineToIso(f.to) : undefined,
+        startUtc: f.from
+            ? (wallClockToInstantIso(f.from, timeZone) ?? undefined)
+            : undefined,
+        endUtc: f.to
+            ? (wallClockToInstantIso(f.to, timeZone) ?? undefined)
+            : undefined,
         machineIds: f.machineIds.length > 0 ? f.machineIds : undefined,
         productIds: f.productIds.length > 0 ? f.productIds : undefined,
         onlyLastInspection: f.onlyLastInspection,
     };
-}
-
-/** "YYYY-MM-DDTHH:mm:ss.sssZ" -> "YYYY-MM-DD HH:mm" (UTC parts). */
-function isoToMantine(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().slice(0, 16).replace("T", " ");
-}
-
-/** "YYYY-MM-DD HH:mm[:ss]" (treated as UTC) -> ISO-8601 with Z. */
-function mantineToIso(value: string): string {
-    // Mantine v9 emits strings like "2026-07-15 12:34" (no zone). We
-    // interpret them as UTC so that the same string in the URL means the
-    // same point in time regardless of the operator's local timezone.
-    const normalized = value.trim().replace(" ", "T");
-    const withSeconds = /:\d{2}:\d{2}$/.test(normalized)
-        ? normalized
-        : `${normalized}:00`;
-    return new Date(`${withSeconds}Z`).toISOString();
 }
 
 // ---------------------------------------------------------------

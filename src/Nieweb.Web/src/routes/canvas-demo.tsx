@@ -32,6 +32,11 @@ import {
     pickDefaultSourceId,
     type CanvasDemoSearch,
 } from "./canvas-demo.search";
+import {
+    instantIsoToWallClock,
+    wallClockToInstantIso,
+} from "../i18n/zoneConverters";
+import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 
 /**
  * F10 canvas demo route (`/report/canvas-demo`).
@@ -70,7 +75,12 @@ export function CanvasDemoRoute() {
     // control writes back into the URL immediately (canvas-scale
     // filters change infrequently and every tile re-queries on
     // change, so debouncing is unnecessary at this scope).
-    const [form, setForm] = useState<FormState>(() => searchToForm(search));
+    // The naive `from`/`to` wall clocks are interpreted in the
+    // user's configured time zone (Settings -> Timezone).
+    const timeZone = resolveTimeZone(
+        usePreferencesStore((s) => s.timeZone),
+    );
+    const [form, setForm] = useState<FormState>(() => searchToForm(search, timeZone));
 
     const machinesQuery = useQuery({
         queryKey: ["machines", effectiveSourceId],
@@ -99,8 +109,12 @@ export function CanvasDemoRoute() {
         (nextForm: FormState, nextTiles: CanvasTile[]) => {
             const next: CanvasDemoSearch = {
                 sourceId: nextForm.sourceId,
-                startUtc: nextForm.from ? mantineToIso(nextForm.from) : undefined,
-                endUtc: nextForm.to ? mantineToIso(nextForm.to) : undefined,
+                startUtc: nextForm.from
+                    ? (wallClockToInstantIso(nextForm.from, timeZone) ?? undefined)
+                    : undefined,
+                endUtc: nextForm.to
+                    ? (wallClockToInstantIso(nextForm.to, timeZone) ?? undefined)
+                    : undefined,
                 machineIds:
                     nextForm.machineIds && nextForm.machineIds.length > 0
                         ? nextForm.machineIds
@@ -116,7 +130,7 @@ export function CanvasDemoRoute() {
             };
             navigate({ to: "/report/canvas-demo", search: next, replace: true });
         },
-        [navigate],
+        [navigate, timeZone],
     );
 
     // Wrap the setter so the URL and local state move together.
@@ -145,8 +159,12 @@ export function CanvasDemoRoute() {
     const canvasFilters: CanvasFilters = useMemo(
         () => ({
             sourceId: effectiveSourceId,
-            startUtc: form.from ? mantineToIso(form.from) : undefined,
-            endUtc: form.to ? mantineToIso(form.to) : undefined,
+            startUtc: form.from
+                ? (wallClockToInstantIso(form.from, timeZone) ?? undefined)
+                : undefined,
+            endUtc: form.to
+                ? (wallClockToInstantIso(form.to, timeZone) ?? undefined)
+                : undefined,
             machineIds:
                 form.machineIds && form.machineIds.length > 0
                     ? form.machineIds
@@ -162,6 +180,7 @@ export function CanvasDemoRoute() {
             form.to,
             form.machineIds,
             form.productIds,
+            timeZone,
         ],
     );
 
@@ -172,13 +191,13 @@ export function CanvasDemoRoute() {
         (next: CanvasFilters) => {
             patchForm({
                 sourceId: next.sourceId,
-                from: next.startUtc ? isoToMantine(next.startUtc) : null,
-                to: next.endUtc ? isoToMantine(next.endUtc) : null,
+                from: next.startUtc ? instantIsoToWallClock(next.startUtc, timeZone) : null,
+                to: next.endUtc ? instantIsoToWallClock(next.endUtc, timeZone) : null,
                 machineIds: next.machineIds ?? [],
                 productIds: next.productIds ?? [],
             });
         },
-        [patchForm],
+        [patchForm, timeZone],
     );
 
     return (
@@ -301,40 +320,20 @@ export function CanvasDemoRoute() {
 
 type FormState = {
     sourceId?: string;
-    /** "YYYY-MM-DD HH:mm" (UTC-interpreted, matching panel-yield). */
+    /** "YYYY-MM-DD HH:mm" (wall clock in the user's timezone). */
     from: string | null;
-    /** "YYYY-MM-DD HH:mm" (UTC-interpreted, matching panel-yield). */
+    /** "YYYY-MM-DD HH:mm" (wall clock in the user's timezone). */
     to: string | null;
     machineIds: number[];
     productIds: number[];
 };
 
-function searchToForm(search: CanvasDemoSearch): FormState {
+function searchToForm(search: CanvasDemoSearch, timeZone: string): FormState {
     return {
         sourceId: search.sourceId,
-        from: search.startUtc ? isoToMantine(search.startUtc) : null,
-        to: search.endUtc ? isoToMantine(search.endUtc) : null,
+        from: search.startUtc ? instantIsoToWallClock(search.startUtc, timeZone) : null,
+        to: search.endUtc ? instantIsoToWallClock(search.endUtc, timeZone) : null,
         machineIds: search.machineIds ?? [],
         productIds: search.productIds ?? [],
     };
-}
-
-/** "YYYY-MM-DDTHH:mm:ss.sssZ" -> "YYYY-MM-DD HH:mm" (UTC parts). */
-function isoToMantine(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().slice(0, 16).replace("T", " ");
-}
-
-/** "YYYY-MM-DD HH:mm[:ss]" (treated as UTC) -> ISO-8601 with Z. */
-function mantineToIso(value: string): string {
-    // Mantine v9 emits strings like "2026-07-15 12:34" (no zone). We
-    // interpret them as UTC so that the same string in the URL means the
-    // same point in time regardless of the operator's local timezone —
-    // same convention used by the Panel Yield route.
-    const normalized = value.trim().replace(" ", "T");
-    const withSeconds = /:\d{2}:\d{2}$/.test(normalized)
-        ? normalized
-        : `${normalized}:00`;
-    return new Date(`${withSeconds}Z`).toISOString();
 }

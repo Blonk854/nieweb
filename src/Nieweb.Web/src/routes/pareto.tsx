@@ -55,6 +55,11 @@ import {
 import { DataTable, type Column } from "../components/DataTable";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
+import {
+    instantIsoToWallClock,
+    wallClockToInstantIso,
+} from "../i18n/zoneConverters";
+import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when
@@ -85,7 +90,13 @@ export function ParetoRoute() {
     const sourcesQuery = useQuery({ queryKey: ["sources"], queryFn: fetchSources });
     const sources = useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
 
-    const [form, setForm] = useState<FormState>(() => searchToForm(search));
+    // Interpret naive wall-clock pickers in the user's configured time
+    // zone (Settings -> Timezone) rather than UTC.
+    const timeZone = resolveTimeZone(
+        usePreferencesStore((s) => s.timeZone),
+    );
+
+    const [form, setForm] = useState<FormState>(() => searchToForm(search, timeZone));
 
     const effectiveSourceId = form.sourceId ?? pickDefaultSourceId(sources);
 
@@ -127,7 +138,7 @@ export function ParetoRoute() {
         const next: ParetoSearch = formToSearch({
             ...form,
             sourceId: effectiveSourceId,
-        });
+        }, timeZone);
         void navigate({
             to: "/report/pareto",
             search: next,
@@ -545,11 +556,11 @@ function emptyForm(): FormState {
     };
 }
 
-function searchToForm(s: ParetoSearch): FormState {
+function searchToForm(s: ParetoSearch, timeZone: string): FormState {
     return {
         sourceId: s.sourceId,
-        from: s.startUtc ? isoToMantine(s.startUtc) : null,
-        to: s.endUtc ? isoToMantine(s.endUtc) : null,
+        from: s.startUtc ? instantIsoToWallClock(s.startUtc, timeZone) : null,
+        to: s.endUtc ? instantIsoToWallClock(s.endUtc, timeZone) : null,
         axis: s.axis ?? "Defect",
         numerator: s.numerator ?? "Real",
         opportunity: s.opportunity ?? "All",
@@ -562,11 +573,15 @@ function searchToForm(s: ParetoSearch): FormState {
     };
 }
 
-function formToSearch(f: FormState): ParetoSearch {
+function formToSearch(f: FormState, timeZone: string): ParetoSearch {
     return {
         sourceId: f.sourceId,
-        startUtc: f.from ? mantineToIso(f.from) : undefined,
-        endUtc: f.to ? mantineToIso(f.to) : undefined,
+        startUtc: f.from
+            ? (wallClockToInstantIso(f.from, timeZone) ?? undefined)
+            : undefined,
+        endUtc: f.to
+            ? (wallClockToInstantIso(f.to, timeZone) ?? undefined)
+            : undefined,
         axis: f.axis,
         numerator: f.numerator,
         opportunity: f.opportunity,
@@ -577,22 +592,6 @@ function formToSearch(f: FormState): ParetoSearch {
         productIds: f.productIds.length > 0 ? f.productIds : undefined,
         defectBits: f.defectBits.length > 0 ? f.defectBits : undefined,
     };
-}
-
-/** "YYYY-MM-DDTHH:mm:ss.sssZ" -> "YYYY-MM-DD HH:mm" (UTC parts). */
-function isoToMantine(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "";
-    return d.toISOString().slice(0, 16).replace("T", " ");
-}
-
-/** "YYYY-MM-DD HH:mm[:ss]" (treated as UTC) -> ISO-8601 with Z. */
-function mantineToIso(value: string): string {
-    const normalized = value.trim().replace(" ", "T");
-    const withSeconds = /:\d{2}:\d{2}$/.test(normalized)
-        ? normalized
-        : `${normalized}:00`;
-    return new Date(`${withSeconds}Z`).toISOString();
 }
 
 // ---------------------------------------------------------------

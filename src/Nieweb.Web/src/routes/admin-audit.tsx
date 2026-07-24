@@ -26,6 +26,8 @@ import {
     type AuditListResponse,
 } from "../api/adminAudit";
 import { useDateTimeFormatter } from "../i18n/formatters";
+import { wallClockToInstantIso } from "../i18n/zoneConverters";
+import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 import { useSessionStore } from "../state/session";
 
 /**
@@ -74,6 +76,12 @@ export function AdminAuditRoute() {
     const [page, setPage] = useState<number>(1);
     const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
 
+    // Interpret the naive `datetime-local` inputs in the user's
+    // configured time zone (Settings -> Timezone) rather than UTC.
+    const timeZone = resolveTimeZone(
+        usePreferencesStore((s) => s.timeZone),
+    );
+
     const params: AuditListParams = useMemo(() => {
         const p: AuditListParams = { page, pageSize };
         if (applied.eventType.trim()) p.eventType = applied.eventType.trim();
@@ -83,12 +91,12 @@ export function AdminAuditRoute() {
             const parsed = Number.parseInt(applied.actorUserId.trim(), 10);
             if (Number.isFinite(parsed)) p.actorUserId = parsed;
         }
-        const fromIso = toUtcIso(applied.fromLocal);
+        const fromIso = wallClockToInstantIso(applied.fromLocal, timeZone);
         if (fromIso) p.fromUtc = fromIso;
-        const toIso = toUtcIso(applied.toLocal);
+        const toIso = wallClockToInstantIso(applied.toLocal, timeZone);
         if (toIso) p.toUtc = toIso;
         return p;
-    }, [applied, page, pageSize]);
+    }, [applied, page, pageSize, timeZone]);
 
     const query = useQuery<AuditListResponse>({
         queryKey: [...ADMIN_AUDIT_QUERY_KEY, params],
@@ -417,21 +425,4 @@ function prettifyJson(raw: string): string {
     } catch {
         return raw;
     }
-}
-
-/**
- * Convert an HTML `datetime-local` value ("YYYY-MM-DDTHH:mm") into
- * an ISO-8601 UTC string suitable for the API. The `datetime-local`
- * control is timezone-naive; we treat the entered value as UTC so
- * "from/to (UTC)" labels match what the user typed. Returns null for
- * empty / invalid input.
- */
-function toUtcIso(local: string): string | null {
-    if (!local) return null;
-    // "YYYY-MM-DDTHH:mm" or "YYYY-MM-DDTHH:mm:ss"; append 'Z' to
-    // force UTC parsing regardless of the browser's local zone.
-    const withZ = local.length === 16 ? `${local}:00Z` : `${local}Z`;
-    const d = new Date(withZ);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toISOString();
 }
