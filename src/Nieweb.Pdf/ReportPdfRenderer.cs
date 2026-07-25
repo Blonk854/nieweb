@@ -235,18 +235,20 @@ public static class ReportPdfRenderer
             col.Item().Table(table =>
             {
                 // Columns match the XLSX WritePanelYieldSheet layout so
-                // the two exports contain the same data. Numeric columns
-                // are right-aligned for readability.
+                // the two exports contain the same data. The numeric
+                // columns use fixed widths (well under the printable area)
+                // so the final FPY column can never spill past the right
+                // margin; only the Machine column flexes to fill the rest.
                 table.ColumnsDefinition(cd =>
                 {
-                    cd.ConstantColumn(40);   // Id
-                    cd.RelativeColumn(3);    // Machine
-                    cd.RelativeColumn(1);    // Total
-                    cd.RelativeColumn(1);    // Inspected
-                    cd.RelativeColumn(1);    // Good
-                    cd.RelativeColumn(1);    // Faulty
-                    cd.RelativeColumn(1);    // Not inspected
-                    cd.RelativeColumn(1);    // FPY %
+                    cd.ConstantColumn(32);   // Id
+                    cd.RelativeColumn(1);    // Machine (absorbs remaining width)
+                    cd.ConstantColumn(60);   // Total
+                    cd.ConstantColumn(72);   // Inspected (widest header word)
+                    cd.ConstantColumn(58);   // Good
+                    cd.ConstantColumn(56);   // Faulty
+                    cd.ConstantColumn(62);   // Not inspected
+                    cd.ConstantColumn(56);   // FPY %
                 });
                 table.Header(h =>
                 {
@@ -372,11 +374,13 @@ public static class ReportPdfRenderer
     private static IContainer HeaderCell(IContainer c)
         => c.DefaultTextStyle(t => t.SemiBold())
             .PaddingVertical(2)
+            .PaddingHorizontal(3)
             .BorderBottom(0.5f)
             .BorderColor(Colors.Grey.Lighten1);
 
     private static IContainer BodyCell(IContainer c)
         => c.PaddingVertical(2)
+            .PaddingHorizontal(3)
             .BorderBottom(0.25f)
             .BorderColor(Colors.Grey.Lighten2);
 

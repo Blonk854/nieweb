@@ -24,4 +24,7 @@
     <Project Path="tests/Nieweb.Reports.TestKit/Nieweb.Reports.TestKit.csproj" />
     <Project Path="tests/Nieweb.Reports.Tests/Nieweb.Reports.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/dev/">
+    <Project Path="tools/dev/PdfLayoutProbe/PdfLayoutProbe.csproj" />
+  </Folder>
 </Solution>
