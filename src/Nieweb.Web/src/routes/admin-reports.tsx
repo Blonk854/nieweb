@@ -505,6 +505,7 @@ function CreateGroupModal(props: {
                         label={t("admin.reports.groups.create.nameLabel")}
                         placeholder={t("admin.reports.groups.create.namePlaceholder")}
                         withAsterisk
+                        data-autofocus
                         {...form.getInputProps("name")}
                     />
                     <NumberInput
@@ -791,6 +792,7 @@ function CreateReportModal(props: {
                         label={t("admin.reports.list.create.titleLabel")}
                         placeholder={t("admin.reports.list.create.titlePlaceholder")}
                         withAsterisk
+                        data-autofocus
                         {...form.getInputProps("title")}
                     />
                     <Textarea
