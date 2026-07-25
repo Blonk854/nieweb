@@ -35,7 +35,6 @@ public static class ParetoPdfRenderer
 
         var tz = timeZone ?? TimeZoneInfo.Utc;
         var subtitle = NiewebPdfTimestamps.FormatSubtitle(
-            $"Source: {result.Source.DisplayName}",
             $"Axis: {result.Axis}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}   Weight: {result.Weight}",
             $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
 
@@ -45,7 +44,8 @@ public static class ParetoPdfRenderer
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
             body: body => Compose(body, result),
-            timeZone: tz);
+            timeZone: tz,
+            footerNote: $"Source: {result.Source.DisplayName}");
 
         doc.Render(destination);
     }

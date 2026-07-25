@@ -37,7 +37,6 @@ public static class PanelYieldPdfRenderer
 
         var tz = timeZone ?? TimeZoneInfo.Utc;
         var subtitle = NiewebPdfTimestamps.FormatSubtitle(
-            $"Source: {result.Source.DisplayName}",
             $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
 
         var doc = new NiewebPdfDocument(
@@ -46,7 +45,8 @@ public static class PanelYieldPdfRenderer
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
             body: body => Compose(body, result),
-            timeZone: tz);
+            timeZone: tz,
+            footerNote: $"Source: {result.Source.DisplayName}");
 
         doc.Render(destination);
     }

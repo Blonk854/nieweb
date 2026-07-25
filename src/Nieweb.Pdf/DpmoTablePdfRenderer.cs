@@ -33,7 +33,6 @@ public static class DpmoTablePdfRenderer
 
         var tz = timeZone ?? TimeZoneInfo.Utc;
         var subtitle = NiewebPdfTimestamps.FormatSubtitle(
-            $"Source: {result.Source.DisplayName}",
             $"Grouped by: {result.GroupBy}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}",
             $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
 
@@ -43,7 +42,8 @@ public static class DpmoTablePdfRenderer
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
             body: body => Compose(body, result),
-            timeZone: tz);
+            timeZone: tz,
+            footerNote: $"Source: {result.Source.DisplayName}");
 
         doc.Render(destination);
     }
