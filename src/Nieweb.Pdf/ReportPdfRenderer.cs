@@ -235,20 +235,23 @@ public static class ReportPdfRenderer
             col.Item().Table(table =>
             {
                 // Columns match the XLSX WritePanelYieldSheet layout so
-                // the two exports contain the same data. The numeric
-                // columns use fixed widths (well under the printable area)
-                // so the final FPY column can never spill past the right
-                // margin; only the Machine column flexes to fill the rest.
+                // the two exports contain the same data. Every real column
+                // has a fixed width and a trailing relative spacer absorbs
+                // the leftover page width - this packs the columns together
+                // on the left (instead of letting the Machine column blow
+                // open a gap in the middle) and guarantees the final FPY
+                // column can never spill past the right margin.
                 table.ColumnsDefinition(cd =>
                 {
                     cd.ConstantColumn(32);   // Id
-                    cd.RelativeColumn(1);    // Machine (absorbs remaining width)
+                    cd.ConstantColumn(110);  // Machine
                     cd.ConstantColumn(60);   // Total
                     cd.ConstantColumn(72);   // Inspected (widest header word)
                     cd.ConstantColumn(58);   // Good
                     cd.ConstantColumn(56);   // Faulty
                     cd.ConstantColumn(62);   // Not inspected
                     cd.ConstantColumn(56);   // FPY %
+                    cd.RelativeColumn(1);    // Spacer (absorbs remaining width)
                 });
                 table.Header(h =>
                 {
@@ -260,6 +263,7 @@ public static class ReportPdfRenderer
                     h.Cell().Element(HeaderCell).AlignRight().Text("Faulty");
                     h.Cell().Element(HeaderCell).AlignRight().Text("Not insp.");
                     h.Cell().Element(HeaderCell).AlignRight().Text("FPY %");
+                    h.Cell().Element(HeaderCell).Text(string.Empty);
                 });
                 foreach (var m in result.ByMachine)
                 {
@@ -271,6 +275,7 @@ public static class ReportPdfRenderer
                     table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.FaultyPanels));
                     table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.NotInspectedPanels));
                     table.Cell().Element(BodyCell).AlignRight().Text(m.Kpi.FpyPercent.ToString("0.00", CultureInfo.InvariantCulture));
+                    table.Cell().Element(BodyCell).Text(string.Empty);
                 }
             });
         });
