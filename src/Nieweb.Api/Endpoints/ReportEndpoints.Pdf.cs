@@ -48,6 +48,7 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? onlyLastInspection,
+        string? tz,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -63,6 +64,7 @@ public static partial class ReportEndpoints
             return;
         }
 
+        var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
         var result = await PanelYieldByLineReport.Instance
             .RunAsync(built.Source, built.Filter, cancellationToken)
@@ -72,7 +74,7 @@ public static partial class ReportEndpoints
             context,
             filenameStem: string.Create(CultureInfo.InvariantCulture,
                 $"panel-yield-{built.Source.Descriptor.Id}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}"),
-            render: stream => PanelYieldPdfRenderer.Render(result, ResolveDisplayName(context.User), stream),
+            render: stream => PanelYieldPdfRenderer.Render(result, ResolveDisplayName(context.User), stream, timeZone: displayTz),
             cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
@@ -88,6 +90,7 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? includeObsoleteBits,
+        string? tz,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -115,11 +118,12 @@ public static partial class ReportEndpoints
             .RunAsync(built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
 
+        var dpmoTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
         await WritePdfAsync(
             context,
             filenameStem: string.Create(CultureInfo.InvariantCulture,
                 $"dpmo-{built.Source.Descriptor.Id}-{result.GroupBy}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}"),
-            render: stream => DpmoTablePdfRenderer.Render(result, ResolveDisplayName(context.User), stream),
+            render: stream => DpmoTablePdfRenderer.Render(result, ResolveDisplayName(context.User), stream, timeZone: dpmoTz),
             cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
@@ -198,7 +202,11 @@ public static partial class ReportEndpoints
             context,
             filenameStem: string.Create(CultureInfo.InvariantCulture,
                 $"pareto-{built.Source.Descriptor.Id}-{result.Axis}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}"),
-            render: stream => ParetoPdfRenderer.Render(result, ResolveDisplayName(context.User), stream),
+            render: stream => ParetoPdfRenderer.Render(
+                result,
+                ResolveDisplayName(context.User),
+                stream,
+                timeZone: built.Filter.SiteTimeZone ?? Nieweb.Pdf.NiewebPdfTimestamps.Resolve(null)),
             cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }

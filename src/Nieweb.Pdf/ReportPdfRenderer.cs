@@ -54,28 +54,43 @@ public static class ReportPdfRenderer
     /// empty list still produces the cover so users get a valid PDF
     /// even for an empty report.
     /// </summary>
+    /// <param name="header">Metadata shared across all sections (title, source, window).</param>
+    /// <param name="sections">Tile results in <c>DisplayOrder</c>. May be empty.</param>
+    /// <param name="generatedByDisplayName">User-facing name printed in the footer.</param>
+    /// <param name="destination">Target stream (typically an HTTP response body).</param>
+    /// <param name="generatedAt">Rendering timestamp; defaults to <c>DateTimeOffset.UtcNow</c>.</param>
+    /// <param name="timeZone">
+    /// Optional display time zone. Every timestamp in the header,
+    /// meta table, and body honours this zone; when null the renderer
+    /// falls back to UTC. Aggregation (which panels/subpanels are
+    /// included in the window) is always driven by the UTC bounds in
+    /// <paramref name="header"/> and never affected by this argument.
+    /// </param>
     public static void Render(
         ReportHeader header,
         IReadOnlyList<TileSection> sections,
         string generatedByDisplayName,
         Stream destination,
-        DateTimeOffset? generatedAt = null)
+        DateTimeOffset? generatedAt = null,
+        TimeZoneInfo? timeZone = null)
     {
         ArgumentNullException.ThrowIfNull(header);
         ArgumentNullException.ThrowIfNull(sections);
         ArgumentNullException.ThrowIfNull(generatedByDisplayName);
         ArgumentNullException.ThrowIfNull(destination);
 
-        var subtitle = string.Create(
-            CultureInfo.InvariantCulture,
-            $"Source: {header.SourceDisplayName}  ·  {FormatUtc(header.WindowStartUtc)} → {FormatUtc(header.WindowEndExclusiveUtc)}");
+        var tz = timeZone ?? TimeZoneInfo.Utc;
+        var subtitle = NiewebPdfTimestamps.FormatSubtitle(
+            $"Source: {header.SourceDisplayName}",
+            $"Window: {NiewebPdfTimestamps.FormatRange(header.WindowStartUtc, header.WindowEndExclusiveUtc, tz)}");
 
         var doc = new NiewebPdfDocument(
             title: header.ReportTitle,
             subtitle: subtitle,
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
-            body: body => Compose(body, header, sections));
+            body: body => Compose(body, header, sections, tz),
+            timeZone: tz);
 
         doc.Render(destination);
     }
@@ -83,12 +98,13 @@ public static class ReportPdfRenderer
     private static void Compose(
         IContainer body,
         ReportHeader header,
-        IReadOnlyList<TileSection> sections)
+        IReadOnlyList<TileSection> sections,
+        TimeZoneInfo timeZone)
     {
         body.Column(col =>
         {
             col.Spacing(12);
-            col.Item().Element(c => ComposeCover(c, header, sections));
+            col.Item().Element(c => ComposeCover(c, header, sections, timeZone));
 
             for (var i = 0; i < sections.Count; i++)
             {
@@ -103,7 +119,8 @@ public static class ReportPdfRenderer
     private static void ComposeCover(
         IContainer container,
         ReportHeader header,
-        IReadOnlyList<TileSection> sections)
+        IReadOnlyList<TileSection> sections,
+        TimeZoneInfo timeZone)
     {
         container.Column(col =>
         {
@@ -113,7 +130,7 @@ public static class ReportPdfRenderer
             {
                 col.Item().Text(header.Description!).FontSize(9).FontColor(Colors.Grey.Darken2);
             }
-            col.Item().Element(c => MetaTable(c, header));
+            col.Item().Element(c => MetaTable(c, header, timeZone));
             col.Item().Text(string.Create(CultureInfo.InvariantCulture,
                     $"{sections.Count} tile(s):"))
                 .SemiBold().FontSize(10);
@@ -142,7 +159,7 @@ public static class ReportPdfRenderer
         });
     }
 
-    private static void MetaTable(IContainer container, ReportHeader header)
+    private static void MetaTable(IContainer container, ReportHeader header, TimeZoneInfo timeZone)
     {
         container.Border(0.5f).BorderColor(Colors.Grey.Lighten1).Padding(6).Table(table =>
         {
@@ -158,8 +175,10 @@ public static class ReportPdfRenderer
             }
             Row("Source Id", header.SourceId);
             Row("Source",    header.SourceDisplayName);
-            Row("Window",    string.Create(CultureInfo.InvariantCulture,
-                $"{FormatUtc(header.WindowStartUtc)} → {FormatUtc(header.WindowEndExclusiveUtc)} (UTC, end exclusive)"));
+            Row("Window",    NiewebPdfTimestamps.FormatRange(
+                                header.WindowStartUtc,
+                                header.WindowEndExclusiveUtc,
+                                timeZone) + " (end exclusive)");
         });
     }
 
@@ -215,22 +234,29 @@ public static class ReportPdfRenderer
             col.Item().Text("By AOI machine").SemiBold().FontSize(10);
             col.Item().Table(table =>
             {
+                // Columns match the XLSX WritePanelYieldSheet layout so
+                // the two exports contain the same data. Numeric columns
+                // are right-aligned for readability.
                 table.ColumnsDefinition(cd =>
                 {
-                    cd.ConstantColumn(50);
-                    cd.RelativeColumn(3);
-                    cd.RelativeColumn(1);
-                    cd.RelativeColumn(1);
-                    cd.RelativeColumn(1);
-                    cd.RelativeColumn(1);
+                    cd.ConstantColumn(40);   // Id
+                    cd.RelativeColumn(3);    // Machine
+                    cd.RelativeColumn(1);    // Total
+                    cd.RelativeColumn(1);    // Inspected
+                    cd.RelativeColumn(1);    // Good
+                    cd.RelativeColumn(1);    // Faulty
+                    cd.RelativeColumn(1);    // Not inspected
+                    cd.RelativeColumn(1);    // FPY %
                 });
                 table.Header(h =>
                 {
                     h.Cell().Element(HeaderCell).Text("Id");
                     h.Cell().Element(HeaderCell).Text("Machine");
                     h.Cell().Element(HeaderCell).AlignRight().Text("Total");
+                    h.Cell().Element(HeaderCell).AlignRight().Text("Inspected");
                     h.Cell().Element(HeaderCell).AlignRight().Text("Good");
                     h.Cell().Element(HeaderCell).AlignRight().Text("Faulty");
+                    h.Cell().Element(HeaderCell).AlignRight().Text("Not insp.");
                     h.Cell().Element(HeaderCell).AlignRight().Text("FPY %");
                 });
                 foreach (var m in result.ByMachine)
@@ -238,8 +264,10 @@ public static class ReportPdfRenderer
                     table.Cell().Element(BodyCell).Text(Int(m.MachineId));
                     table.Cell().Element(BodyCell).Text(m.MachineName ?? string.Empty);
                     table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.TotalPanels));
+                    table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.InspectedPanels));
                     table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.GoodPanels));
                     table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.FaultyPanels));
+                    table.Cell().Element(BodyCell).AlignRight().Text(Long(m.Kpi.NotInspectedPanels));
                     table.Cell().Element(BodyCell).AlignRight().Text(m.Kpi.FpyPercent.ToString("0.00", CultureInfo.InvariantCulture));
                 }
             });
@@ -354,7 +382,4 @@ public static class ReportPdfRenderer
 
     private static string Int(int v) => v.ToString("N0", CultureInfo.InvariantCulture);
     private static string Long(long v) => v.ToString("N0", CultureInfo.InvariantCulture);
-
-    private static string FormatUtc(DateTimeOffset instant)
-        => instant.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
 }

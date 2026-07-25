@@ -224,7 +224,7 @@ describe("AdminReportsRoute", () => {
             within(dialog).getByPlaceholderText(/daily production/i),
             "Dup group",
         );
-        await user.click(within(dialog).getByRole("button", { name: /create group/i }));
+        await user.click(within(dialog).getByRole("button", { name: /^save$/i }));
 
         const alerts = await within(dialog).findAllByRole("alert");
         expect(alerts[0]).toHaveTextContent(/already exists/i);
@@ -283,7 +283,7 @@ describe("AdminReportsRoute", () => {
             within(dialog).getByPlaceholderText(/smt overview/i),
             "My report",
         );
-        await user.click(within(dialog).getByRole("button", { name: /create report/i }));
+        await user.click(within(dialog).getByRole("button", { name: /^save$/i }));
 
         await waitFor(() => {
             expect(postCount).toBeGreaterThanOrEqual(1);

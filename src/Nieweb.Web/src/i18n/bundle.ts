@@ -1024,6 +1024,7 @@ export type TranslationBundle = {
                     endLabel: string;
                     downloadXlsx: string;
                     downloadPdf: string;
+                    downloadCsv: string;
                     errorPrefix: string;
                 };
             };

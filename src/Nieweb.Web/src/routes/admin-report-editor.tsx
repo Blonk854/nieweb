@@ -31,6 +31,7 @@ import {
     IconCopy,
     IconDownload,
     IconEye,
+    IconFileTypeCsv,
     IconFileTypePdf,
     IconLock,
     IconLockOpen,
@@ -1156,6 +1157,7 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
                 sourceId,
                 startUtc,
                 endUtc,
+                timeZone,
             };
             await downloadReportExport(reportId, format, filter);
         }
@@ -1230,6 +1232,14 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
                         {t("admin.reports.editor.export.downloadPdf")}
                     </Button>
                     <Button
+                        leftSection={<IconFileTypeCsv size={14} />}
+                        disabled={!canExport || busy !== null}
+                        loading={busy === "csv"}
+                        onClick={() => void handleExport("csv")}
+                    >
+                        {t("admin.reports.editor.export.downloadCsv")}
+                    </Button>
+                    <Button
                         variant="default"
                         leftSection={<IconEye size={14} />}
                         disabled={!canExport || busy !== null}
@@ -1249,6 +1259,7 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
                         sourceId,
                         startUtc: previewStartUtc,
                         endUtc: previewEndUtc,
+                        timeZone,
                     } satisfies ReportExportFilter)
                     : null}
                 fallbackFilename={`report-${reportId}.pdf`}

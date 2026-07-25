@@ -26,9 +26,9 @@ namespace Nieweb.Api.Endpoints;
 public static partial class ReportEndpoints
 {
     /// <summary>
-    /// Registers the <c>/{id}/export.xlsx</c> and <c>/{id}/export.pdf</c>
-    /// endpoints on <paramref name="group"/>. Called from
-    /// <see cref="MapReportEndpoints(IEndpointRouteBuilder)"/>.
+    /// Registers the <c>/{id}/export.xlsx</c>, <c>/{id}/export.pdf</c>
+    /// and <c>/{id}/export.csv</c> endpoints on <paramref name="group"/>.
+    /// Called from <see cref="MapReportEndpoints(IEndpointRouteBuilder)"/>.
     /// </summary>
     private static void MapReportExportEndpoints(RouteGroupBuilder group)
     {
@@ -37,6 +37,9 @@ public static partial class ReportEndpoints
 
         group.MapGet("/{id:int}/export.pdf", ExportReportPdfAsync)
              .WithName("ReportsReportExportPdf");
+
+        group.MapGet("/{id:int}/export.csv", ExportReportCsvAsync)
+             .WithName("ReportsReportExportCsv");
     }
 
     // -------------------- XLSX --------------------
@@ -50,6 +53,7 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? onlyLastInspection,
+        string? tz,
         IEnumerable<IAoiSource> sources,
         IReports reports,
         ILogger<ReportsMarker> logger,
@@ -78,8 +82,9 @@ public static partial class ReportEndpoints
             detail, built.Source!, built.Filter!, machineIds, productIds,
             logger, cancellationToken).ConfigureAwait(false);
 
+        var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
         using var buffer = new MemoryStream(32 * 1024);
-        BuildReportWorkbook(detail, built.Source!, built.Filter!, sections, buffer);
+        BuildReportWorkbook(detail, built.Source!, built.Filter!, sections, buffer, displayTz);
         buffer.Position = 0;
 
         var filename = string.Create(CultureInfo.InvariantCulture,
@@ -104,6 +109,7 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? onlyLastInspection,
+        string? tz,
         IEnumerable<IAoiSource> sources,
         IReports reports,
         ILogger<ReportsMarker> logger,
@@ -140,8 +146,9 @@ public static partial class ReportEndpoints
             WindowStartUtc: built.Filter!.Window.StartUtc,
             WindowEndExclusiveUtc: built.Filter.Window.EndUtcExclusive);
 
+        var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
         using var buffer = new MemoryStream(32 * 1024);
-        ReportPdfRenderer.Render(header, sections, ResolveDisplayName(context.User), buffer);
+        ReportPdfRenderer.Render(header, sections, ResolveDisplayName(context.User), buffer, timeZone: displayTz);
         buffer.Position = 0;
 
         var filename = string.Create(CultureInfo.InvariantCulture,
@@ -303,7 +310,8 @@ public static partial class ReportEndpoints
         IAoiSource source,
         PanelYieldFilter filter,
         IReadOnlyList<ReportPdfRenderer.TileSection> sections,
-        Stream destination)
+        Stream destination,
+        TimeZoneInfo displayTz)
     {
         using var workbook = new XLWorkbook();
 
@@ -321,27 +329,30 @@ public static partial class ReportEndpoints
         cover.Cell("B5").Value = source.Descriptor.Id;
         cover.Cell("A6").Value = "Source Name";
         cover.Cell("B6").Value = source.Descriptor.DisplayName;
-        cover.Cell("A7").Value = "Window Start (UTC)";
-        cover.Cell("B7").Value = filter.Window.StartUtc.UtcDateTime;
+        cover.Cell("A7").Value = "Window Start";
+        cover.Cell("B7").Value = TimeZoneInfo.ConvertTime(filter.Window.StartUtc, displayTz).DateTime;
         cover.Cell("B7").Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
-        cover.Cell("A8").Value = "Window End (UTC, exclusive)";
-        cover.Cell("B8").Value = filter.Window.EndUtcExclusive.UtcDateTime;
+        cover.Cell("A8").Value = "Window End (exclusive)";
+        cover.Cell("B8").Value = TimeZoneInfo.ConvertTime(filter.Window.EndUtcExclusive, displayTz).DateTime;
         cover.Cell("B8").Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+        cover.Cell("A9").Value = "Time zone";
+        cover.Cell("B9").Value = Nieweb.Pdf.NiewebPdfTimestamps.FormatZoneSuffix(displayTz, filter.Window.EndUtcExclusive)
+                                  + (displayTz.Id.Equals("UTC", StringComparison.OrdinalIgnoreCase) ? string.Empty : " (" + displayTz.Id + ")");
         if (!string.IsNullOrWhiteSpace(detail.Report.Description))
         {
-            cover.Cell("A9").Value = "Description";
-            cover.Cell("B9").Value = detail.Report.Description;
+            cover.Cell("A10").Value = "Description";
+            cover.Cell("B10").Value = detail.Report.Description;
         }
 
-        cover.Cell("A11").Value = "#";
-        cover.Cell("B11").Value = "Tile title";
-        cover.Cell("C11").Value = "Tile type";
-        cover.Cell("D11").Value = "Status";
-        cover.Range("A11:D11").Style.Font.Bold = true;
+        cover.Cell("A12").Value = "#";
+        cover.Cell("B12").Value = "Tile title";
+        cover.Cell("C12").Value = "Tile type";
+        cover.Cell("D12").Value = "Status";
+        cover.Range("A12:D12").Style.Font.Bold = true;
 
         for (var i = 0; i < sections.Count; i++)
         {
-            var row = 12 + i;
+            var row = 13 + i;
             var section = sections[i];
             cover.Cell(row, 1).Value = i + 1;
             cover.Cell(row, 2).Value = section.Title;
@@ -519,5 +530,171 @@ public static partial class ReportEndpoints
         // A comfortably readable width for a markdown paragraph without
         // fighting AdjustToContents in <see cref="BuildReportWorkbook"/>.
         sheet.Column("A").Width = 80;
+    }
+
+    // -------------------- CSV --------------------
+
+    private const string CsvContentType = "text/csv; charset=utf-8";
+
+    private static async Task ExportReportCsvAsync(
+        HttpContext context,
+        int id,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        string? productIds,
+        bool? onlyLastInspection,
+        string? tz,
+        IEnumerable<IAoiSource> sources,
+        IReports reports,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(reports);
+
+        var detail = await reports.GetReportAsync(id, cancellationToken).ConfigureAwait(false);
+        if (detail is null)
+        {
+            await Results.NotFound().ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        var built = TryBuildPanelYieldRequest(
+            sourceId, startUtc, endUtc, machineIds, productIds,
+            onlyLastInspection, sources);
+        if (built.Error is not null)
+        {
+            await built.Error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        var sections = await RunTileSectionsAsync(
+            detail, built.Source!, built.Filter!, machineIds, productIds,
+            logger, cancellationToken).ConfigureAwait(false);
+
+        var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
+
+        using var buffer = new MemoryStream(32 * 1024);
+        WriteReportCsv(detail, built.Source!, built.Filter!, sections, displayTz, ResolveDisplayName(context.User), buffer);
+        buffer.Position = 0;
+
+        var filename = string.Create(CultureInfo.InvariantCulture,
+            $"report-{detail.Report.Id}-{built.Source!.Descriptor.Id}-{built.Filter!.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}.csv");
+
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        context.Response.ContentType = CsvContentType;
+        context.Response.ContentLength = buffer.Length;
+        context.Response.Headers.ContentDisposition = $"attachment; filename=\"{filename}\"";
+
+        await buffer.CopyToAsync(context.Response.Body, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Writes a multi-tile report as a single UTF-8 CSV. Because tiles
+    /// have heterogeneous schemas we prefix every tile's block with
+    /// <c># Tile N: title (type)</c> commented lines so Excel and
+    /// plain-text readers both see a legible boundary. The report-level
+    /// metadata is written at the top as a similar comment block.
+    /// </summary>
+    private static void WriteReportCsv(
+        ReportDetail detail,
+        IAoiSource source,
+        PanelYieldFilter filter,
+        IReadOnlyList<ReportPdfRenderer.TileSection> sections,
+        TimeZoneInfo displayTz,
+        string generatedByDisplayName,
+        Stream destination)
+    {
+        // UTF-8 BOM keeps Excel's CSV importer from mojibake-ing accents.
+        using var writer = new StreamWriter(destination, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true), leaveOpen: true)
+        {
+            NewLine = "\r\n",
+        };
+
+        writer.WriteLine("# Report: " + detail.Report.Title);
+        if (!string.IsNullOrWhiteSpace(detail.Report.Description))
+        {
+            writer.WriteLine("# Description: " + detail.Report.Description);
+        }
+        writer.WriteLine("# Source: " + source.Descriptor.DisplayName + " (" + source.Descriptor.Id + ")");
+        writer.WriteLine("# Window: " + Nieweb.Pdf.NiewebPdfTimestamps.FormatRange(filter.Window.StartUtc, filter.Window.EndUtcExclusive, displayTz) + " (end exclusive)");
+        writer.WriteLine("# Generated: " + Nieweb.Pdf.NiewebPdfTimestamps.FormatInstant(DateTimeOffset.UtcNow, displayTz) + " by " + generatedByDisplayName);
+        writer.WriteLine();
+
+        for (var i = 0; i < sections.Count; i++)
+        {
+            var section = sections[i];
+            writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"# Tile {i + 1}: {section.Title} ({section.TileType})"));
+            switch (section.Result)
+            {
+                case PanelYieldResult panelYield:
+                    WritePanelYieldCsv(writer, panelYield);
+                    break;
+                case ParetoResult pareto:
+                    WriteParetoCsv(writer, pareto);
+                    break;
+                case ReportPdfRenderer.CommentTileResult comment:
+                    WriteCommentCsv(writer, comment);
+                    break;
+                default:
+                    writer.WriteLine("# unsupported tile type '" + section.TileType + "' - skipped");
+                    break;
+            }
+            writer.WriteLine();
+        }
+        writer.Flush();
+    }
+
+    private static void WritePanelYieldCsv(TextWriter writer, PanelYieldResult result)
+    {
+        writer.WriteLine("Metric,Value");
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Total Panels,{result.Overall.TotalPanels}"));
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Inspected Panels,{result.Overall.InspectedPanels}"));
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Good Panels,{result.Overall.GoodPanels}"));
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Faulty Panels,{result.Overall.FaultyPanels}"));
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Not-Inspected Panels,{result.Overall.NotInspectedPanels}"));
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture, $"FPY (%),{result.Overall.FpyPercent:0.####}"));
+        writer.WriteLine();
+        writer.WriteLine("MachineId,MachineName,Total,Inspected,Good,Faulty,NotInspected,FpyPercent");
+        foreach (var m in result.ByMachine)
+        {
+            writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"{m.MachineId},{CsvEscape(m.MachineName)},{m.Kpi.TotalPanels},{m.Kpi.InspectedPanels},{m.Kpi.GoodPanels},{m.Kpi.FaultyPanels},{m.Kpi.NotInspectedPanels},{m.Kpi.FpyPercent:0.####}"));
+        }
+    }
+
+    private static void WriteParetoCsv(TextWriter writer, ParetoResult result)
+    {
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"# Axis: {result.Axis}   Numerator: {result.Numerator}   Weight: {result.Weight}"));
+        writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"# Defect bits: {result.Overall.DefectBitCount}   Opportunities: {result.Overall.OpportunityCount}   DPMO (ppm): {result.Overall.DpmoPpm:0.####}"));
+        writer.WriteLine("GroupKey,GroupName,DefectCount,DpmoPpm,SharePercent,CumulativePercent");
+        foreach (var row in result.Rows)
+        {
+            writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"{CsvEscape(row.GroupKey)},{CsvEscape(row.GroupName)},{row.DefectCount},{row.DpmoPpm:0.####},{row.DefectSharePercent:0.####},{row.CumulativePercent:0.####}"));
+        }
+        if (result.OthersBucket is { } others)
+        {
+            writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"{CsvEscape(others.GroupKey ?? "others")},{CsvEscape(others.GroupName ?? "Others")},{others.DefectCount},{others.DpmoPpm:0.####},{others.DefectSharePercent:0.####},{others.CumulativePercent:0.####}"));
+        }
+    }
+
+    private static void WriteCommentCsv(TextWriter writer, ReportPdfRenderer.CommentTileResult comment)
+    {
+        var text = comment.Markdown;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            writer.WriteLine("# (empty comment)");
+            return;
+        }
+        // Comments can contain newlines; CSV requires them inside quotes.
+        writer.WriteLine("Comment");
+        writer.WriteLine(CsvEscape(text));
     }
 }

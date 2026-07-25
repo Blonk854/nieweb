@@ -21,27 +21,31 @@ public static class ParetoPdfRenderer
     /// <param name="generatedByDisplayName">User-facing name printed in the footer.</param>
     /// <param name="destination">Target stream.</param>
     /// <param name="generatedAt">Rendering timestamp (defaults to now UTC).</param>
+    /// <param name="timeZone">Display time zone (defaults to UTC when null).</param>
     public static void Render(
         ParetoResult result,
         string generatedByDisplayName,
         Stream destination,
-        DateTimeOffset? generatedAt = null)
+        DateTimeOffset? generatedAt = null,
+        TimeZoneInfo? timeZone = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(generatedByDisplayName);
         ArgumentNullException.ThrowIfNull(destination);
 
-        var subtitle = PanelYieldPdfRenderer.FormatSubtitle(
+        var tz = timeZone ?? TimeZoneInfo.Utc;
+        var subtitle = NiewebPdfTimestamps.FormatSubtitle(
             $"Source: {result.Source.DisplayName}",
             $"Axis: {result.Axis}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}   Weight: {result.Weight}",
-            $"Window: {PanelYieldPdfRenderer.FormatUtc(result.Window.StartUtc)} → {PanelYieldPdfRenderer.FormatUtc(result.Window.EndUtcExclusive)}");
+            $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
 
         var doc = new NiewebPdfDocument(
             title: "Pareto — Defects",
             subtitle: subtitle,
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
-            body: body => Compose(body, result));
+            body: body => Compose(body, result),
+            timeZone: tz);
 
         doc.Render(destination);
     }

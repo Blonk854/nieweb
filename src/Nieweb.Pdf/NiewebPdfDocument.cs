@@ -30,6 +30,7 @@ public sealed class NiewebPdfDocument
     private readonly string _subtitle;
     private readonly string _generatedByDisplayName;
     private readonly DateTimeOffset _generatedAt;
+    private readonly TimeZoneInfo _timeZone;
     private readonly BodyBuilder _body;
 
     /// <param name="title">Report title, rendered centred in the header.</param>
@@ -37,12 +38,14 @@ public sealed class NiewebPdfDocument
     /// <param name="generatedByDisplayName">User-facing name of the caller, printed in the footer.</param>
     /// <param name="generatedAt">UTC generation instant (rendered ISO date + time in header).</param>
     /// <param name="body">Composes the body content into the caller-provided container.</param>
+    /// <param name="timeZone">Optional display time zone (see <see cref="NiewebPdfTimestamps.Resolve"/>). Defaults to UTC when null.</param>
     public NiewebPdfDocument(
         string title,
         string subtitle,
         string generatedByDisplayName,
         DateTimeOffset generatedAt,
-        BodyBuilder body)
+        BodyBuilder body,
+        TimeZoneInfo? timeZone = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(title);
         ArgumentNullException.ThrowIfNull(generatedByDisplayName);
@@ -51,6 +54,7 @@ public sealed class NiewebPdfDocument
         _subtitle = subtitle ?? string.Empty;
         _generatedByDisplayName = generatedByDisplayName;
         _generatedAt = generatedAt;
+        _timeZone = timeZone ?? TimeZoneInfo.Utc;
         _body = body;
     }
 
@@ -88,28 +92,34 @@ public sealed class NiewebPdfDocument
         {
             col.Item().Row(row =>
             {
-                // Left: Nieweb wordmark. Box aspect matches logo.svg
-                // viewBox 1200x300 (4:1) so QuestPDF can lay it out
-                // without a conflicting-size-constraint exception.
-                row.ConstantItem(4.8f, Unit.Centimetre)
+                // Left flank: Nieweb wordmark. Left and right flanks
+                // are pinned to the same width so the centre column's
+                // AlignCenter actually places the title on the page's
+                // horizontal midpoint (a 4.8 / flex / 4.5 layout
+                // biased the title 3 mm right of centre and became
+                // visible whenever the subtitle got long enough to
+                // fill the middle column).
+                row.ConstantItem(5.0f, Unit.Centimetre)
                    .Height(1.2f, Unit.Centimetre)
                    .Svg(BrandAssets.NiewebLogoSvg);
 
                 // Centre: report title.
                 row.RelativeItem().AlignCenter().AlignMiddle().Column(c =>
                 {
-                    c.Item().Text(_title)
+                    c.Item().AlignCenter().Text(_title)
                         .FontSize(14).SemiBold().FontColor(Colors.Grey.Darken3);
                     if (!string.IsNullOrEmpty(_subtitle))
                     {
-                        c.Item().Text(_subtitle)
+                        c.Item().AlignCenter().Text(_subtitle)
                             .FontSize(9).FontColor(Colors.Grey.Darken1);
                     }
                 });
 
-                // Right: generation timestamp.
-                row.ConstantItem(4.5f, Unit.Centimetre).AlignRight().AlignMiddle()
-                   .Text(_generatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture))
+                // Right flank: generation timestamp in the caller's
+                // display time zone (falls back to UTC when the
+                // caller did not supply one).
+                row.ConstantItem(5.0f, Unit.Centimetre).AlignRight().AlignMiddle()
+                   .Text(NiewebPdfTimestamps.FormatInstant(_generatedAt, _timeZone))
                    .FontSize(9).FontColor(Colors.Grey.Darken1);
             });
 

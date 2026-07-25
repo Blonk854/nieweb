@@ -10,7 +10,7 @@ import { useSessionStore } from "../state/session";
  * header when present; otherwise a sensible fallback is built from the
  * report id and format.
  */
-export type ReportExportFormat = "xlsx" | "pdf";
+export type ReportExportFormat = "xlsx" | "pdf" | "csv";
 
 export type ReportExportFilter = {
     sourceId: string;
@@ -19,6 +19,14 @@ export type ReportExportFilter = {
     machineIds?: string;
     productIds?: string;
     onlyLastInspection?: boolean;
+    /**
+     * IANA time-zone id (e.g. <c>America/Chicago</c>) used by the
+     * server-side PDF/XLSX/CSV renderer to format timestamps in the
+     * user's zone rather than UTC. Aggregation (which panels fall in
+     * the window) is always driven by <c>startUtc</c>/<c>endUtc</c>
+     * and is not affected by this value.
+     */
+    timeZone?: string;
 };
 
 export function reportExportUrl(
@@ -36,12 +44,14 @@ export function reportExportUrl(
     if (filter.onlyLastInspection !== undefined) {
         params.set("onlyLastInspection", String(filter.onlyLastInspection));
     }
+    if (filter.timeZone) params.set("tz", filter.timeZone);
     return `/api/reports/${reportId}/export.${format}?${params.toString()}`;
 }
 
 const DEFAULT_FILENAMES: Record<ReportExportFormat, (id: number) => string> = {
     xlsx: (id) => `report-${id}.xlsx`,
     pdf: (id) => `report-${id}.pdf`,
+    csv: (id) => `report-${id}.csv`,
 };
 
 /**

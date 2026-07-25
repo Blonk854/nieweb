@@ -23,26 +23,30 @@ public static class PanelYieldPdfRenderer
     /// <param name="generatedByDisplayName">User-facing name printed in the footer.</param>
     /// <param name="destination">Target stream (typically an HTTP response body).</param>
     /// <param name="generatedAt">Rendering timestamp (defaults to now UTC).</param>
+    /// <param name="timeZone">Display time zone (defaults to UTC when null); used for header + subtitle timestamps only, never for aggregation.</param>
     public static void Render(
         PanelYieldResult result,
         string generatedByDisplayName,
         Stream destination,
-        DateTimeOffset? generatedAt = null)
+        DateTimeOffset? generatedAt = null,
+        TimeZoneInfo? timeZone = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(generatedByDisplayName);
         ArgumentNullException.ThrowIfNull(destination);
 
-        var subtitle = FormatSubtitle(
+        var tz = timeZone ?? TimeZoneInfo.Utc;
+        var subtitle = NiewebPdfTimestamps.FormatSubtitle(
             $"Source: {result.Source.DisplayName}",
-            $"Window: {FormatUtc(result.Window.StartUtc)} → {FormatUtc(result.Window.EndUtcExclusive)}");
+            $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
 
         var doc = new NiewebPdfDocument(
             title: "Panel Yield by Line",
             subtitle: subtitle,
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
-            body: body => Compose(body, result));
+            body: body => Compose(body, result),
+            timeZone: tz);
 
         doc.Render(destination);
     }
@@ -129,10 +133,4 @@ public static class PanelYieldPdfRenderer
         t.Cell().BorderBottom(0.25f).BorderColor(Colors.Grey.Lighten2)
          .Padding(3).Text(text).FontSize(9);
     }
-
-    internal static string FormatUtc(DateTimeOffset dto) =>
-        dto.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture);
-
-    internal static string FormatSubtitle(params string[] parts)
-        => string.Join("   ·   ", parts.Where(p => !string.IsNullOrEmpty(p)));
 }

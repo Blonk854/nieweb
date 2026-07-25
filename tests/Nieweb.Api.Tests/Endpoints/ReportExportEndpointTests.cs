@@ -334,8 +334,8 @@ public sealed class ReportExportEndpointTests : IClassFixture<NiewebApiFactory>
 
         // Cover lists both tiles + statuses.
         var cover = wb.Worksheet("Cover");
-        Assert.Equal("rendered", cover.Cell(12, 4).GetString());
         Assert.Equal("rendered", cover.Cell(13, 4).GetString());
+        Assert.Equal("rendered", cover.Cell(14, 4).GetString());
 
         // Panel-yield sheet has metric labels in column A starting at row 3.
         var yieldSheet = wb.Worksheets.ElementAt(1);
@@ -365,7 +365,7 @@ public sealed class ReportExportEndpointTests : IClassFixture<NiewebApiFactory>
         using var wb = new XLWorkbook(stream);
 
         var cover = wb.Worksheet("Cover");
-        Assert.Equal("unsupported (skipped)", cover.Cell(12, 4).GetString());
+        Assert.Equal("unsupported (skipped)", cover.Cell(13, 4).GetString());
 
         var sheet = wb.Worksheets.ElementAt(1);
         Assert.Contains("Unsupported tile type 'frobnicator'", sheet.Cell("A3").GetString(), StringComparison.Ordinal);
@@ -453,7 +453,7 @@ public sealed class ReportExportEndpointTests : IClassFixture<NiewebApiFactory>
         using var wb = new XLWorkbook(stream);
 
         // Cover status is "rendered" (not "unsupported (skipped)").
-        Assert.Equal("rendered", wb.Worksheet("Cover").Cell(12, 4).GetString());
+        Assert.Equal("rendered", wb.Worksheet("Cover").Cell(13, 4).GetString());
 
         var sheet = wb.Worksheets.ElementAt(1);
         Assert.StartsWith("01.", sheet.Name, StringComparison.Ordinal);
@@ -484,7 +484,7 @@ public sealed class ReportExportEndpointTests : IClassFixture<NiewebApiFactory>
         using var wb = new XLWorkbook(stream);
 
         // Empty comment is still "rendered" — just a placeholder body.
-        Assert.Equal("rendered", wb.Worksheet("Cover").Cell(12, 4).GetString());
+        Assert.Equal("rendered", wb.Worksheet("Cover").Cell(13, 4).GetString());
         var sheet = wb.Worksheets.ElementAt(1);
         Assert.Equal("(empty comment)", sheet.Cell("A3").GetString());
 
@@ -511,7 +511,7 @@ public sealed class ReportExportEndpointTests : IClassFixture<NiewebApiFactory>
         using var stream = new MemoryStream(bytes);
         using var wb = new XLWorkbook(stream);
 
-        Assert.Equal("rendered", wb.Worksheet("Cover").Cell(12, 4).GetString());
+        Assert.Equal("rendered", wb.Worksheet("Cover").Cell(13, 4).GetString());
         Assert.Equal("(empty comment)", wb.Worksheets.ElementAt(1).Cell("A3").GetString());
 
         authed.Dispose();
