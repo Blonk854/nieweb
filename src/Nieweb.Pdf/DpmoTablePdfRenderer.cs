@@ -33,8 +33,9 @@ public static class DpmoTablePdfRenderer
 
         var tz = timeZone ?? TimeZoneInfo.Utc;
         var subtitle = NiewebPdfTimestamps.FormatSubtitle(
-            $"Grouped by: {result.GroupBy}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}",
-            $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
+            $"Grouped by: {result.GroupBy}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}");
+        var window = NiewebPdfTimestamps.FormatRange(
+            result.Window.StartUtc, result.Window.EndUtcExclusive, tz);
 
         var doc = new NiewebPdfDocument(
             title: "DPMO Table",
@@ -43,7 +44,7 @@ public static class DpmoTablePdfRenderer
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
             body: body => Compose(body, result),
             timeZone: tz,
-            footerNote: $"Source: {result.Source.DisplayName}");
+            footerNote: $"Source: {result.Source.DisplayName}   ·   Window: {window}");
 
         doc.Render(destination);
     }

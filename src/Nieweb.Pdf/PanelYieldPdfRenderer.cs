@@ -36,17 +36,17 @@ public static class PanelYieldPdfRenderer
         ArgumentNullException.ThrowIfNull(destination);
 
         var tz = timeZone ?? TimeZoneInfo.Utc;
-        var subtitle = NiewebPdfTimestamps.FormatSubtitle(
-            $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
+        var window = NiewebPdfTimestamps.FormatRange(
+            result.Window.StartUtc, result.Window.EndUtcExclusive, tz);
 
         var doc = new NiewebPdfDocument(
             title: "Panel Yield by Line",
-            subtitle: subtitle,
+            subtitle: string.Empty,
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
             body: body => Compose(body, result),
             timeZone: tz,
-            footerNote: $"Source: {result.Source.DisplayName}");
+            footerNote: $"Source: {result.Source.DisplayName}   ·   Window: {window}");
 
         doc.Render(destination);
     }

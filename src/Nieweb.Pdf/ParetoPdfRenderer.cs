@@ -35,8 +35,9 @@ public static class ParetoPdfRenderer
 
         var tz = timeZone ?? TimeZoneInfo.Utc;
         var subtitle = NiewebPdfTimestamps.FormatSubtitle(
-            $"Axis: {result.Axis}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}   Weight: {result.Weight}",
-            $"Window: {NiewebPdfTimestamps.FormatRange(result.Window.StartUtc, result.Window.EndUtcExclusive, tz)}");
+            $"Axis: {result.Axis}   Numerator: {result.Numerator}   Opportunity: {result.Opportunity}   Weight: {result.Weight}");
+        var window = NiewebPdfTimestamps.FormatRange(
+            result.Window.StartUtc, result.Window.EndUtcExclusive, tz);
 
         var doc = new NiewebPdfDocument(
             title: "Pareto — Defects",
@@ -45,7 +46,7 @@ public static class ParetoPdfRenderer
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
             body: body => Compose(body, result),
             timeZone: tz,
-            footerNote: $"Source: {result.Source.DisplayName}");
+            footerNote: $"Source: {result.Source.DisplayName}   ·   Window: {window}");
 
         doc.Render(destination);
     }
