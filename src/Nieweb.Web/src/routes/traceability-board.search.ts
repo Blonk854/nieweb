@@ -1,7 +1,8 @@
 /**
  * Filter state for the TC3 board-lookup route
- * (`/traceability/board?barcode=X`). The barcode is the only search
- * parameter, so the filter shape doubles as the saved-view payload.
+ * (`/traceability/board?barcode=X&side=1`). The barcode plus the
+ * chosen physical PCB side are the only search parameters, so the
+ * filter shape doubles as the saved-view payload.
  *
  * Kept as an object rather than a bare string so the saved-view menu
  * (which requires a JSON-serialisable filter) works uniformly with
@@ -10,6 +11,15 @@
 export type TraceabilityBoardSearch = {
     /** Panel barcode. Case-preserving; server-side comparison is exact. */
     barcode?: string;
+    /**
+     * Which physical side of the PCB to display
+     * (<code>PANELS.Face_Number</code>). Both sides carry the same
+     * laser-etched barcode so a scan returns two panel rows per
+     * stage; the toggle above the stage cards flips between them.
+     * When omitted the route auto-picks the first side that came
+     * back (typically <code>1</code>).
+     */
+    side?: number;
 };
 
 /**
@@ -28,6 +38,7 @@ export function validateTraceabilityBoardSearch(
 ): TraceabilityBoardSearch {
     return {
         barcode: toBarcodeOrUndef(raw.barcode),
+        side: toSideOrUndef(raw.side),
     };
 }
 
@@ -38,3 +49,17 @@ function toBarcodeOrUndef(v: unknown): string | undefined {
     if (trimmed.length > 64) return undefined;
     return trimmed;
 }
+
+function toSideOrUndef(v: unknown): number | undefined {
+    // Accept numeric or numeric string; anything else is dropped so
+    // a stale bookmark can't crash the route.
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+        return Math.floor(v);
+    }
+    if (typeof v === "string") {
+        const n = Number.parseInt(v, 10);
+        if (Number.isFinite(n) && n > 0) return n;
+    }
+    return undefined;
+}
+

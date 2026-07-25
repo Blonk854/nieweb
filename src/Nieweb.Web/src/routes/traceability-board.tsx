@@ -13,7 +13,6 @@ import {
     Text,
     TextInput,
     Title,
-    Tooltip,
 } from "@mantine/core";
 import {
     IconAlertTriangle,
@@ -27,10 +26,18 @@ import { useTranslation } from "react-i18next";
 import {
     fetchBoardByBarcode,
     fetchFailedObjectsForPanel,
+    type BoardStageSide,
     type BoardStageTrace,
+    type CardRow,
     type FailedObjectsResponse,
+    type TraceabilityPanel,
 } from "../api/traceability";
-import { fetchProducts, type ProductOption } from "../api/sources";
+import {
+    fetchOperators,
+    fetchProducts,
+    type OperatorOption,
+    type ProductOption,
+} from "../api/sources";
 import { ApiError } from "../api/client";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
 import {
@@ -39,6 +46,8 @@ import {
     type BoardViewerStage,
 } from "../components/BoardViewer/BoardViewer";
 import { FailedObjectsTable } from "../components/FailedObjectsTable";
+import { useDateTimeFormatter } from "../i18n/formatters";
+import { cardStatusOrSkippedKey, panelStatusOrSkippedKey } from "../i18n/statusText";
 import type { TraceabilityBoardSearch } from "./traceability-board.search";
 
 /**
@@ -155,6 +164,41 @@ export function TraceabilityBoardRoute() {
 
     const canSave = useMemo(() => Boolean(search.barcode), [search.barcode]);
 
+    // TC2 side toggle: a two-sided PCB with the same barcode on each
+    // side returns two panel rows per stage. Compute the union of
+    // available sides across every stage, pick the one requested in
+    // the URL (or auto-fallback to the first available), then
+    // pre-project each stage to a single-side view so the downstream
+    // components (StageCard, FailureDrilldown, BoardViewer) can stay
+    // shape-compatible with the pre-toggle code.
+    const availableSides = useMemo(
+        () => (boardQuery.data ? collectAvailableSides(boardQuery.data.stages) : []),
+        [boardQuery.data],
+    );
+    const resolvedSide = useMemo<number | null>(() => {
+        if (availableSides.length === 0) {
+            return null;
+        }
+        if (search.side !== undefined && availableSides.includes(search.side)) {
+            return search.side;
+        }
+        return availableSides[0];
+    }, [search.side, availableSides]);
+    const sidedStages = useMemo<SidedStageTrace[]>(
+        () =>
+            boardQuery.data
+                ? boardQuery.data.stages.map((s) => pickSideForStage(s, resolvedSide))
+                : [],
+        [boardQuery.data, resolvedSide],
+    );
+
+    function handleSideChange(next: number) {
+        void navigate({
+            to: "/traceability/board",
+            search: (prev: TraceabilityBoardSearch) => ({ ...prev, side: next }),
+        });
+    }
+
     return (
         <Stack gap="lg">
             <Stack gap={4}>
@@ -247,16 +291,41 @@ export function TraceabilityBoardRoute() {
 
             {boardQuery.data && (
                 <Stack gap="sm">
-                    <Text>
-                        <Text component="span" c="dimmed">
-                            {t("traceability.board.barcodeLabelResult")}:{" "}
+                    <Group justify="space-between" wrap="wrap" align="center">
+                        <Text>
+                            <Text component="span" c="dimmed">
+                                {t("traceability.board.barcodeLabelResult")}:{" "}
+                            </Text>
+                            <Text component="span" fw={600} data-testid="traceability-board-barcode">
+                                {boardQuery.data.barcode}
+                            </Text>
                         </Text>
-                        <Text component="span" fw={600} data-testid="traceability-board-barcode">
-                            {boardQuery.data.barcode}
-                        </Text>
-                    </Text>
-                    <SimpleGrid cols={{ base: 1, md: boardQuery.data.stages.length }} spacing="md">
-                        {boardQuery.data.stages.map((stage) => (
+                        {availableSides.length > 1 && resolvedSide !== null && (
+                            <Group gap="xs" align="center">
+                                <Text size="sm" c="dimmed">
+                                    {t("traceability.board.sideLabel")}
+                                </Text>
+                                <SegmentedControl
+                                    size="sm"
+                                    value={String(resolvedSide)}
+                                    onChange={(v) => handleSideChange(Number(v))}
+                                    data={availableSides.map((n) => ({
+                                        value: String(n),
+                                        label:
+                                            n === 1
+                                                ? t("traceability.board.side1st")
+                                                : n === 2
+                                                    ? t("traceability.board.side2nd")
+                                                    : `${t("traceability.board.sideLabel")} ${n}`,
+                                    }))}
+                                    aria-label={t("traceability.board.sideLabel")}
+                                    data-testid="traceability-board-side-toggle"
+                                />
+                            </Group>
+                        )}
+                    </Group>
+                    <SimpleGrid cols={{ base: 1, md: sidedStages.length }} spacing="md">
+                        {orderStagesForDisplay(sidedStages).map((stage) => (
                             <StageCard
                                 key={stage.sourceId}
                                 stage={stage}
@@ -267,7 +336,7 @@ export function TraceabilityBoardRoute() {
 
                     {drilldownSourceId && (
                         <FailureDrilldown
-                            stages={boardQuery.data.stages}
+                            stages={sidedStages}
                             activeSourceId={drilldownSourceId}
                             onActiveSourceChange={setDrilldownSourceId}
                             primaryHighlight={primaryHighlight}
@@ -292,7 +361,7 @@ export function TraceabilityBoardRoute() {
  * clickable and fires the same callback.
  */
 function StageCard(props: {
-    stage: BoardStageTrace;
+    stage: SidedStageTrace;
     onOpenDrilldown?: () => void;
 }) {
     const { stage, onOpenDrilldown } = props;
@@ -300,10 +369,16 @@ function StageCard(props: {
 
     const found = stage.panel !== null;
     const hasError = stage.error !== null && stage.error !== undefined;
+    // Vision3D CR4/CR5 `PANELS.Anomaly_BR` bit 5 (mask 32) =
+    // "One or more defects". Set pre-review by the AOI engine and
+    // never cleared during review, so false-call panels (where
+    // `Nb_Of_Error_Object` has been zeroed after operator sanction)
+    // still expose the drill-down entry point — which is exactly
+    // when operators most want to inspect the failure history.
     const hasFailures =
         found &&
         stage.panel !== null &&
-        stage.panel.panel.nbOfErrorObject > 0;
+        (stage.panel.panel.anomalyBr & 32) !== 0;
     const canDrill = Boolean(onOpenDrilldown) && hasFailures;
 
     return (
@@ -335,25 +410,6 @@ function StageCard(props: {
                         </Badge>
                     )}
                 </Group>
-
-                <Tooltip
-                    label={
-                        stage.pinsAvailable
-                            ? t("traceability.board.capabilityPinLevel")
-                            : t("traceability.board.capabilityNoPinLevel")
-                    }
-                    withArrow
-                >
-                    <Badge
-                        variant="outline"
-                        color={stage.pinsAvailable ? "blue" : "gray"}
-                        size="xs"
-                    >
-                        {stage.pinsAvailable
-                            ? t("traceability.board.capabilityPinLevel")
-                            : t("traceability.board.capabilityNoPinLevel")}
-                    </Badge>
-                </Tooltip>
 
                 {hasError && (
                     <Alert
@@ -398,22 +454,58 @@ function StageCard(props: {
 }
 
 function PanelSummary(props: {
-    stage: BoardStageTrace;
+    stage: SidedStageTrace;
     onOpenDrilldown?: () => void;
 }) {
-    const { stage, onOpenDrilldown } = props;
+    const { stage } = props;
     const { t } = useTranslation();
     const panel = stage.panel!;
+    // Panel dates are formatted with the user's timezone preference
+    // (Settings → Time zone) and a 12-hour clock, matching every
+    // other timestamp surface in the app.
+    const panelDateFormat = useDateTimeFormatter({
+        dateStyle: "medium",
+        timeStyle: "medium",
+    });
+    const panelDate = new Date(panel.panelUtc);
+    const panelDateText = Number.isNaN(panelDate.getTime())
+        ? panel.panelUtc
+        : panelDateFormat.format(panelDate);
+
     return (
         <Stack gap="xs">
-            <MetaRow label={t("traceability.board.panelIdLabel")} value={String(panel.panel.panelId)} />
             <MetaRow
                 label={t("traceability.board.panelDateLabel")}
-                value={new Date(panel.panelUtc).toISOString().replace("T", " ").replace("Z", " UTC")}
+                value={panelDateText}
             />
-            <MetaRow label={t("traceability.board.panelStatusLabel")} value={String(panel.panel.panelStatus)} />
-            <MetaRow label={t("traceability.board.productLabel")} value={panel.productName ?? String(panel.panel.productId)} />
-            <MetaRow label={t("traceability.board.machineLabel")} value={String(panel.panel.machineId)} />
+            <MetaRow
+                label={t("traceability.board.panelStatusLabel")}
+                value={t(
+                    panelStatusOrSkippedKey(
+                        panel.panel.panelStatus,
+                        panel.panel.anomalyBr,
+                        panel.panel.anomalyAr,
+                    ),
+                    { defaultValue: String(panel.panel.panelStatus) },
+                )}
+            />
+            <MetaRow
+                label={t("traceability.board.productLabel")}
+                value={panel.productName ?? String(panel.panel.productId)}
+            />
+            <MetaRow
+                label={t("traceability.board.machineLabel")}
+                value={panel.machineName ?? String(panel.panel.machineId)}
+            />
+            <MetaRow
+                label={t("traceability.board.reviewOperatorLabel")}
+                value={
+                    panel.operatorName
+                        ?? (panel.panel.operatorId !== null
+                            ? String(panel.panel.operatorId)
+                            : t("traceability.board.reviewOperatorUnknown"))
+                }
+            />
             <MetaRow
                 label={t("traceability.board.reviewedLabel")}
                 value={
@@ -440,12 +532,21 @@ function PanelSummary(props: {
                         {stage.cards.map((c) => (
                             <Table.Tr
                                 key={c.cardIdOnPanel}
-                                onClick={onOpenDrilldown}
-                                style={onOpenDrilldown ? { cursor: "pointer" } : undefined}
+                                onClick={props.onOpenDrilldown}
+                                style={props.onOpenDrilldown ? { cursor: "pointer" } : undefined}
                                 data-testid={`traceability-board-cards-${stage.sourceId}-row-${c.cardIdOnPanel}`}
                             >
                                 <Table.Td>{c.cardIdOnPanel}</Table.Td>
-                                <Table.Td>{c.cardStatus}</Table.Td>
+                                <Table.Td>
+                                    {t(
+                                        cardStatusOrSkippedKey(
+                                            c.cardStatus,
+                                            c.anomalyBr,
+                                            c.anomalyAr,
+                                        ),
+                                        { defaultValue: String(c.cardStatus) },
+                                    )}
+                                </Table.Td>
                                 <Table.Td>{c.nbOfTestedObject}</Table.Td>
                                 <Table.Td>{c.nbOfErrorObject}</Table.Td>
                             </Table.Tr>
@@ -483,6 +584,23 @@ function inferViewerStage(sourceId: string): BoardViewerStage {
 }
 
 /**
+ * Reorder stages for UI display so pre-reflow appears before
+ * post-reflow (paste → reflow, the natural process direction that
+ * ops read left-to-right / top-to-bottom). Non pre/post stages
+ * keep their server-supplied relative order and land after both
+ * canonical stages. Pure and stable so it can be memoised.
+ */
+function orderStagesForDisplay<T extends { sourceId: string }>(stages: readonly T[]): T[] {
+    const rank = (id: string): number => {
+        const s = id.toLowerCase();
+        if (s.includes("pre")) return 0;
+        if (s.includes("post")) return 1;
+        return 2;
+    };
+    return [...stages].sort((a, b) => rank(a.sourceId) - rank(b.sourceId));
+}
+
+/**
  * TC5 Phase D — drill-down section rendered inline below the stage
  * cards. Owns two failed-objects queries (one per stage that has a
  * panel) and two product-name lookups so the {@link BoardViewer}
@@ -492,7 +610,7 @@ function inferViewerStage(sourceId: string): BoardViewerStage {
  * failures side-by-side.
  */
 function FailureDrilldown(props: {
-    stages: readonly BoardStageTrace[];
+    stages: readonly SidedStageTrace[];
     activeSourceId: string;
     onActiveSourceChange: (sourceId: string) => void;
     primaryHighlight: BoardHighlight | null;
@@ -511,9 +629,11 @@ function FailureDrilldown(props: {
 
     // We only drill into stages that have a resolved panel; stages
     // without a panel are shown as an unavailable-hint alongside so
-    // the operator understands why the table is missing.
+    // the operator understands why the table is missing. Ordered
+    // pre-reflow first so both the main summary and the drill-down
+    // read in process order (paste → reflow).
     const drillableStages = useMemo(
-        () => stages.filter((s) => s.panel !== null),
+        () => orderStagesForDisplay(stages.filter((s) => s.panel !== null)),
         [stages],
     );
 
@@ -551,27 +671,53 @@ function FailureDrilldown(props: {
         })),
     });
 
+    // Per-stage operator-name lookups. OPERATOR is a small table (a
+    // few hundred rows at most on either live DB) so caching the
+    // full list per source and doing an in-memory Map lookup for
+    // every FailedObjectsTable row is cheaper than adding a JOIN to
+    // ListFailedTestedObjectsForPanelAsync. Same staleTime as the
+    // product lookup because operator rosters change on the same
+    // day-to-day cadence.
+    const operatorQueries = useQueries({
+        queries: drillableStages.map((stage) => ({
+            queryKey: ["sources-operators", stage.sourceId],
+            queryFn: () => fetchOperators(stage.sourceId),
+            enabled: stage.panel !== null,
+            retry: false,
+            staleTime: 5 * 60 * 1000,
+        })),
+    });
+
     // Map sourceId → resolved data for O(1) lookup inside the render.
     const perStage = useMemo(() => {
         const map = new Map<
             string,
             {
-                stage: BoardStageTrace;
+                stage: SidedStageTrace;
                 failed: FailedObjectsResponse | undefined;
                 failedIsLoading: boolean;
                 failedError: string | null;
                 productName: string | null;
+                operatorLookup: (id: number) => string | undefined;
             }
         >();
         drillableStages.forEach((stage, idx) => {
             const fq = failedQueries[idx];
             const pq = productQueries[idx];
+            const oq = operatorQueries[idx];
             const products: ProductOption[] | undefined = pq?.data;
             const productName =
                 products && stage.panel
                     ? products.find((p) => p.id === stage.panel!.panel.productId)?.name
                         ?? null
                     : null;
+            const operators: OperatorOption[] | undefined = oq?.data;
+            const operatorMap = new Map<number, string>();
+            operators?.forEach((o) => {
+                if (o.name) operatorMap.set(o.id, o.name);
+            });
+            const operatorLookup = (id: number): string | undefined =>
+                operatorMap.get(id);
             map.set(stage.sourceId, {
                 stage,
                 failed: fq?.data,
@@ -583,10 +729,11 @@ function FailureDrilldown(props: {
                             ? String(fq.error)
                             : null,
                 productName,
+                operatorLookup,
             });
         });
         return map;
-    }, [drillableStages, failedQueries, productQueries]);
+    }, [drillableStages, failedQueries, productQueries, operatorQueries]);
 
     const activeEntry = perStage.get(activeSourceId);
     const activeStageVisual: BoardViewerStage = inferViewerStage(activeSourceId);
@@ -594,9 +741,32 @@ function FailureDrilldown(props: {
         const list = activeEntry?.failed?.objects ?? [];
         const out: BoardHighlight[] = [];
         for (const row of list) {
+            const isFm = row.objectTypeId === 33554432;
             const ref = row.topology?.trim();
-            if (!ref) continue;
-            out.push({ subpanelIndex: row.cardIdOnPanel, reference: ref });
+            if (!ref) {
+                // Foreign Material rows don't need a CAD reference —
+                // they're placed on the panel from their raw
+                // Delta_X / Delta_Y microns coord. Give them a
+                // synthetic reference so the two-way row ↔ marker
+                // binding still works.
+                if (isFm) {
+                    out.push({
+                        subpanelIndex: row.cardIdOnPanel,
+                        reference: `FM${row.objectId}`,
+                        objectTypeId: row.objectTypeId,
+                        xUm: row.deltaXUm,
+                        yUm: row.deltaYUm,
+                    });
+                }
+                continue;
+            }
+            out.push({
+                subpanelIndex: row.cardIdOnPanel,
+                reference: ref,
+                objectTypeId: row.objectTypeId,
+                xUm: isFm ? row.deltaXUm : undefined,
+                yUm: isFm ? row.deltaYUm : undefined,
+            });
         }
         return out;
     }, [activeEntry]);
@@ -639,15 +809,7 @@ function FailureDrilldown(props: {
                     </Group>
                 </Group>
 
-                {activeEntry?.productName ? (
-                    <BoardViewer
-                        productName={activeEntry.productName}
-                        stage={activeStageVisual}
-                        highlights={activeHighlights}
-                        primaryHighlight={primaryHighlight}
-                        onPrimaryChange={onPrimaryChange}
-                    />
-                ) : (
+                {!activeEntry?.productName && (
                     <Alert
                         color="yellow"
                         icon={<IconAlertTriangle size={16} />}
@@ -659,7 +821,7 @@ function FailureDrilldown(props: {
                 )}
 
                 <SimpleGrid
-                    cols={{ base: 1, xl: Math.max(1, drillableStages.length) }}
+                    cols={{ base: 1 }}
                     spacing="md"
                 >
                     {drillableStages.map((stage) => {
@@ -687,6 +849,7 @@ function FailureDrilldown(props: {
                                     stageTint={inferViewerStage(stage.sourceId)}
                                     isLoading={entry?.failedIsLoading ?? false}
                                     error={entry?.failedError ?? null}
+                                    operatorLookup={entry?.operatorLookup}
                                     primaryHighlight={
                                         isActive ? primaryHighlight : null
                                     }
@@ -706,7 +869,99 @@ function FailureDrilldown(props: {
                         );
                     })}
                 </SimpleGrid>
+
+                {activeEntry?.productName && (
+                    <BoardViewer
+                        productName={
+                            // Prefer the server-normalised SVG key
+                            // (strips the `_PreReflow` suffix) so a
+                            // pre-reflow panel finds the cached
+                            // post-reflow SVG. Falls back to the raw
+                            // product name for older payloads or
+                            // sources that don't set the key.
+                            activeEntry.stage.panel?.productSvgKey
+                                ?? activeEntry.productName
+                        }
+                        stage={activeStageVisual}
+                        stageLabel={activeEntry.stage.sourceName}
+                        highlights={activeHighlights}
+                        primaryHighlight={primaryHighlight}
+                        onPrimaryChange={onPrimaryChange}
+                    />
+                )}
             </Stack>
         </Card>
     );
+}
+
+// ---------------------------------------------------------------------
+// Side-toggle helpers
+// ---------------------------------------------------------------------
+
+/**
+ * Single-side projection of a {@link BoardStageTrace}. The route
+ * picks one <code>BoardStageSide</code> per stage based on the URL
+ * <code>side</code> parameter and hands the resulting objects to
+ * StageCard / FailureDrilldown / BoardViewer. This keeps the
+ * downstream components blissfully unaware of the pre-toggle
+ * multi-side shape.
+ */
+type SidedStageTrace = {
+    sourceId: string;
+    sourceName: string;
+    capabilities: number;
+    pinsAvailable: boolean;
+    error: string | null;
+    /** Which physical side we projected (null when the stage has no sides). */
+    faceNumber: number | null;
+    /** The selected side's panel, or null when the stage saw no matches. */
+    panel: TraceabilityPanel | null;
+    /** The selected side's sub-panels, empty when there's no panel. */
+    cards: readonly CardRow[];
+};
+
+/**
+ * Project a raw {@link BoardStageTrace} down to a single side. When
+ * the requested <code>faceNumber</code> isn't inspected on this
+ * source, falls back to the stage's first available side so the UI
+ * still renders something meaningful (some products only get one
+ * side inspected on one of the two AOI lines).
+ */
+function pickSideForStage(
+    stage: BoardStageTrace,
+    requestedSide: number | null,
+): SidedStageTrace {
+    let picked: BoardStageSide | undefined;
+    if (requestedSide !== null) {
+        picked = stage.sides.find((s) => s.faceNumber === requestedSide);
+    }
+    if (!picked) {
+        picked = stage.sides[0];
+    }
+    return {
+        sourceId: stage.sourceId,
+        sourceName: stage.sourceName,
+        capabilities: stage.capabilities,
+        pinsAvailable: stage.pinsAvailable,
+        error: stage.error,
+        faceNumber: picked?.faceNumber ?? null,
+        panel: picked?.panel ?? null,
+        cards: picked?.cards ?? [],
+    };
+}
+
+/**
+ * Union of every <code>faceNumber</code> that appears across all
+ * stages, ascending. Powers the side toggle: a single-sided PCB
+ * yields <code>[1]</code> (no toggle rendered); a two-sided PCB
+ * yields <code>[1, 2]</code>.
+ */
+function collectAvailableSides(stages: readonly BoardStageTrace[]): number[] {
+    const set = new Set<number>();
+    for (const stage of stages) {
+        for (const side of stage.sides) {
+            set.add(side.faceNumber);
+        }
+    }
+    return [...set].sort((a, b) => a - b);
 }

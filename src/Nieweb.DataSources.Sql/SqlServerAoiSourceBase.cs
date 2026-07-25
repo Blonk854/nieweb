@@ -455,6 +455,8 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
     public abstract Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
 
+    public abstract Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct);
+
     public abstract Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct);
 
     public abstract Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct);
@@ -495,7 +497,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
               Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
               Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
               Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
-              Operator_Id, Product_Id, Recipe_Id
+              Operator_Id, Product_Id, Recipe_Id, Face_Number
             FROM dbo.PANELS WITH (NOLOCK)
             WHERE Panel_Id = @panelId;
             """;
@@ -534,7 +536,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
               Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
               Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
               Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
-              Operator_Id, Product_Id, Recipe_Id
+              Operator_Id, Product_Id, Recipe_Id, Face_Number
             FROM dbo.PANELS WITH (NOLOCK)
             WHERE Panel_Bar_Code = @barcode
             ORDER BY Panel_Numeric_Date DESC, Panel_Id DESC;
@@ -550,6 +552,61 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             found = row;
         }
         return found;
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        if (barcode.Length > 64)
+        {
+            throw new ArgumentException(
+                $"Panel barcode must be 64 characters or fewer (got {barcode.Length}).",
+                nameof(barcode));
+        }
+
+        // Return the LATEST inspection per Face_Number for this
+        // barcode. ROW_NUMBER() partitioned by Face_Number picks one
+        // row per side without a GROUP BY that would lose the
+        // non-aggregated columns. Ordered by Face_Number ascending
+        // so the SPA's side toggle can render side 1 before side 2
+        // without a client-side sort.
+        const string Sql = """
+            ;WITH ranked AS (
+              SELECT
+                Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
+                Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
+                Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
+                Operator_Id, Product_Id, Recipe_Id, Face_Number,
+                ROW_NUMBER() OVER (
+                  PARTITION BY Face_Number
+                  ORDER BY Panel_Numeric_Date DESC, Panel_Id DESC
+                ) AS rn
+              FROM dbo.PANELS WITH (NOLOCK)
+              WHERE Panel_Bar_Code = @barcode
+            )
+            SELECT
+              Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
+              Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
+              Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
+              Operator_Id, Product_Id, Recipe_Id, Face_Number
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY Face_Number;
+            """;
+
+        var rows = new List<PanelRow>(2);
+        await foreach (var row in ExecuteQueryAsync(
+            Sql,
+            bindParameters: p => p.Add(new SqlParameter("@barcode", SqlDbType.VarChar, 64) { Value = barcode }),
+            map: MapPanelRow,
+            ct).ConfigureAwait(false))
+        {
+            rows.Add(row);
+        }
+        return rows;
     }
 
     /// <inheritdoc />
@@ -764,7 +821,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
               Panel_Id, Machine_Id, Lane_Number, Panel_Bar_Code, Panel_Numeric_Date,
               Nb_Of_Valid_Cards, Test_Time, Panel_Status, Anomaly_BR, Anomaly_AR,
               Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
-              Operator_Id, Product_Id, Recipe_Id
+              Operator_Id, Product_Id, Recipe_Id, Face_Number
             FROM dbo.PANELS WITH (NOLOCK)
             WHERE Panel_Numeric_Date >= @startEpoch
               AND Panel_Numeric_Date <  @endEpoch
@@ -874,7 +931,11 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         NbOfErrorObject: r.GetInt32(12),
         OperatorId: r.IsDBNull(13) ? null : r.GetInt32(13),
         ProductId: r.GetInt32(14),
-        RecipeId: r.GetInt32(15));
+        RecipeId: r.GetInt32(15),
+        // Face_Number is NOT NULL on both live DBs; the IsDBNull
+        // guard defends against future schema drift and mapper
+        // tests that use narrower fixtures.
+        FaceNumber: r.FieldCount > 16 && !r.IsDBNull(16) ? r.GetInt32(16) : null);
 
     // ---- Shared TESTED_OBJECT query builder --------------------------------
 

@@ -1,40 +1,47 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
+import userEvent from "@testing-library/user-event";
 import { MantineProvider } from "@mantine/core";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import i18n from "../../i18n";
 import { BoardViewer } from "./BoardViewer";
+import i18n from "../../i18n";
 
 /**
- * Component-level tests for the shared &lt;BoardViewer&gt; primitive
- * (docs/phase-2.md §7.5 TC5 Phase A). Coverage:
+ * Behaviour tests for the redesigned BoardViewer. Verifies:
  * <ul>
- *   <li>Empty product-name renders a placeholder without firing HTTP.</li>
- *   <li>200 SVG is injected + a highlights overlay is appended above
- *       the source #components layer, one &lt;circle&gt; per matched
- *       highlight, with stage-appropriate stroke &amp; dash.</li>
- *   <li>Post-reflow highlights are red solid; pre-reflow purple dashed.</li>
- *   <li>Primary highlight gets a thicker stroke and drop-shadow filter.</li>
- *   <li>Clicking a marker (with onPrimaryChange bound) calls back with
- *       the (subpanel, reference) pair; clicking the primary marker
- *       again clears it.</li>
- *   <li>404 renders the "not cached" banner with a Retry button; Retry
- *       fires another GET to the same URL.</li>
- *   <li>Stage switcher fires onStageChange with the new value.</li>
+ *   <li>Component highlights are cloned red-filled silhouettes,
+ *       one per (sub-panel, reference).</li>
+ *   <li>The subpanel(s) implicated by any highlight get a pulsing
+ *       outline path.</li>
+ *   <li>The primary highlight adds a crosshair layer.</li>
+ *   <li>Clicking a component highlight toggles the primary via
+ *       onPrimaryChange.</li>
+ *   <li>Stage badge overlays the panel with the stage label.</li>
+ *   <li>Zoom reset control resets the internal zoom state.</li>
  * </ul>
  */
 
-/** Minimal fake panel SVG with a couple of components at known coords. */
+/**
+ * Panel SVG with two sub-panels, three tested components, and a
+ * viewBox we can pin crosshair math against.
+ */
 const SAMPLE_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 213360 124460">
+  <g id="sub-panels">
+    <g class="sub-panel" index="1">
+      <path class="border" d="M0 90000 L60000 90000 L60000 120000 L0 120000 Z"/>
+    </g>
+    <g class="sub-panel" index="3">
+      <path class="border" d="M70000 30000 L120000 30000 L120000 60000 L70000 60000 Z"/>
+    </g>
+  </g>
   <g id="components">
     <g class="component tested" sub-panel-index="1" reference="U1" transform="rotate(270 28435 97498)">
       <rect x="27000" y="96000" width="3000" height="3000" />
     </g>
-    <g class="component tested" sub-panel-index="1" reference="R1" transform="rotate(0 50000 50000)">
-      <rect x="49500" y="49500" width="1000" height="1000" />
+    <g class="component tested" sub-panel-index="1" reference="R1" transform="rotate(0 50000 100000)">
+      <rect x="49500" y="99500" width="1000" height="1000" />
     </g>
     <g class="component tested" sub-panel-index="3" reference="U1" transform="rotate(270 78473 47460)">
       <rect x="77000" y="46000" width="3000" height="3000" />
@@ -117,7 +124,7 @@ describe("BoardViewer", () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("fetches the SVG and renders overlay circles for the active-stage highlights (post = red solid)", async () => {
+    it("fetches the SVG and clones one red-filled component highlight per (sub-panel, reference)", async () => {
         const fetchMock = stubFetch([
             {
                 match: (u) => u === "/api/board-svgs/HA010522401_1st",
@@ -134,8 +141,8 @@ describe("BoardViewer", () => {
             ],
         });
 
-        // Overlay should have exactly 2 circles corresponding to the two
-        // matched highlights. R1 was not requested so no marker for it.
+        // Overlay layer with two component clones — R1 was not
+        // requested so no clone for it.
         const overlay = await waitFor(() => {
             const el = document.querySelector(
                 "g[data-nieweb-highlights='true']",
@@ -143,23 +150,26 @@ describe("BoardViewer", () => {
             if (!el) throw new Error("overlay not yet appended");
             return el;
         });
-        const circles = overlay.querySelectorAll("circle");
-        expect(circles.length).toBe(2);
-        // Stage=post ⇒ red solid stroke, no dasharray.
-        circles.forEach((c) => {
-            expect(c.getAttribute("stroke")).toBe("#d32f2f");
-            expect(c.getAttribute("stroke-dasharray")).toBeNull();
-        });
-        // Centroids come from rotate(θ cx cy).
-        const first = overlay.querySelector(
-            "circle[data-subpanel='1'][data-reference='U1']",
+        const clones = overlay.querySelectorAll<SVGGElement>(
+            "g.nieweb-component-highlight",
         );
-        expect(first?.getAttribute("cx")).toBe("28435");
-        expect(first?.getAttribute("cy")).toBe("97498");
+        expect(clones.length).toBe(2);
+        // Both stages use red — no dashed/purple variant anymore.
+        // The red fill is applied via the scoped stylesheet.
+        expect(
+            overlay.querySelector(
+                "g.nieweb-component-highlight[data-subpanel='1'][data-reference='U1']",
+            ),
+        ).not.toBeNull();
+        expect(
+            overlay.querySelector(
+                "g.nieweb-component-highlight[data-subpanel='3'][data-reference='U1']",
+            ),
+        ).not.toBeNull();
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it("uses purple dashed stroke for the pre-reflow stage", async () => {
+    it("draws a pulsing outline path for every unique sub-panel that has a highlight", async () => {
         stubFetch([
             {
                 match: (u) => u === "/api/board-svgs/BOARDX",
@@ -169,21 +179,32 @@ describe("BoardViewer", () => {
         ]);
         renderViewer({
             productName: "BOARDX",
-            stage: "pre",
-            highlights: [{ subpanelIndex: 1, reference: "R1" }],
+            stage: "post",
+            highlights: [
+                { subpanelIndex: 1, reference: "U1" },
+                { subpanelIndex: 1, reference: "R1" },
+                { subpanelIndex: 3, reference: "U1" },
+            ],
         });
-        const circle = await waitFor(() => {
-            const el = document.querySelector(
-                "g[data-nieweb-highlights='true'] circle",
+        const outlines = await waitFor(() => {
+            const els = document.querySelectorAll<SVGPathElement>(
+                "g[data-nieweb-highlights='true'] path.nieweb-subpanel-outline",
             );
-            if (!el) throw new Error("marker not yet appended");
-            return el;
+            if (els.length === 0) {
+                throw new Error("no subpanel outlines yet");
+            }
+            return els;
         });
-        expect(circle.getAttribute("stroke")).toBe("#9c27b0");
-        expect(circle.getAttribute("stroke-dasharray")).toBe("6 4");
+        // Two unique sub-panel indices → two outlines, even though
+        // the highlights list has three entries.
+        expect(outlines.length).toBe(2);
+        const indices = Array.from(outlines).map(
+            (o) => o.getAttribute("data-subpanel"),
+        );
+        expect(indices.sort()).toEqual(["1", "3"]);
     });
 
-    it("promotes the primaryHighlight marker (thicker stroke + drop-shadow filter)", async () => {
+    it("marks the primary highlight on both the component clone and its sub-panel outline", async () => {
         stubFetch([
             {
                 match: (u) => u === "/api/board-svgs/BOARDX",
@@ -207,28 +228,126 @@ describe("BoardViewer", () => {
             if (!el) throw new Error("overlay not yet appended");
             return el;
         });
-        const primary = overlay.querySelector<SVGCircleElement>(
-            "circle[data-subpanel='3'][data-reference='U1']",
+        const primary = overlay.querySelector(
+            "g.nieweb-component-highlight[data-subpanel='3'][data-reference='U1']",
         );
-        const other = overlay.querySelector<SVGCircleElement>(
-            "circle[data-subpanel='1'][data-reference='U1']",
+        const other = overlay.querySelector(
+            "g.nieweb-component-highlight[data-subpanel='1'][data-reference='U1']",
         );
-        expect(primary).not.toBeNull();
-        expect(other).not.toBeNull();
-        expect(primary!.getAttribute("filter")).toContain("drop-shadow");
-        expect(other!.getAttribute("filter")).toBeNull();
-        // Primary stroke-width should be strictly greater than the
-        // non-primary sibling.
-        const wPrimary = Number.parseFloat(
-            primary!.getAttribute("stroke-width") ?? "0",
+        expect(primary?.getAttribute("data-primary")).toBe("true");
+        expect(other?.getAttribute("data-primary")).toBeNull();
+
+        // Only the sub-panel outline hosting the primary component
+        // gets data-primary="true" — that's the one the CSS pulse
+        // is scoped to. The other failed sub-panel stays static.
+        const primaryOutline = overlay.querySelector(
+            "path.nieweb-subpanel-outline[data-subpanel='3']",
         );
-        const wOther = Number.parseFloat(
-            other!.getAttribute("stroke-width") ?? "0",
+        const otherOutline = overlay.querySelector(
+            "path.nieweb-subpanel-outline[data-subpanel='1']",
         );
-        expect(wPrimary).toBeGreaterThan(wOther);
+        expect(primaryOutline?.getAttribute("data-primary")).toBe("true");
+        expect(otherOutline?.getAttribute("data-primary")).toBeNull();
+
+        // Crosshair is opt-in and defaults to OFF.
+        expect(overlay.querySelector("g.nieweb-crosshair")).toBeNull();
     });
 
-    it("fires onPrimaryChange when a marker is clicked and clears it on re-click", async () => {
+    it("adds a crosshair spanning the viewBox once the header switch is enabled", async () => {
+        stubFetch([
+            {
+                match: (u) => u === "/api/board-svgs/BOARDX",
+                status: 200,
+                body: SAMPLE_SVG,
+            },
+        ]);
+        renderViewer({
+            productName: "BOARDX",
+            stage: "post",
+            highlights: [
+                { subpanelIndex: 1, reference: "U1" },
+                { subpanelIndex: 3, reference: "U1" },
+            ],
+            primaryHighlight: { subpanelIndex: 3, reference: "U1" },
+        });
+        await waitFor(() => {
+            const el = document.querySelector(
+                "g[data-nieweb-highlights='true']",
+            );
+            if (!el) throw new Error("overlay not yet appended");
+        });
+
+        // Flip the toggle on. Mantine's Switch renders a real
+        // checkbox behind the label; click the label to toggle.
+        const user = userEvent.setup();
+        await user.click(screen.getByLabelText(/Crosshair/i));
+
+        const crosshair = await waitFor(() => {
+            const el = document.querySelector(
+                "g[data-nieweb-highlights='true'] g.nieweb-crosshair",
+            );
+            if (!el) throw new Error("crosshair not yet appended");
+            return el;
+        });
+        const lines = crosshair.querySelectorAll("line");
+        expect(lines.length).toBe(2);
+        const hLine = Array.from(lines).find(
+            (l) => l.getAttribute("y1") === l.getAttribute("y2"),
+        );
+        const vLine = Array.from(lines).find(
+            (l) => l.getAttribute("x1") === l.getAttribute("x2"),
+        );
+        // Primary component centroid (from SAMPLE_SVG: rotate(270 78473 47460)).
+        expect(hLine?.getAttribute("y1")).toBe("47460");
+        expect(vLine?.getAttribute("x1")).toBe("78473");
+    });
+
+    it("renders a yellow paint splat at the reported micron coord for Foreign Material rows", async () => {
+        stubFetch([
+            {
+                match: (u) => u === "/api/board-svgs/BOARDX",
+                status: 200,
+                body: SAMPLE_SVG,
+            },
+        ]);
+        renderViewer({
+            productName: "BOARDX",
+            stage: "post",
+            highlights: [
+                {
+                    subpanelIndex: 1,
+                    reference: "FM1",
+                    objectTypeId: 33554432,
+                    xUm: 12345,
+                    yUm: 98765,
+                },
+            ],
+        });
+        const splat = await waitFor(() => {
+            const el = document.querySelector<SVGGElement>(
+                "g[data-nieweb-highlights='true'] g.nieweb-fm-splat",
+            );
+            if (!el) throw new Error("splat not yet appended");
+            return el;
+        });
+        // Positioned via translate(x y) so we can round-trip the
+        // AOI-reported micron coord. The AOI machine reports
+        // Delta_X / Delta_Y with origin at LOWER_LEFT (Y-up); the
+        // panel SVG uses UPPER_LEFT (Y-down). BoardViewer mirrors Y
+        // using viewBox height: for SAMPLE_SVG (viewBox 0 0 213360
+        // 124460) and yUm=98765 the flipped SVG y = 124460 - 98765
+        // = 25695.
+        expect(splat.getAttribute("transform")).toBe("translate(12345 25695)");
+        // The FM splat replaces the normal component clone — there
+        // must be no red-fill clone for the same key.
+        expect(
+            document.querySelector(
+                "g[data-nieweb-highlights='true'] g.nieweb-component-highlight[data-reference='FM1']",
+            ),
+        ).toBeNull();
+    });
+
+    it("fires onPrimaryChange when a component highlight is clicked, and clears it on re-click", async () => {
         stubFetch([
             {
                 match: (u) => u === "/api/board-svgs/BOARDX",
@@ -246,8 +365,8 @@ describe("BoardViewer", () => {
             onPrimaryChange,
         });
         const marker = await waitFor(() => {
-            const el = document.querySelector<SVGCircleElement>(
-                "g[data-nieweb-highlights='true'] circle[data-subpanel='1'][data-reference='U1']",
+            const el = document.querySelector<SVGGElement>(
+                "g[data-nieweb-highlights='true'] g.nieweb-component-highlight[data-subpanel='1'][data-reference='U1']",
             );
             if (!el) throw new Error("marker not yet appended");
             return el;
@@ -258,8 +377,8 @@ describe("BoardViewer", () => {
             reference: "U1",
         });
 
-        // Now render again with THIS marker set as primary and click again
-        // → should clear (null).
+        // Re-render with this marker set as primary → clicking again
+        // should clear it.
         const client = new QueryClient({
             defaultOptions: { queries: { retry: false } },
         });
@@ -277,8 +396,8 @@ describe("BoardViewer", () => {
             </MantineProvider>,
         );
         const marker2 = await waitFor(() => {
-            const el = document.querySelector<SVGCircleElement>(
-                "g[data-nieweb-highlights='true'] circle[data-subpanel='1'][data-reference='U1']",
+            const el = document.querySelector<SVGGElement>(
+                "g[data-nieweb-highlights='true'] g.nieweb-component-highlight[data-subpanel='1'][data-reference='U1']",
             );
             if (!el) throw new Error("marker not yet re-appended");
             return el;
@@ -300,7 +419,6 @@ describe("BoardViewer", () => {
             if (url !== "/api/board-svgs/MISSING") {
                 throw new Error(`Unexpected fetch: ${url}`);
             }
-            // First call 404, second call 200 (so Retry succeeds).
             if (callCount === 1) {
                 return new Response("not cached", {
                     status: 404,
@@ -335,7 +453,7 @@ describe("BoardViewer", () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    it("renders the stage switcher when onStageChange is provided and reports changes", async () => {
+    it("renders a stage badge above the panel", async () => {
         stubFetch([
             {
                 match: (u) => u === "/api/board-svgs/BOARDX",
@@ -343,16 +461,49 @@ describe("BoardViewer", () => {
                 body: SAMPLE_SVG,
             },
         ]);
-        const onStageChange = vi.fn();
         renderViewer({
             productName: "BOARDX",
             stage: "post",
-            highlights: [],
-            onStageChange,
+            stageLabel: "Post-reflow AOI (HLYAOI2024)",
+            highlights: [{ subpanelIndex: 1, reference: "U1" }],
         });
-        const preOption = await screen.findByText("Pre-reflow");
-        const user = userEvent.setup();
-        await user.click(preOption);
-        expect(onStageChange).toHaveBeenCalledWith("pre");
+        const badge = await screen.findByTestId("board-viewer-stage-badge");
+        expect(badge).toHaveTextContent(/Post-reflow AOI \(HLYAOI2024\)/i);
+    });
+
+    it("falls back to the i18n stage name when stageLabel is not provided", async () => {
+        stubFetch([
+            {
+                match: (u) => u === "/api/board-svgs/BOARDX",
+                status: 200,
+                body: SAMPLE_SVG,
+            },
+        ]);
+        renderViewer({
+            productName: "BOARDX",
+            stage: "pre",
+            highlights: [{ subpanelIndex: 1, reference: "U1" }],
+        });
+        const badge = await screen.findByTestId("board-viewer-stage-badge");
+        expect(badge).toHaveTextContent(/Pre-reflow/i);
+    });
+
+    it("exposes a zoom reset control", async () => {
+        stubFetch([
+            {
+                match: (u) => u === "/api/board-svgs/BOARDX",
+                status: 200,
+                body: SAMPLE_SVG,
+            },
+        ]);
+        renderViewer({
+            productName: "BOARDX",
+            stage: "post",
+            highlights: [{ subpanelIndex: 1, reference: "U1" }],
+        });
+        const reset = await screen.findByTestId("board-viewer-zoom-reset");
+        expect(reset).toBeInTheDocument();
+        const level = screen.getByTestId("board-viewer-zoom-level");
+        expect(level).toHaveTextContent("100%");
     });
 });

@@ -6,8 +6,6 @@ export type {
 } from "./BoardViewer";
 export {
     parseComponentCentroids,
-    computeHighlightGeometry,
-    DEFAULT_HIGHLIGHT_RADIUS,
-    RADIUS_FACTOR,
+    parseSubpanelOutlines,
 } from "./svgParsing";
-export type { ComponentCentroid, HighlightGeometry } from "./svgParsing";
+export type { ComponentCentroid, SubpanelOutline } from "./svgParsing";

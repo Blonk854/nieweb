@@ -41,14 +41,24 @@ public interface IAoiSource
     IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct);
 
     /// <summary>
-    /// Returns AOI/inspection machines only
+    /// Returns Vision AOI machines only
     /// (Superviseur <c>MACHINE.Machine_Type = 1</c>). Review stations
-    /// (<c>Machine_Type = 2</c>, sometimes called "repair PCs") are
-    /// excluded because they never appear as producers of
-    /// <c>PANELS</c>/<c>CARDS</c> rows and would only pollute the
-    /// filter dropdown and the admin Production Lines picker.
+    /// (<c>Machine_Type = 2</c>) are excluded because they never
+    /// appear as producers of <c>PANELS</c>/<c>CARDS</c> rows and
+    /// would only pollute the filter dropdown and the admin
+    /// Production Lines picker.
     /// </summary>
     Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Returns all review-station operators known to the Superviseur
+    /// (rows of <c>dbo.OPERATOR</c>). Small table (a few hundred rows at
+    /// most on either live DB) so callers may safely cache the result for
+    /// the lifetime of a request. Used to resolve
+    /// <c>PANELS.Operator_Id</c> and <c>TESTED_OBJECT.Operator_Id</c>
+    /// (both are the review operator) into a human-readable name.
+    /// </summary>
+    Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct);
 
     Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct);
 
@@ -89,6 +99,35 @@ public interface IAoiSource
     /// direct <c>Panel_Bar_Code</c> equality works on both DBs.
     /// </remarks>
     Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct);
+
+    /// <summary>
+    /// Looks up every side of the physical PCB that matches
+    /// <paramref name="barcode"/> on <c>PANELS.Panel_Bar_Code</c>.
+    /// A two-sided board that carries the same laser-etched serial
+    /// on both sides yields two rows here (one per
+    /// <c>Face_Number</c>). When a side has been inspected multiple
+    /// times, only the most recent inspection is returned. Rows are
+    /// ordered by <c>Face_Number</c> ascending so callers can
+    /// render side 1 before side 2.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Entry point for TC2 board trace, which needs both sides so
+    /// operators can flip between them. The default implementation
+    /// wraps <see cref="GetPanelByBarcodeAsync"/> into a single-
+    /// element list, which is enough for in-memory fakes and
+    /// single-sided products. SQL adapters override with a
+    /// <c>ROW_NUMBER()</c> partition query so both sides come back
+    /// in a single round trip.
+    /// </para>
+    /// </remarks>
+    async Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        CancellationToken ct)
+    {
+        var panel = await GetPanelByBarcodeAsync(barcode, ct).ConfigureAwait(false);
+        return panel is null ? Array.Empty<PanelRow>() : new[] { panel };
+    }
 
     /// <summary>
     /// Lists all <c>CARDS</c> (sub-panels) for a specific panel. No

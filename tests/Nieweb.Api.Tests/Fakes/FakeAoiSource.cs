@@ -28,6 +28,8 @@ internal sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
     public IReadOnlyList<Machine> SeededMachines { get; init; } = [];
 
+    public IReadOnlyList<ReviewOperator> SeededOperators { get; init; } = [];
+
     public IReadOnlyList<Product> SeededProducts { get; init; } = [];
 
     public IReadOnlyList<Recipe> SeededRecipes { get; init; } = [];
@@ -138,6 +140,9 @@ internal sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(SeededMachines);
+
+    public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
+        => Task.FromResult(SeededOperators);
 
     public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct)
         => Task.FromResult(SeededProducts);

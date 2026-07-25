@@ -19,6 +19,7 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
     private readonly IReadOnlyList<PanelRow> _panels;
     private readonly IReadOnlyList<Machine> _machines;
+    private readonly IReadOnlyList<ReviewOperator> _operators;
     private readonly IReadOnlyList<Product> _products;
     private readonly IReadOnlyList<Recipe> _recipes;
     private readonly IReadOnlyList<TestedObjectRow> _testedObjects;
@@ -43,10 +44,16 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
         _machines =
         [
-            // MachineType 1 = AOI in the Superviseur enum (see
+            // MachineType 1 = Vision AOI in the Superviseur enum (see
             // IAoiSource.ListMachinesAsync docstring). The fake fixture
             // mirrors that so the seed is schema-accurate.
             new Machine(MachineId: 1, MachineType: 1, MachineName: "AOI-E2E-1", MachineTypeName: "Vision3D CR4"),
+        ];
+        _operators =
+        [
+            new ReviewOperator(OperatorId: 1, OperatorName: "E2E Operator 1"),
+            new ReviewOperator(OperatorId: 2, OperatorName: "E2E Operator 2"),
+            new ReviewOperator(OperatorId: 3, OperatorName: "E2E Operator 3"),
         ];
         _products =
         [
@@ -169,6 +176,9 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(_machines);
+
+    public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
+        => Task.FromResult(_operators);
 
     public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct)
         => Task.FromResult(_products);

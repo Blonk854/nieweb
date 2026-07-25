@@ -118,9 +118,13 @@ function boardTrace(barcode: string, opts: {
             operatorId: 7,
             productId: 42,
             recipeId: 99,
+            faceNumber: 1,
         },
         panelUtc: "2026-06-05T12:00:00Z",
         productName: null,
+        machineName: null,
+        operatorName: null,
+        productSvgKey: null,
     });
     const card = (cardId: number, panelId: number) => ({
         panelId,
@@ -134,6 +138,13 @@ function boardTrace(barcode: string, opts: {
         productId: 42,
         panelNumericDate: 1_780_660_800,
     });
+    const sides = (panelId: number, cardCount: number) => [
+        {
+            faceNumber: 1,
+            panel: panel(panelId),
+            cards: Array.from({ length: cardCount }, (_, i) => card(i, panelId)),
+        },
+    ];
     return {
         barcode,
         stages: [
@@ -141,8 +152,7 @@ function boardTrace(barcode: string, opts: {
                 sourceId: "postreflow",
                 sourceName: "Post-reflow AOI",
                 capabilities: 1,
-                panel: opts.postFound ? panel(1001) : null,
-                cards: opts.postFound ? [card(0, 1001), card(1, 1001)] : [],
+                sides: opts.postFound ? sides(1001, 2) : [],
                 pinsAvailable: true,
                 error: opts.postError ?? null,
             },
@@ -150,8 +160,7 @@ function boardTrace(barcode: string, opts: {
                 sourceId: "prereflow",
                 sourceName: "Pre-reflow AOI",
                 capabilities: 0,
-                panel: opts.preFound ? panel(2001) : null,
-                cards: opts.preFound ? [card(0, 2001)] : [],
+                sides: opts.preFound ? sides(2001, 1) : [],
                 pinsAvailable: false,
                 error: opts.preError ?? null,
             },
@@ -326,11 +335,13 @@ describe("TraceabilityBoardRoute — drill-down", () => {
     /** Build a fake board response whose panels both have failing objects. */
     function boardTraceWithFailures(barcode: string) {
         // Reuse the same shape as `boardTrace(postFound=true, preFound=true)`
-        // but bump `nbOfErrorObject` so the drilldown button appears.
+        // but set `anomalyBr` bit 5 ("One or more defects") and bump
+        // `nbOfErrorObject` so the drilldown button appears.
         const trace = boardTrace(barcode, { postFound: true, preFound: true });
         trace.stages.forEach((s) => {
-            if (s.panel !== null) {
-                s.panel.panel.nbOfErrorObject = 2;
+            for (const side of s.sides) {
+                side.panel.panel.anomalyBr = 32;
+                side.panel.panel.nbOfErrorObject = 2;
             }
         });
         return trace;
@@ -397,10 +408,22 @@ describe("TraceabilityBoardRoute — drill-down", () => {
             },
             {
                 match: (u: string) =>
+                    u.includes("/api/sources/postreflow/operators"),
+                status: 200,
+                body: [{ id: 7, name: "Alice Anderson" }],
+            },
+            {
+                match: (u: string) =>
+                    u.includes("/api/sources/prereflow/operators"),
+                status: 200,
+                body: [{ id: 7, name: "Alice Anderson" }],
+            },
+            {
+                match: (u: string) =>
                     u.includes("/api/traceability/panels/postreflow/1001/failed-objects"),
                 status: 200,
                 body: {
-                    panel: boardTraceWithFailures(barcode).stages[0].panel,
+                    panel: boardTraceWithFailures(barcode).stages[0].sides[0].panel,
                     objects: [
                         fakeObject({ cardIdOnPanel: 0, objectId: 1, topology: "R1", errorTableAr: 1 }),
                         fakeObject({ cardIdOnPanel: 1, objectId: 2, topology: "U5", errorTableAr: 3 }),
@@ -412,7 +435,7 @@ describe("TraceabilityBoardRoute — drill-down", () => {
                     u.includes("/api/traceability/panels/prereflow/2001/failed-objects"),
                 status: 200,
                 body: {
-                    panel: boardTraceWithFailures(barcode).stages[1].panel,
+                    panel: boardTraceWithFailures(barcode).stages[1].sides[0].panel,
                     objects: [
                         fakeObject({ cardIdOnPanel: 0, objectId: 3, topology: "C7", errorTableAr: 4 }),
                     ],
@@ -430,12 +453,16 @@ describe("TraceabilityBoardRoute — drill-down", () => {
     }
 
     it("does not show the drill-down button when the panel has zero failures", async () => {
-        // Start from the shared helper but zero out `nbOfErrorObject`
-        // so the drill-down button is not eligible on either stage.
+        // Start from the shared helper but leave `anomalyBr` at its
+        // default of 0 (bit 5 "One or more defects" not set). This
+        // is the true "clean panel" signal in the CR4 schema —
+        // `nbOfErrorObject` alone is not reliable because it is
+        // zeroed after a false-call review.
         const cleanTrace = boardTrace("CLEAN", { postFound: true, preFound: true });
         cleanTrace.stages.forEach((s) => {
-            if (s.panel !== null) {
-                s.panel.panel.nbOfErrorObject = 0;
+            for (const side of s.sides) {
+                side.panel.panel.anomalyBr = 0;
+                side.panel.panel.nbOfErrorObject = 0;
             }
         });
         stubFetch([
@@ -452,6 +479,39 @@ describe("TraceabilityBoardRoute — drill-down", () => {
         expect(
             screen.queryByTestId("traceability-board-open-drilldown-postreflow"),
         ).not.toBeInTheDocument();
+    });
+
+    it("still shows the drill-down on a false-call panel (nbOfErrorObject=0, anomalyBr bit 5 set)", async () => {
+        // A panel that was flagged during AOI (anomalyBr bit 5 set)
+        // but whose defects were all sanctioned as false calls
+        // during review — the review clears `nbOfErrorObject` to 0
+        // but never touches `anomalyBr`. Operators still need to be
+        // able to open the drill-down to inspect the false-call
+        // history, so the button must remain visible.
+        const falseCallTrace = boardTrace("FALSE-CALL", {
+            postFound: true,
+            preFound: true,
+        });
+        falseCallTrace.stages.forEach((s) => {
+            for (const side of s.sides) {
+                side.panel.panel.anomalyBr = 32;
+                side.panel.panel.nbOfErrorObject = 0;
+            }
+        });
+        stubFetch([
+            savedViewsEmpty,
+            {
+                match: (u: string) => u.includes("/api/traceability/boards/by-barcode"),
+                status: 200,
+                body: falseCallTrace,
+            },
+        ]);
+        renderBoard("/traceability/board?barcode=FALSE-CALL");
+        expect(
+            await screen.findByTestId(
+                "traceability-board-open-drilldown-postreflow",
+            ),
+        ).toBeInTheDocument();
     });
 
     it("opens the drill-down section when the View failures button is clicked", async () => {

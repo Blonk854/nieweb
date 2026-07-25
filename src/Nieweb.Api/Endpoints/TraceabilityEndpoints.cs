@@ -225,7 +225,7 @@ public static class TraceabilityEndpoints
         var anyError = false;
         foreach (var stage in result.Stages)
         {
-            if (stage.Panel is not null)
+            if (stage.Sides.Count > 0)
             {
                 anyMatch = true;
             }

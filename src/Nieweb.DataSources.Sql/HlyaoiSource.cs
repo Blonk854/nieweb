@@ -38,12 +38,13 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase, IPinLevelSource
     {
         // Machine_Type is a canonical enum in the Superviseur schema
         // (see 'Database fields and constants (Vision3D CR4).pdf' §5.10):
-        //   1 = AOI  (Vision3D / Vision20 inspection machines)
-        //   2 = Review station (repair PC)
-        // We only ever want to expose AOI machines: review stations do
-        // not produce PANELS/CARDS rows, so surfacing them in the filter
-        // dropdown, in the admin Production Lines picker, or in the
-        // report display-name lookup is confusing and never useful.
+        //   1 = Vision AOI  (Vision3D / Vision20 inspection machines)
+        //   2 = Review station
+        // We only ever want to expose Vision AOI machines: review
+        // stations do not produce PANELS/CARDS rows, so surfacing them
+        // in the filter dropdown, in the admin Production Lines picker,
+        // or in the report display-name lookup is confusing and never
+        // useful.
         const string Sql = """
             SELECT Machine_Id, Machine_Type, Machine_Name, Machine_Type_Name
             FROM   dbo.MACHINE WITH (NOLOCK)
@@ -62,6 +63,29 @@ public sealed class HlyaoiSource : SqlServerAoiSourceBase, IPinLevelSource
                 // against both live DBs). Never call GetString on a nullable
                 // column without an IsDBNull guard - it throws.
                 MachineTypeName: r.IsDBNull(3) ? null : r.GetString(3)),
+            ct);
+    }
+
+    public override Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
+    {
+        // OPERATOR is a small table (a few hundred rows at most on
+        // this DB). Columns Operator_Id + Operator_Name are identical
+        // across v4.3.1 and v5.0 schemas.
+        const string Sql = """
+            SELECT Operator_Id, Operator_Name
+            FROM   dbo.OPERATOR WITH (NOLOCK)
+            ORDER  BY Operator_Id;
+            """;
+
+        return ExecuteListAsync(
+            Sql,
+            bindParameters: null,
+            map: static r => new ReviewOperator(
+                OperatorId: r.GetInt32(0),
+                // Operator_Name is nominally NOT NULL in the schema,
+                // but historical rows on some sites have carried NULL
+                // through legacy loaders. Guard defensively.
+                OperatorName: r.IsDBNull(1) ? string.Empty : r.GetString(1)),
             ct);
     }
 

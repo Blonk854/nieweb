@@ -576,9 +576,6 @@ export type TranslationBundle = {
             stageErrorTitle: string;
             stageNotFound: string;
             stageFound: string;
-            capabilityPinLevel: string;
-            capabilityNoPinLevel: string;
-            panelIdLabel: string;
             panelDateLabel: string;
             panelStatusLabel: string;
             subpanelsHeading: string;
@@ -589,9 +586,49 @@ export type TranslationBundle = {
             subpanelsEmpty: string;
             productLabel: string;
             machineLabel: string;
+            reviewOperatorLabel: string;
+            reviewOperatorUnknown: string;
             reviewedYes: string;
             reviewedNo: string;
             reviewedLabel: string;
+            /** Board trace side toggle (Face_Number 1 / 2). */
+            sideLabel: string;
+            side1st: string;
+            side2nd: string;
+            /**
+             * Decodes `PANELS.Panel_Status` (Vision3D CR4 §5.1). Enum:
+             * -2 = Still faulty after review (Sigmalink KO_OPERATOR),
+             * -1 = Faulty after inspection, 0 = Not inspected,
+             *  1 = Good after inspection,
+             *  2 = Good — all defects were dummy (Sigmalink OK_OPERATOR),
+             *  3 = Good after review / repaired.
+             */
+            panelStatus: {
+                koOperator: string;
+                ko: string;
+                notInspected: string;
+                ok: string;
+                okOperator: string;
+                okRepaired: string;
+                /** Derived label when Panel_Status = 0 AND Anomaly_BR/AR bit 9 (256) is set. */
+                skipped: string;
+                unknown: string;
+            };
+            /**
+             * Decodes `CARDS.Card_Status` (Vision3D CR4 §5.2). Same
+             * enum as panels.
+             */
+            cardStatus: {
+                koOperator: string;
+                ko: string;
+                notInspected: string;
+                ok: string;
+                okOperator: string;
+                okRepaired: string;
+                /** Derived label when Card_Status = 0 AND Anomaly_BR/AR bit 9 (256) is set. */
+                skipped: string;
+                unknown: string;
+            };
             /** TC5 Phase D — drilldown section shell. */
             drilldown: {
                 title: string;
@@ -614,19 +651,14 @@ export type TranslationBundle = {
                 rowCount: string;
                 stagePost: string;
                 stagePre: string;
-                colPanelId: string;
                 colBoardId: string;
                 colRefDes: string;
                 colFace: string;
                 colErrorType: string;
                 colPartNumber: string;
-                colPackage: string;
-                colFeeder: string;
                 colDevX: string;
                 colDevY: string;
                 colDevTheta: string;
-                colDevSurface: string;
-                colDevThickness: string;
                 colRepairResult: string;
                 colRepairDate: string;
                 colRepairComment: string;
@@ -696,6 +728,9 @@ export type TranslationBundle = {
         retry: string;
         badRequest: string;
         errorTitle: string;
+        zoomReset: string;
+        panZoomHint: string;
+        crosshairToggle: string;
     };
     admin: {
         audit: {

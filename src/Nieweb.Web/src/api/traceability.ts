@@ -35,6 +35,14 @@ export type PanelRow = {
     operatorId: number | null;
     productId: number;
     recipeId: number;
+    /**
+     * `PANELS.Face_Number` — which side of the physical PCB this
+     * inspection ran on. Both live DBs ship this NOT NULL, so a
+     * <code>null</code> here signals "source's schema omits it".
+     * TC2 board trace splits a barcode into per-side sub-cards on
+     * this field.
+     */
+    faceNumber: number | null;
 };
 
 /** Mirrors `Nieweb.DataSources.CardRow`. */
@@ -131,6 +139,27 @@ export type TraceabilityPanel = {
     panelUtc: string;
     /** Human-readable product name (resolved via `IAoiSource.ListProductsAsync`), or `null` when unresolved. */
     productName: string | null;
+    /**
+     * Human-readable AOI machine name (resolved via
+     * `IAoiSource.ListMachinesAsync`), or `null` when unresolved. Only
+     * populated by TC2 (Board trace).
+     */
+    machineName: string | null;
+    /**
+     * Review-operator name (resolved via
+     * `IAoiSource.ListOperatorsAsync` against `panel.operatorId`), or
+     * `null` when the panel carries no operator id / resolution failed.
+     * Only populated by TC2 (Board trace).
+     */
+    operatorName: string | null;
+    /**
+     * Normalised product name suitable for the SVG cache lookup
+     * (<code>GET /api/board-svgs/{key}</code>). Strips the
+     * <code>_PreReflow</code> suffix so pre- and post-reflow
+     * panels for the same physical PCB resolve to the same SVG.
+     * Falls back to `productName` on older payloads.
+     */
+    productSvgKey: string | null;
 };
 
 /** Mirrors `Nieweb.Reports.Traceability.TraceabilitySubpanel`. */
@@ -150,13 +179,27 @@ export type TraceabilityTestedObject = {
     pinsAvailable: boolean;
 };
 
+/**
+ * Mirrors `Nieweb.Reports.Traceability.BoardStageSide`. One entry
+ * per inspected side of the physical PCB on a single AOI source.
+ */
+export type BoardStageSide = {
+    faceNumber: number;
+    panel: TraceabilityPanel;
+    cards: CardRow[];
+};
+
 /** Mirrors `Nieweb.Reports.Traceability.BoardStageTrace`. */
 export type BoardStageTrace = {
     sourceId: string;
     sourceName: string;
     capabilities: Capabilities;
-    panel: TraceabilityPanel | null;
-    cards: CardRow[];
+    /**
+     * One entry per inspected side of the physical PCB on this
+     * source, sorted by `faceNumber` ascending. Empty when the
+     * barcode was never seen here.
+     */
+    sides: BoardStageSide[];
     pinsAvailable: boolean;
     error: string | null;
 };

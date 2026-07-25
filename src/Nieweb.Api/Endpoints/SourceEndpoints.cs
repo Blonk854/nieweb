@@ -36,6 +36,9 @@ public static partial class SourceEndpoints
         group.MapGet("/{id}/machines", ListMachinesAsync)
             .WithName("SourcesListMachines");
 
+        group.MapGet("/{id}/operators", ListOperatorsAsync)
+            .WithName("SourcesListOperators");
+
         group.MapGet("/{id}/products", ListProductsAsync)
             .WithName("SourcesListProducts");
 
@@ -139,6 +142,14 @@ public static partial class SourceEndpoints
     /// </summary>
     public sealed record MachineOption(int Id, string Name, string? TypeName);
 
+    /// <summary>
+    /// One item in the <c>GET /api/sources/{id}/operators</c> response.
+    /// Slimmer than the raw <see cref="ReviewOperator"/> record: the traceability
+    /// UI only needs the id → name lookup so it can render a review
+    /// operator by numeric id from a <c>TESTED_OBJECT.Operator_Id</c> row.
+    /// </summary>
+    public sealed record OperatorOption(int Id, string Name);
+
     /// <summary>One item in <c>GET /api/sources/{id}/products</c>.</summary>
     public sealed record ProductOption(int Id, string Name, string? Revision);
 
@@ -173,6 +184,25 @@ public static partial class SourceEndpoints
             .Select(m => new MachineOption(m.MachineId, m.MachineName, m.MachineTypeName))
             .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(m => m.Id)
+            .ToArray();
+        return Results.Ok(options);
+    }
+
+    private static async Task<IResult> ListOperatorsAsync(
+        string id,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        var source = FindSource(sources, id);
+        if (source is null)
+        {
+            return SourceNotFound(id);
+        }
+        var raw = await source.ListOperatorsAsync(cancellationToken).ConfigureAwait(false);
+        var options = raw
+            .Select(o => new OperatorOption(o.OperatorId, o.OperatorName))
+            .OrderBy(o => o.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(o => o.Id)
             .ToArray();
         return Results.Ok(options);
     }

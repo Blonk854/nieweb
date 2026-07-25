@@ -27,7 +27,14 @@ public sealed record PanelRow(
     int NbOfErrorObject,
     int? OperatorId,
     int ProductId,
-    int RecipeId);
+    int RecipeId,
+    // FaceNumber: PANELS.Face_Number — which side of the physical
+    // PCB this inspection ran on. Both live DBs ship this column
+    // NOT NULL, so a null on the wire signals "the source's schema
+    // omits it" (e.g. an older test fake) rather than "unknown
+    // side". TC2 board trace uses this to split a two-sided barcode
+    // into distinct sides.
+    int? FaceNumber = null);
 
 /// <summary>
 /// One row of the <c>CARDS</c> (sub-panel) table. <see cref="MachineId"/>
@@ -204,6 +211,14 @@ public sealed record TestedObjectRow(
 public sealed record Machine(int MachineId, int MachineType, string MachineName, string? MachineTypeName);
 
 public sealed record Product(int ProductId, string? ProductName, string? Revision, string? Description);
+
+/// <summary>
+/// A review-station operator, keyed by the Superviseur <c>OPERATOR.Operator_Id</c>
+/// integer. <see cref="OperatorName"/> is the free-text name shown in the AOI
+/// review UI and on printed sanction labels. Populated on both live DBs
+/// (post-reflow HLYAOI2024 and pre-reflow MEAOI).
+/// </summary>
+public sealed record ReviewOperator(int OperatorId, string OperatorName);
 
 /// <summary>
 /// A recipe (inspection program). <see cref="FileName"/> is the human-readable

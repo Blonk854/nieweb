@@ -202,6 +202,61 @@ public sealed class SourceEndpointsTests : IClassFixture<NiewebApiFactory>
     }
 
     [Fact]
+    public async Task ListOperators_WithUnknownSource_Returns404()
+    {
+        using var client = _factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-operators-404@nieweb.test");
+
+        using var authed = _factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri("/api/sources/nope/operators", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListOperators_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(new Uri("/api/sources/postreflow/operators", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListOperators_ReturnsSortedOptions()
+    {
+        var source = new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None))
+        {
+            SeededOperators =
+            [
+                new ReviewOperator(5, "Zoe Zimmer"),
+                new ReviewOperator(2, "Alice Anderson"),
+                new ReviewOperator(3, "bob baker"),
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-operators-list@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri("/api/sources/postreflow/operators", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var options = await response.Content.ReadFromJsonAsync<SourceEndpoints.OperatorOption[]>(_responseJson);
+        Assert.NotNull(options);
+        Assert.Equal(3, options!.Length);
+        // Case-insensitive alpha sort matches the ListMachines path.
+        Assert.Equal("Alice Anderson", options[0].Name);
+        Assert.Equal("bob baker", options[1].Name);
+        Assert.Equal("Zoe Zimmer", options[2].Name);
+    }
+
+    [Fact]
     public async Task ListProducts_ReturnsSortedOptions()
     {
         var source = new FakeAoiSource(

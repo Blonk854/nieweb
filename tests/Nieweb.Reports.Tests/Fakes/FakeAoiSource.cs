@@ -27,6 +27,8 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public IReadOnlyList<Machine> SeededMachines { get; init; } = [];
 
+    public IReadOnlyList<ReviewOperator> SeededOperators { get; init; } = [];
+
     public IReadOnlyList<Product> SeededProducts { get; init; } = [];
 
     /// <summary>
@@ -140,6 +142,9 @@ internal sealed class FakeAoiSource : IAoiSource
 
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
         => Task.FromResult(SeededMachines);
+
+    public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
+        => Task.FromResult(SeededOperators);
 
     public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct)
         => Task.FromResult(SeededProducts);

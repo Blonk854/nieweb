@@ -254,9 +254,9 @@ public static class TraceabilityReport
     /// <para>
     /// The returned <see cref="BoardTrace"/> is <c>null</c> only
     /// when zero sources are configured; a barcode that matched no
-    /// stage is signalled by every stage having
-    /// <see cref="BoardStageTrace.Panel"/> = <c>null</c> and no
-    /// error — the endpoint layer maps that to 404.
+    /// stage is signalled by every stage having an empty
+    /// <see cref="BoardStageTrace.Sides"/> list and no error — the
+    /// endpoint layer maps that to 404.
     /// </para>
     /// </remarks>
     public static async Task<BoardTrace?> GetBoardByBarcodeAsync(
@@ -288,10 +288,10 @@ public static class TraceabilityReport
         var descriptor = source.Descriptor;
         var pinsAvailable = source is IPinLevelSource;
 
-        PanelRow? panel;
+        IReadOnlyList<PanelRow> panels;
         try
         {
-            panel = await source.GetPanelByBarcodeAsync(barcode, ct).ConfigureAwait(false);
+            panels = await source.ListPanelsByBarcodeAsync(barcode, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -304,62 +304,188 @@ public static class TraceabilityReport
                 SourceId: descriptor.Id,
                 SourceName: descriptor.DisplayName,
                 Capabilities: descriptor.Caps,
-                Panel: null,
-                Cards: [],
+                Sides: Array.Empty<BoardStageSide>(),
                 PinsAvailable: pinsAvailable,
                 Error: ex.Message);
         }
 #pragma warning restore CA1031
 
-        if (panel is null)
+        if (panels.Count == 0)
         {
             return new BoardStageTrace(
                 SourceId: descriptor.Id,
                 SourceName: descriptor.DisplayName,
                 Capabilities: descriptor.Caps,
-                Panel: null,
-                Cards: [],
+                Sides: Array.Empty<BoardStageSide>(),
                 PinsAvailable: pinsAvailable,
                 Error: null);
         }
 
-        IReadOnlyList<CardRow> cards;
+        // Sides typically share the same product / machine (both faces of
+        // the same physical PCB inspected on the same AOI). Machine
+        // names cache identically. Resolve the reference-data lists
+        // once outside the loop so a two-sided board only pays the
+        // cost of one machine / product / operator lookup instead of
+        // two. Failures fall through as null (best-effort enrichment).
+        IReadOnlyList<Product> products;
         try
         {
-            cards = await source.ListCardsForPanelAsync(panel.PanelId, ct).ConfigureAwait(false);
+            products = await source.ListProductsAsync(ct).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-#pragma warning disable CA1031 // See above — per-stage error isolation.
-        catch (Exception ex)
-        {
-            return new BoardStageTrace(
-                SourceId: descriptor.Id,
-                SourceName: descriptor.DisplayName,
-                Capabilities: descriptor.Caps,
-                Panel: Materialise(panel, await ResolveProductNameAsync(source, panel.ProductId, ct).ConfigureAwait(false)),
-                Cards: [],
-                PinsAvailable: pinsAvailable,
-                Error: ex.Message);
-        }
+#pragma warning disable CA1031 // Best-effort enrichment; see per-resolver rationale below.
+        catch (Exception) { products = Array.Empty<Product>(); }
 #pragma warning restore CA1031
+        IReadOnlyList<Machine> machines;
+        try
+        {
+            machines = await source.ListMachinesAsync(ct).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031
+        catch (Exception) { machines = Array.Empty<Machine>(); }
+#pragma warning restore CA1031
+        IReadOnlyList<ReviewOperator> operators;
+        try
+        {
+            operators = await source.ListOperatorsAsync(ct).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031
+        catch (Exception) { operators = Array.Empty<ReviewOperator>(); }
+#pragma warning restore CA1031
+
+        var sides = new List<BoardStageSide>(panels.Count);
+        foreach (var panel in panels)
+        {
+            var productName = LookupProductName(products, panel.ProductId);
+            var machineName = LookupMachineName(machines, panel.MachineId);
+            var operatorName = LookupOperatorName(operators, panel.OperatorId);
+            var productSvgKey = NormalizeProductSvgKey(productName);
+            var materialised = Materialise(
+                panel,
+                productName,
+                machineName,
+                operatorName,
+                productSvgKey);
+
+            IReadOnlyList<CardRow> cards;
+            try
+            {
+                cards = await source.ListCardsForPanelAsync(panel.PanelId, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+#pragma warning disable CA1031 // Per-stage error isolation: return what we have so far + the error text.
+            catch (Exception ex)
+            {
+                return new BoardStageTrace(
+                    SourceId: descriptor.Id,
+                    SourceName: descriptor.DisplayName,
+                    Capabilities: descriptor.Caps,
+                    Sides: sides,
+                    PinsAvailable: pinsAvailable,
+                    Error: ex.Message);
+            }
+#pragma warning restore CA1031
+
+            // Face_Number is NOT NULL on both live DBs; the coalesce
+            // defends against test fakes that leave it null and
+            // guarantees the SPA's side toggle always has a numeric
+            // key to route on.
+            var faceNumber = panel.FaceNumber ?? 0;
+            sides.Add(new BoardStageSide(faceNumber, materialised, cards));
+        }
 
         return new BoardStageTrace(
             SourceId: descriptor.Id,
             SourceName: descriptor.DisplayName,
             Capabilities: descriptor.Caps,
-            Panel: Materialise(panel, await ResolveProductNameAsync(source, panel.ProductId, ct).ConfigureAwait(false)),
-            Cards: cards,
+            Sides: sides,
             PinsAvailable: pinsAvailable,
             Error: null);
     }
 
-    private static TraceabilityPanel Materialise(PanelRow panel, string? productName = null)
+    private static TraceabilityPanel Materialise(
+        PanelRow panel,
+        string? productName = null,
+        string? machineName = null,
+        string? operatorName = null,
+        string? productSvgKey = null)
     {
         var (_, panelUtc) = Split(panel);
-        return new TraceabilityPanel(panel, panelUtc, productName);
+        return new TraceabilityPanel(
+            panel,
+            panelUtc,
+            productName,
+            machineName,
+            operatorName,
+            productSvgKey);
+    }
+
+    /// <summary>
+    /// Regex that trims the <c>_PreReflow</c> (or <c>-PreReflow</c>)
+    /// suffix, with optional trailing whitespace, case-insensitively.
+    /// The pre-reflow AOI programs are named e.g.
+    /// <c>HA013682402_1st_PreReflow</c> while the SVG cache is keyed
+    /// on the post-reflow product name (<c>HA013682402_1st</c>).
+    /// Stripping the suffix lets both stages share one cached SVG.
+    /// </summary>
+    private static readonly System.Text.RegularExpressions.Regex PreReflowSuffix =
+        new(@"[_\-]?PreReflow\s*$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    internal static string? NormalizeProductSvgKey(string? productName)
+    {
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            return null;
+        }
+        var trimmed = productName.Trim();
+        var stripped = PreReflowSuffix.Replace(trimmed, "");
+        // Belt-and-braces: never emit an empty key. If the whole
+        // name was "PreReflow" or similar, fall back to the raw
+        // trimmed input so the SVG endpoint gets something to try.
+        return string.IsNullOrWhiteSpace(stripped) ? trimmed : stripped;
+    }
+
+    private static string? LookupProductName(IReadOnlyList<Product> products, int productId)
+    {
+        foreach (var p in products)
+        {
+            if (p.ProductId == productId)
+            {
+                return p.ProductName;
+            }
+        }
+        return null;
+    }
+
+    private static string? LookupMachineName(IReadOnlyList<Machine> machines, int machineId)
+    {
+        foreach (var m in machines)
+        {
+            if (m.MachineId == machineId)
+            {
+                return m.MachineName;
+            }
+        }
+        return null;
+    }
+
+    private static string? LookupOperatorName(IReadOnlyList<ReviewOperator> operators, int? operatorId)
+    {
+        if (operatorId is null)
+        {
+            return null;
+        }
+        foreach (var o in operators)
+        {
+            if (o.OperatorId == operatorId.Value)
+            {
+                return o.OperatorName;
+            }
+        }
+        return null;
     }
 
     private static async Task<string?> ResolveProductNameAsync(
@@ -368,15 +494,45 @@ public static class TraceabilityReport
         try
         {
             var products = await source.ListProductsAsync(ct).ConfigureAwait(false);
-            foreach (var p in products)
-            {
-                if (p.ProductId == productId)
-                {
-                    return p.ProductName;
-                }
-            }
+            return LookupProductName(products, productId);
         }
 #pragma warning disable CA1031 // Product-name enrichment is best-effort; failures fall back to id-only display.
+        catch (Exception)
+        {
+        }
+#pragma warning restore CA1031
+        return null;
+    }
+
+    private static async Task<string?> ResolveMachineNameAsync(
+        IAoiSource source, int machineId, CancellationToken ct)
+    {
+        try
+        {
+            var machines = await source.ListMachinesAsync(ct).ConfigureAwait(false);
+            return LookupMachineName(machines, machineId);
+        }
+#pragma warning disable CA1031 // Machine-name enrichment is best-effort; failures fall back to id-only display.
+        catch (Exception)
+        {
+        }
+#pragma warning restore CA1031
+        return null;
+    }
+
+    private static async Task<string?> ResolveOperatorNameAsync(
+        IAoiSource source, int? operatorId, CancellationToken ct)
+    {
+        if (operatorId is null)
+        {
+            return null;
+        }
+        try
+        {
+            var operators = await source.ListOperatorsAsync(ct).ConfigureAwait(false);
+            return LookupOperatorName(operators, operatorId);
+        }
+#pragma warning disable CA1031 // Operator-name enrichment is best-effort; failures fall back to id-only display.
         catch (Exception)
         {
         }

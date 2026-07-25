@@ -20,6 +20,17 @@ export type MachineOption = {
     typeName: string;
 };
 
+/**
+ * `/api/sources/{id}/operators` response item. Small (a few hundred
+ * rows at most on either live DB); the TC2 drill-down caches the full
+ * list per source so it can render a name for each
+ * `TESTED_OBJECT.Operator_Id` without a per-row round-trip.
+ */
+export type OperatorOption = {
+    id: number;
+    name: string;
+};
+
 /** `/api/sources/{id}/products` response item. */
 export type ProductOption = {
     id: number;
@@ -34,6 +45,12 @@ export function fetchSources(): Promise<SourceInfo[]> {
 export function fetchMachines(sourceId: string): Promise<MachineOption[]> {
     return apiFetch<MachineOption[]>(
         `/api/sources/${encodeURIComponent(sourceId)}/machines`,
+    );
+}
+
+export function fetchOperators(sourceId: string): Promise<OperatorOption[]> {
+    return apiFetch<OperatorOption[]>(
+        `/api/sources/${encodeURIComponent(sourceId)}/operators`,
     );
 }
 

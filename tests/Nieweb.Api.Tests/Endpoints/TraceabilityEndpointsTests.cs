@@ -328,6 +328,7 @@ public sealed class TraceabilityEndpointsTests : IClassFixture<NiewebApiFactory>
         public IAsyncEnumerable<CardRow> StreamCardsAsync(CardQuery q, CancellationToken ct) => _inner.StreamCardsAsync(q, ct);
         public IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery q, CancellationToken ct) => _inner.StreamTestedObjectsAsync(q, ct);
         public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct) => _inner.ListMachinesAsync(ct);
+        public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct) => _inner.ListOperatorsAsync(ct);
         public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct) => _inner.ListProductsAsync(ct);
         public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct) => _inner.ListRecipesAsync(ct);
         public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct) => _inner.GetPanelByIdAsync(panelId, ct);
@@ -394,17 +395,17 @@ public sealed class TraceabilityEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal(2, body.Stages.Count);
 
         var post = body.Stages.Single(s => s.SourceId == "postreflow");
-        Assert.NotNull(post.Panel);
-        Assert.Equal(PanelId, post.Panel!.Panel.PanelId);
+        Assert.NotEmpty(post.Sides);
+        Assert.Equal(PanelId, post.Sides[0].Panel.Panel.PanelId);
         Assert.True(post.PinsAvailable);
-        Assert.Single(post.Cards);
+        Assert.Single(post.Sides[0].Cards);
         Assert.Null(post.Error);
 
         var pre = body.Stages.Single(s => s.SourceId == "prereflow");
-        Assert.NotNull(pre.Panel);
-        Assert.Equal(900, pre.Panel!.Panel.PanelId);
+        Assert.NotEmpty(pre.Sides);
+        Assert.Equal(900, pre.Sides[0].Panel.Panel.PanelId);
         Assert.False(pre.PinsAvailable);
-        Assert.Single(pre.Cards);
+        Assert.Single(pre.Sides[0].Cards);
         Assert.Null(pre.Error);
     }
 
@@ -423,12 +424,11 @@ public sealed class TraceabilityEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal(2, body!.Stages.Count);
 
         var post = body.Stages.Single(s => s.SourceId == "postreflow");
-        Assert.NotNull(post.Panel);
-        Assert.Single(post.Cards);
+        Assert.NotEmpty(post.Sides);
+        Assert.Single(post.Sides[0].Cards);
 
         var pre = body.Stages.Single(s => s.SourceId == "prereflow");
-        Assert.Null(pre.Panel);
-        Assert.Empty(pre.Cards);
+        Assert.Empty(pre.Sides);
         Assert.Null(pre.Error);
     }
 

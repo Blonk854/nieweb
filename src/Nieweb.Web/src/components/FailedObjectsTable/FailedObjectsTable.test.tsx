@@ -4,6 +4,7 @@ import { MantineProvider } from "@mantine/core";
 import i18n from "../../i18n";
 import { FailedObjectsTable } from "./FailedObjectsTable";
 import type { TestedObjectRow } from "../../api/traceability";
+import { usePreferencesStore, AUTO_TIME_ZONE } from "../../state/preferences";
 
 /**
  * Unit tests for the TC5 Phase D `<FailedObjectsTable>` primitive.
@@ -51,9 +52,13 @@ function renderTable(children: React.ReactNode) {
 describe("FailedObjectsTable", () => {
     beforeEach(() => {
         void i18n.changeLanguage("en");
+        // Pin the timezone so review-date assertions are stable
+        // regardless of the host machine's clock.
+        usePreferencesStore.setState({ timeZone: "UTC" });
     });
     afterEach(() => {
         cleanup();
+        usePreferencesStore.setState({ timeZone: AUTO_TIME_ZONE });
     });
 
     it("renders the empty-state hint when there are no rows", () => {
@@ -160,7 +165,85 @@ describe("FailedObjectsTable", () => {
                 testIdRoot="tbl"
             />,
         );
-        // repairState=2 → "False call (good)" in the EN catalogue.
+        // repairState=2 → "False call" in the EN catalogue.
         expect(screen.getByText(/false call/i)).toBeInTheDocument();
+    });
+
+    it("resolves the review operator id to a name via operatorLookup", () => {
+        renderTable(
+            <FailedObjectsTable
+                objects={[baseRow({ repairOperatorId: 7 })]}
+                operatorLookup={(id) => (id === 7 ? "Alice Anderson" : undefined)}
+                testIdRoot="tbl"
+            />,
+        );
+        expect(screen.getByText("Alice Anderson")).toBeInTheDocument();
+    });
+
+    it("falls back to the raw operator id when the lookup returns undefined", () => {
+        renderTable(
+            <FailedObjectsTable
+                objects={[baseRow({ repairOperatorId: 999 })]}
+                operatorLookup={() => undefined}
+                testIdRoot="tbl"
+            />,
+        );
+        expect(screen.getByText("999")).toBeInTheDocument();
+    });
+
+    it("uses the raw operator id when no operatorLookup is provided", () => {
+        renderTable(
+            <FailedObjectsTable
+                objects={[baseRow({ repairOperatorId: 42 })]}
+                testIdRoot="tbl"
+            />,
+        );
+        expect(screen.getByText("42")).toBeInTheDocument();
+    });
+
+    it("formats the review date with the user's timezone preference", () => {
+        // repairUtc = 1_780_664_400 → Fri Jun 05 2026 13:00:00 UTC.
+        // With the UTC timezone pin from beforeEach + en-US locale +
+        // dateStyle:short + timeStyle:medium + hour12:true we get
+        // "6/5/26, 1:00:00 PM". A tolerant regex avoids coupling to
+        // exact Intl formatting quirks between Node/browser versions.
+        renderTable(
+            <FailedObjectsTable
+                objects={[baseRow({ repairUtc: 1_780_664_400 })]}
+                testIdRoot="tbl"
+            />,
+        );
+        expect(screen.getByText(/6\/5\/26.*1:00:00\s*PM/i)).toBeInTheDocument();
+    });
+
+    it("renders an em-dash for missing review dates", () => {
+        renderTable(
+            <FailedObjectsTable
+                objects={[baseRow({ repairUtc: 0 })]}
+                testIdRoot="tbl"
+            />,
+        );
+        // The em-dash appears in several cells; presence is enough.
+        expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    });
+
+    it("omits the trimmed columns (Panel ID, Package, Dev S, Dev Thickness)", () => {
+        renderTable(
+            <FailedObjectsTable
+                objects={[baseRow()]}
+                testIdRoot="tbl"
+            />,
+        );
+        // The removed column headers must not appear anymore. Match
+        // the exact EN labels so a regression that re-adds any of
+        // them fails fast.
+        expect(screen.queryByRole("columnheader", { name: /^Panel ID$/i }))
+            .not.toBeInTheDocument();
+        expect(screen.queryByRole("columnheader", { name: /^Package$/i }))
+            .not.toBeInTheDocument();
+        expect(screen.queryByRole("columnheader", { name: /^Dev S \(%\)$/i }))
+            .not.toBeInTheDocument();
+        expect(screen.queryByRole("columnheader", { name: /^Dev Thickness \(µm\)$/i }))
+            .not.toBeInTheDocument();
     });
 });

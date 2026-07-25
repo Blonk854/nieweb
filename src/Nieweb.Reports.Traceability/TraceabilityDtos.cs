@@ -15,10 +15,34 @@ namespace Nieweb.Reports.Traceability;
 /// underlying column is an <c>int</c> (seconds since 1970-01-01 UTC).
 /// </param>
 /// <param name="ProductName">Product name resolved via <see cref="IAoiSource.ListProductsAsync"/>, or <c>null</c> if unresolved.</param>
+/// <param name="MachineName">
+/// Vision AOI machine name resolved via <see cref="IAoiSource.ListMachinesAsync"/>,
+/// or <c>null</c> if unresolved. Only populated by TC2
+/// (<see cref="TraceabilityReport.GetBoardByBarcodeAsync"/>) so the
+/// Board trace summary can render "Machine: L7PSTAOI" instead of a
+/// raw numeric id.
+/// </param>
+/// <param name="OperatorName">
+/// Review operator name resolved via <see cref="IAoiSource.ListOperatorsAsync"/>
+/// against <see cref="PanelRow.OperatorId"/>, or <c>null</c> when the
+/// panel carries no operator id or resolution failed. Only populated
+/// by TC2 for the same reason as <see cref="MachineName"/>.
+/// </param>
+/// <param name="ProductSvgKey">
+/// Normalised product name suitable for looking up the cached
+/// panel SVG (<c>GET /api/board-svgs/{key}</c>). Strips the
+/// <c>_PreReflow</c> / <c>-PreReflow</c> suffix that pre-reflow
+/// products carry, so a pre-reflow panel and the corresponding
+/// post-reflow panel resolve to the same SVG key (the same physical
+/// PCB shares one board layout).
+/// </param>
 public sealed record TraceabilityPanel(
     PanelRow Panel,
     DateTime PanelUtc,
-    string? ProductName);
+    string? ProductName,
+    string? MachineName = null,
+    string? OperatorName = null,
+    string? ProductSvgKey = null);
 
 /// <summary>
 /// Detail view of a single <c>CARDS</c> (sub-panel) row, returned by
@@ -62,24 +86,41 @@ public sealed record TraceabilityTestedObject(
     bool PinsAvailable);
 
 /// <summary>
+/// One inspection side of a physical PCB on a single AOI source.
+/// A two-sided board with barcode <c>XYZ</c> yields two
+/// <see cref="BoardStageSide"/> entries per stage: face 1 and
+/// face 2. Each side carries its own panel row + sub-panel list
+/// because the AOI machine treats the two sides as separate
+/// inspection cycles.
+/// </summary>
+/// <param name="FaceNumber">
+/// <c>PANELS.Face_Number</c> from the underlying panel row. Used
+/// as the discriminator for the SPA's side toggle (<c>1</c> = 1st
+/// side, <c>2</c> = 2nd side). Sides are returned in ascending
+/// order so the UI can render them left-to-right.
+/// </param>
+/// <param name="Panel">The panel row + resolved names for this side.</param>
+/// <param name="Cards">Sub-panels attached to <see cref="Panel"/>.</param>
+public sealed record BoardStageSide(
+    int FaceNumber,
+    TraceabilityPanel Panel,
+    IReadOnlyList<CardRow> Cards);
+
+/// <summary>
 /// Per-source stage of a cross-DB board trace (TC2). One entry per
 /// configured <see cref="IAoiSource"/>. When a barcode was only
 /// captured by one stage (e.g. the pre-reflow scanner missed the
-/// serial number) the other stage returns with
-/// <see cref="Panel"/> = <c>null</c> and <see cref="Cards"/> empty
-/// rather than raising an error, so the SPA can render one table
-/// per stage independently.
+/// serial number) the other stage returns with an empty
+/// <see cref="Sides"/> list and no error, so the SPA can render
+/// one table per stage independently.
 /// </summary>
 /// <param name="SourceId">Descriptor id (e.g. <c>"postreflow"</c>).</param>
 /// <param name="SourceName">Human-readable source name.</param>
 /// <param name="Capabilities">Capability flags for this source — the SPA uses this to decide which columns to show (paste-print vs pin).</param>
-/// <param name="Panel">
-/// The most recent panel that carries <c>Panel_BarCode == barcode</c>
-/// on this source, or <c>null</c> if the barcode was never seen here.
-/// </param>
-/// <param name="Cards">
-/// Sub-panels attached to <see cref="Panel"/>. Empty when
-/// <see cref="Panel"/> is <c>null</c>.
+/// <param name="Sides">
+/// One entry per inspected side of the physical PCB on this
+/// source, sorted by <see cref="BoardStageSide.FaceNumber"/>
+/// ascending. Empty when the barcode was never seen here.
 /// </param>
 /// <param name="PinsAvailable">
 /// <c>true</c> when this source implements
@@ -96,8 +137,7 @@ public sealed record BoardStageTrace(
     string SourceId,
     string SourceName,
     Capabilities Capabilities,
-    TraceabilityPanel? Panel,
-    IReadOnlyList<CardRow> Cards,
+    IReadOnlyList<BoardStageSide> Sides,
     bool PinsAvailable,
     string? Error);
 

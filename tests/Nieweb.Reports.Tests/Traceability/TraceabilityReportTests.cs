@@ -342,15 +342,15 @@ public sealed class TraceabilityReportTests
         Assert.Equal(2, trace.Stages.Count);
 
         var postStage = trace.Stages.Single(s => s.SourceId == "postreflow");
-        Assert.NotNull(postStage.Panel);
-        Assert.Equal(100, postStage.Panel!.Panel.PanelId);
+        Assert.NotEmpty(postStage.Sides);
+        Assert.Equal(100, postStage.Sides[0].Panel.Panel.PanelId);
         Assert.True(postStage.PinsAvailable);
-        Assert.Single(postStage.Cards);
+        Assert.Single(postStage.Sides[0].Cards);
         Assert.Null(postStage.Error);
 
         var preStage = trace.Stages.Single(s => s.SourceId == "prereflow");
-        Assert.NotNull(preStage.Panel);
-        Assert.Equal(200, preStage.Panel!.Panel.PanelId);
+        Assert.NotEmpty(preStage.Sides);
+        Assert.Equal(200, preStage.Sides[0].Panel.Panel.PanelId);
         Assert.False(preStage.PinsAvailable);
         Assert.Null(preStage.Error);
     }
@@ -368,12 +368,11 @@ public sealed class TraceabilityReportTests
         Assert.Equal(2, trace!.Stages.Count);
 
         var postStage = trace.Stages.Single(s => s.SourceId == "postreflow");
-        Assert.NotNull(postStage.Panel);
+        Assert.NotEmpty(postStage.Sides);
         Assert.Null(postStage.Error);
 
         var preStage = trace.Stages.Single(s => s.SourceId == "prereflow");
-        Assert.Null(preStage.Panel);
-        Assert.Empty(preStage.Cards);
+        Assert.Empty(preStage.Sides);
         Assert.Null(preStage.Error);
     }
 
@@ -389,8 +388,7 @@ public sealed class TraceabilityReportTests
         Assert.NotNull(trace);
         Assert.All(trace!.Stages, s =>
         {
-            Assert.Null(s.Panel);
-            Assert.Empty(s.Cards);
+            Assert.Empty(s.Sides);
             Assert.Null(s.Error);
         });
     }
@@ -408,12 +406,11 @@ public sealed class TraceabilityReportTests
 
         Assert.NotNull(trace);
         var postStage = trace!.Stages.Single(s => s.SourceId == "postreflow");
-        Assert.NotNull(postStage.Panel);
+        Assert.NotEmpty(postStage.Sides);
         Assert.Null(postStage.Error);
 
         var preStage = trace.Stages.Single(s => s.SourceId == "prereflow");
-        Assert.Null(preStage.Panel);
-        Assert.Empty(preStage.Cards);
+        Assert.Empty(preStage.Sides);
         Assert.Equal("simulated outage", preStage.Error);
     }
 
@@ -431,6 +428,125 @@ public sealed class TraceabilityReportTests
         var source = NewSource();
         await Assert.ThrowsAsync<ArgumentException>(() =>
             TraceabilityReport.GetBoardByBarcodeAsync([source], "   ", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_enriches_panel_with_machine_and_operator_names()
+    {
+        // Build a source whose panel references machine 7 and
+        // operator 13, then seed the corresponding roster rows so
+        // TraceabilityReport.ProbeStageAsync can resolve both names
+        // in one Task.WhenAll fan-out.
+        const int panelId = 500;
+        var descriptor = new SourceDescriptor(
+            Id: "postreflow",
+            DisplayName: "Post-reflow AOI",
+            SchemaVersion: "5.0",
+            Caps: Capabilities.None);
+        var panel = Panel with
+        {
+            PanelId = panelId,
+            PanelBarCode = "SN-ENRICH",
+            MachineId = 7,
+            OperatorId = 13,
+        };
+        var source = new FakeAoiSource(descriptor)
+        {
+            SeededPanels = [panel],
+            SeededCards = [Card with { PanelId = panelId }],
+            SeededMachines =
+            [
+                new Machine(7, 0, "AOI-Line-A", null),
+                new Machine(8, 0, "AOI-Line-B", null),
+            ],
+            SeededOperators =
+            [
+                new ReviewOperator(13, "Alice Anderson"),
+                new ReviewOperator(14, "Bob Baker"),
+            ],
+        };
+
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [source], "SN-ENRICH", CancellationToken.None);
+
+        Assert.NotNull(trace);
+        var stage = Assert.Single(trace!.Stages);
+        var side = Assert.Single(stage.Sides);
+        Assert.Equal("AOI-Line-A", side.Panel.MachineName);
+        Assert.Equal("Alice Anderson", side.Panel.OperatorName);
+    }
+
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_leaves_names_null_when_lookup_yields_no_match()
+    {
+        // Panel references machine 99 and operator 99 — neither is
+        // present in the seeded rosters. The enrichment step must
+        // treat the miss as null (not throw, not fabricate a name).
+        const int panelId = 501;
+        var descriptor = new SourceDescriptor(
+            Id: "postreflow",
+            DisplayName: "Post-reflow AOI",
+            SchemaVersion: "5.0",
+            Caps: Capabilities.None);
+        var panel = Panel with
+        {
+            PanelId = panelId,
+            PanelBarCode = "SN-NOMATCH",
+            MachineId = 99,
+            OperatorId = 99,
+        };
+        var source = new FakeAoiSource(descriptor)
+        {
+            SeededPanels = [panel],
+            SeededCards = [Card with { PanelId = panelId }],
+            SeededMachines = [new Machine(1, 0, "AOI-Line-A", null)],
+            SeededOperators = [new ReviewOperator(1, "Alice Anderson")],
+        };
+
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [source], "SN-NOMATCH", CancellationToken.None);
+
+        var stage = Assert.Single(trace!.Stages);
+        var side = Assert.Single(stage.Sides);
+        Assert.Null(side.Panel.MachineName);
+        Assert.Null(side.Panel.OperatorName);
+    }
+
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_leaves_operator_name_null_when_operator_id_is_null()
+    {
+        // A panel with OperatorId=null (never reviewed) must not
+        // trigger the operator roster lookup and must return
+        // OperatorName=null so the UI can render its "Not reviewed"
+        // placeholder without a spurious id lookup.
+        const int panelId = 502;
+        var descriptor = new SourceDescriptor(
+            Id: "postreflow",
+            DisplayName: "Post-reflow AOI",
+            SchemaVersion: "5.0",
+            Caps: Capabilities.None);
+        var panel = Panel with
+        {
+            PanelId = panelId,
+            PanelBarCode = "SN-NULLOP",
+            MachineId = 1,
+            OperatorId = null,
+        };
+        var source = new FakeAoiSource(descriptor)
+        {
+            SeededPanels = [panel],
+            SeededCards = [Card with { PanelId = panelId }],
+            SeededMachines = [new Machine(1, 0, "AOI-Line-A", null)],
+            SeededOperators = [new ReviewOperator(1, "Alice Anderson")],
+        };
+
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [source], "SN-NULLOP", CancellationToken.None);
+
+        var stage = Assert.Single(trace!.Stages);
+        var side = Assert.Single(stage.Sides);
+        Assert.Equal("AOI-Line-A", side.Panel.MachineName);
+        Assert.Null(side.Panel.OperatorName);
     }
 
     /// <summary>
@@ -457,6 +573,7 @@ public sealed class TraceabilityReportTests
         public IAsyncEnumerable<CardRow> StreamCardsAsync(CardQuery q, CancellationToken ct) => throw _boom;
         public IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery q, CancellationToken ct) => throw _boom;
         public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct) => throw _boom;
+        public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct) => throw _boom;
         public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct) => throw _boom;
         public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct) => throw _boom;
         public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct) => throw _boom;
@@ -508,6 +625,9 @@ public sealed class TraceabilityReportTests
 
         public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
             => _inner.ListMachinesAsync(ct);
+
+        public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
+            => _inner.ListOperatorsAsync(ct);
 
         public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct)
             => _inner.ListProductsAsync(ct);

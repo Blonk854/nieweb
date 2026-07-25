@@ -5,32 +5,30 @@ import { useTranslation } from "react-i18next";
 import type { TestedObjectRow } from "../../api/traceability";
 import type { BoardHighlight } from "../BoardViewer/BoardViewer";
 import { formatDefectBits } from "../../i18n/defectBits";
+import { useDateTimeFormatter } from "../../i18n/formatters";
 
 /**
  * TC5 Phase D — enriched failed-objects table used inside the
  * `/traceability/board` drill-down (and reused later for TC5-driven
- * DPMO / Pareto drill-ins). Renders every column called out in
- * `docs/phase-2.md` §7.5 TC5 spec:
+ * DPMO / Pareto drill-ins). Columns (after the board-trace UI
+ * refresh):
  *
  * <ol>
- *   <li>Panel ID</li>
- *   <li>Board ID (=<code>cardIdOnPanel</code>)</li>
+ *   <li>Subpanel # (=<code>cardIdOnPanel</code>)</li>
  *   <li>Ref. Des (=<code>topology</code>)</li>
  *   <li>Face</li>
  *   <li>Error type (decoded via {@link formatDefectBits})</li>
  *   <li>Part Number</li>
- *   <li>Package (=<code>jedecName</code>)</li>
- *   <li>Feeder</li>
  *   <li>Dev X (µm)</li>
  *   <li>Dev Y (µm)</li>
  *   <li>Dev θ (°)</li>
- *   <li>Dev S (%)</li>
- *   <li>Dev Thickness (µm)</li>
- *   <li>Repair result (enum: -2..3)</li>
- *   <li>Repair date (UTC)</li>
- *   <li>Repair comment (=<code>repairButtonComment</code> —
- *       operator button pressed)</li>
- *   <li>Repair operator (raw <code>Operator_Id</code>)</li>
+ *   <li>Operator classification (=<code>repairState</code>, enum -2..3)</li>
+ *   <li>Review date (=<code>repairUtc</code>, formatted with the
+ *       user's timezone + 12-hour clock preference)</li>
+ *   <li>Review action (=<code>repairButtonComment</code> — the
+ *       button the operator pressed on the review PC)</li>
+ *   <li>Review operator (resolved to a name via
+ *       <code>operatorLookup</code>; falls back to the raw id)</li>
  *   <li>Operator comment (free-form
  *       <code>repairOperatorComment</code>)</li>
  * </ol>
@@ -77,6 +75,14 @@ export type FailedObjectsTableProps = {
     error?: string | null;
     /** Optional test-id root so the parent can distinguish stages. */
     testIdRoot?: string;
+    /**
+     * Optional id → name resolver for the Review operator column.
+     * Rows fall back to the raw <code>repairOperatorId</code> string
+     * when the lookup returns <code>undefined</code>, so this prop
+     * can be omitted entirely on surfaces that don't have an
+     * OPERATOR roster to hand.
+     */
+    operatorLookup?: (id: number) => string | undefined;
 };
 
 /** Decode `repairState` (-2..3) into an i18n key. */
@@ -110,14 +116,6 @@ function formatNumber(v: number | null, digits: number): string {
     return v.toFixed(digits);
 }
 
-function formatRepairDate(utc: number | null): string {
-    if (utc === null || utc === undefined || !Number.isFinite(utc) || utc <= 0) {
-        return "—";
-    }
-    // `Repair_Numeric_Date_Hour` is ANSI time_t (seconds since epoch UTC).
-    return new Date(utc * 1000).toISOString().replace("T", " ").replace("Z", " UTC");
-}
-
 function highlightId(row: TestedObjectRow): BoardHighlight | null {
     const ref = row.topology?.trim();
     if (!ref) return null;
@@ -143,7 +141,23 @@ export function FailedObjectsTable(props: FailedObjectsTableProps) {
         isLoading,
         error,
         testIdRoot,
+        operatorLookup,
     } = props;
+
+    // Review dates are formatted with the user's timezone preference
+    // (Settings → Time zone) and a 12-hour clock, matching every
+    // other timestamp surface in the app. `Repair_Numeric_Date_Hour`
+    // is ANSI time_t (seconds since epoch UTC).
+    const reviewDateFormat = useDateTimeFormatter({
+        dateStyle: "short",
+        timeStyle: "medium",
+    });
+    const formatReviewDate = (utc: number | null): string => {
+        if (utc === null || utc === undefined || !Number.isFinite(utc) || utc <= 0) {
+            return "—";
+        }
+        return reviewDateFormat.format(new Date(utc * 1000));
+    };
 
     // The decoder resolver bridges i18next + the framework-neutral
     // formatDefectBits helper. `defaultValue` is what i18next falls
@@ -205,23 +219,18 @@ export function FailedObjectsTable(props: FailedObjectsTableProps) {
                     {t("traceability.board.failures.empty")}
                 </Text>
             ) : (
-                <Table.ScrollContainer minWidth={1200} type="native">
+                <Table.ScrollContainer minWidth={880} type="native">
                     <Table striped withTableBorder highlightOnHover>
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>{t("traceability.board.failures.colPanelId")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colBoardId")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colRefDes")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colFace")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colErrorType")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colPartNumber")}</Table.Th>
-                                <Table.Th>{t("traceability.board.failures.colPackage")}</Table.Th>
-                                <Table.Th>{t("traceability.board.failures.colFeeder")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colDevX")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colDevY")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colDevTheta")}</Table.Th>
-                                <Table.Th>{t("traceability.board.failures.colDevSurface")}</Table.Th>
-                                <Table.Th>{t("traceability.board.failures.colDevThickness")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colRepairResult")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colRepairDate")}</Table.Th>
                                 <Table.Th>{t("traceability.board.failures.colRepairComment")}</Table.Th>
@@ -234,6 +243,11 @@ export function FailedObjectsTable(props: FailedObjectsTableProps) {
                                 const hid = highlightId(row);
                                 const isPrimary = sameHighlight(hid, primaryHighlight);
                                 const clickable = hid !== null && onRowClick !== undefined;
+                                const operatorText =
+                                    row.repairOperatorId === null
+                                        ? "—"
+                                        : (operatorLookup?.(row.repairOperatorId)
+                                            ?? String(row.repairOperatorId));
                                 return (
                                     <Table.Tr
                                         key={`${row.cardIdOnPanel}:${row.objectId}`}
@@ -259,7 +273,6 @@ export function FailedObjectsTable(props: FailedObjectsTableProps) {
                                                 : undefined
                                         }
                                     >
-                                        <Table.Td>{row.panelId}</Table.Td>
                                         <Table.Td>{row.cardIdOnPanel}</Table.Td>
                                         <Table.Td>{row.topology ?? "—"}</Table.Td>
                                         <Table.Td>{row.face ?? "—"}</Table.Td>
@@ -267,25 +280,17 @@ export function FailedObjectsTable(props: FailedObjectsTableProps) {
                                             {formatDefectBits(row.errorTableAr, translateDefect) || "—"}
                                         </Table.Td>
                                         <Table.Td>{row.partNumberName ?? "—"}</Table.Td>
-                                        <Table.Td>{row.jedecName ?? "—"}</Table.Td>
-                                        <Table.Td>{row.feederName ?? "—"}</Table.Td>
                                         <Table.Td>{formatNumber(row.deltaXUm, 1)}</Table.Td>
                                         <Table.Td>{formatNumber(row.deltaYUm, 1)}</Table.Td>
                                         <Table.Td>{formatNumber(row.deltaThetaDeg, 2)}</Table.Td>
-                                        <Table.Td>{formatNumber(row.deltaSurface, 1)}</Table.Td>
-                                        <Table.Td>{formatNumber(row.deltaThicknessUm, 1)}</Table.Td>
                                         <Table.Td>
                                             {t(repairStateKey(row.repairState), {
                                                 defaultValue: String(row.repairState ?? "—"),
                                             })}
                                         </Table.Td>
-                                        <Table.Td>{formatRepairDate(row.repairUtc)}</Table.Td>
+                                        <Table.Td>{formatReviewDate(row.repairUtc)}</Table.Td>
                                         <Table.Td>{row.repairButtonComment ?? "—"}</Table.Td>
-                                        <Table.Td>
-                                            {row.repairOperatorId !== null
-                                                ? String(row.repairOperatorId)
-                                                : "—"}
-                                        </Table.Td>
+                                        <Table.Td>{operatorText}</Table.Td>
                                         <Table.Td>{row.repairOperatorComment ?? "—"}</Table.Td>
                                     </Table.Tr>
                                 );

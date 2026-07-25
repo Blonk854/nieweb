@@ -30,9 +30,9 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
     public override Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
     {
         // MACHINE columns are identical between v4.3.1 and v5.0, and
-        // so is the Machine_Type enum (1 = AOI, 2 = Review station).
-        // See HlyaoiSource.ListMachinesAsync for the full rationale;
-        // we intentionally exclude review / repair stations so the
+        // so is the Machine_Type enum (1 = Vision AOI, 2 = Review
+        // station). See HlyaoiSource.ListMachinesAsync for the full
+        // rationale; we intentionally exclude review stations so the
         // filter dropdown and admin pickers only see Vision AOI
         // machines.
         const string Sql = """
@@ -53,6 +53,26 @@ public sealed class MeaoiSource : SqlServerAoiSourceBase
                 // against both live DBs). Never call GetString on a nullable
                 // column without an IsDBNull guard - it throws.
                 MachineTypeName: r.IsDBNull(3) ? null : r.GetString(3)),
+            ct);
+    }
+
+    public override Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
+    {
+        // OPERATOR columns (Operator_Id, Operator_Name) are identical
+        // between v4.3.1 and v5.0, so this query is byte-for-byte the
+        // same as HlyaoiSource.ListOperatorsAsync.
+        const string Sql = """
+            SELECT Operator_Id, Operator_Name
+            FROM   dbo.OPERATOR WITH (NOLOCK)
+            ORDER  BY Operator_Id;
+            """;
+
+        return ExecuteListAsync(
+            Sql,
+            bindParameters: null,
+            map: static r => new ReviewOperator(
+                OperatorId: r.GetInt32(0),
+                OperatorName: r.IsDBNull(1) ? string.Empty : r.GetString(1)),
             ct);
     }
 
