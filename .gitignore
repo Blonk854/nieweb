@@ -92,6 +92,11 @@ appsettings.Local.json
 # Transient smoke-test scratch files
 .smoke.*
 
+# ─── Scratch file-sharing area ───
+# Ad-hoc PDFs/images shared between the developer and the AI assistant for
+# visual QA. Not a versioned asset — kept on disk only.
+docs/design/samples/reference_pics/
+
 # ─── Playwright E2E artifacts ───
 src/Nieweb.Web/test-results/
 src/Nieweb.Web/playwright-report/
