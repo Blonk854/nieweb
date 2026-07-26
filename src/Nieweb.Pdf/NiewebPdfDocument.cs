@@ -141,10 +141,10 @@ public sealed class NiewebPdfDocument
             col.Item().PaddingTop(2).Row(row =>
             {
                 // Box aspect matches bss_green_premium_no_pod.svg
-                // viewBox 900x110 (~8.18:1); 4.5cm × 0.55cm keeps the
-                // aspect while fitting the sub-header strip.
-                row.ConstantItem(4.5f, Unit.Centimetre)
-                   .Height(0.55f, Unit.Centimetre)
+                // viewBox 900x110 (~8.18:1); 6.75cm × 0.825cm is 1.5× the
+                // original sub-header size while preserving the aspect.
+                row.ConstantItem(6.75f, Unit.Centimetre)
+                   .Height(0.825f, Unit.Centimetre)
                    .Svg(BrandAssets.BssGreenPremiumSvg);
                 row.RelativeItem();
             });

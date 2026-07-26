@@ -9,10 +9,10 @@
   </defs>
 
   <!-- Soybean Plant -->
-  <g transform="translate(35,18)">
+  <g transform="translate(63,18)">
     <!-- Stem -->
     <path
-      d="M20 70 C20 55,22 40,22 20"
+      d="M20.21 60.96 C20.72 48.8,22 36,22 20"
       fill="none"
       stroke="url(#grad)"
       stroke-width="3"
