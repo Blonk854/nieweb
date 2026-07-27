@@ -26,5 +26,7 @@
     "fpyDiagnosticPercent": 0,
     "fpyAfterRepairPercent": 0
   },
-  "rows": []
+  "rows": [],
+  "skipExclusion": "Raw",
+  "skipExcludedRows": 0
 }

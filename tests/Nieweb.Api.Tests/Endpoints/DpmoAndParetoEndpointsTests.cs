@@ -162,8 +162,10 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     }
 
     /// <summary>
-    /// Machine 10: 4 tested objects (2 defects on one, 1 on another, 2 clean) → 3 defects / 4 opps → DPMO 750 000.
-    /// Machine 11: 2 tested objects (1 defect on one, 1 clean)               → 1 defect  / 2 opps → DPMO 500 000.
+    /// Opportunities come from CARDS (Nb_Of_Tests_On_Comp), not from
+    /// tested-object row counts:
+    ///   Machine 10: 100 comp tests, 3 defects → DPMO 30 000.
+    ///   Machine 11:  50 comp tests, 1 defect  → DPMO 20 000.
     /// Rows sorted descending by DPMO.
     /// </summary>
     [Fact]
@@ -171,14 +173,16 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     {
         var fake = new FakeAoiSource(_postDescriptor)
         {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 10, nbTestsOnComp: 100),
+                Card(11, WindowStartEpoch + 20, nbTestsOnComp: 50),
+            ],
             SeededTestedObjects =
             [
                 Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
-                Obj(10, WindowStartEpoch + 61, ComponentType, 0, 0),
                 Obj(10, WindowStartEpoch + 62, ComponentType, BitSolderJoint, BitSolderJoint),
-                Obj(10, WindowStartEpoch + 63, ComponentType, 0, 0),
                 Obj(11, WindowStartEpoch + 70, ComponentType, BitObjectMissing, BitObjectMissing),
-                Obj(11, WindowStartEpoch + 71, ComponentType, 0, 0),
             ],
             SeededMachines =
             [
@@ -197,14 +201,14 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         Assert.Equal("postreflow", payload!.Source.Id);
         Assert.Equal(DpmoGroupBy.AoiMachine, payload.GroupBy);
         Assert.Equal(DpmoNumerator.Aoi, payload.Numerator);
-        Assert.Equal(6L, payload.Overall.OpportunityCount);
+        Assert.Equal(150L, payload.Overall.OpportunityCount);
         Assert.Equal(4L, payload.Overall.DefectBitCount);
         Assert.Equal(2, payload.Rows.Count);
         Assert.Equal("10", payload.Rows[0].GroupKey);
         Assert.Equal("AOI-10", payload.Rows[0].GroupName);
-        Assert.Equal(750_000d, payload.Rows[0].Kpi.DpmoPpm);
+        Assert.Equal(30_000d, payload.Rows[0].Kpi.DpmoPpm);
         Assert.Equal("11", payload.Rows[1].GroupKey);
-        Assert.Equal(500_000d, payload.Rows[1].Kpi.DpmoPpm);
+        Assert.Equal(20_000d, payload.Rows[1].Kpi.DpmoPpm);
 
         authed.Dispose();
         await factory!.DisposeAsync();
@@ -215,6 +219,10 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     {
         var fake = new FakeAoiSource(_postDescriptor)
         {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 10, nbTestsOnComp: 2),
+            ],
             SeededTestedObjects =
             [
                 Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
@@ -334,6 +342,11 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
 
         var fake = new FakeAoiSource(_postDescriptor)
         {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 5, nbTestsOnComp: 100, productId: 100),
+                Card(10, WindowStartEpoch + 6, nbTestsOnComp: 20, productId: 200),
+            ],
             SeededTestedObjects = objects,
             SeededProducts =
             [
@@ -521,6 +534,23 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     private static TestedObjectRow Obj(int machineId, int date, int objectTypeId, long errorTable, long errorTableAr)
         => Obj(machineId, date, objectId: date, objectTypeId: objectTypeId, errorTable: errorTable, errorTableAr: errorTableAr);
 
+    // CARDS row carrying the DPMO/PPM opportunity denominator
+    // (Nb_Of_Tests_On_Comp). Opportunities come from cards, never from a
+    // (defect-only) tested-object row count.
+    private static CardRow Card(int machineId, int date, int nbTestsOnComp, int productId = 500)
+        => new(
+            PanelId: 1,
+            CardIdOnPanel: 1,
+            CardStatus: 0,
+            AnomalyBr: 0,
+            AnomalyAr: 0,
+            NbOfTestedObject: 0,
+            NbOfErrorObject: 0,
+            MachineId: machineId,
+            ProductId: productId,
+            PanelNumericDate: date,
+            NbOfTestsOnComp: nbTestsOnComp);
+
     // -------------------------------------------------------------------------
     // DPMO CSV export
     // -------------------------------------------------------------------------
@@ -564,6 +594,11 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     {
         var fake = new FakeAoiSource(_postDescriptor)
         {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 10, nbTestsOnComp: 100),
+                Card(11, WindowStartEpoch + 20, nbTestsOnComp: 50),
+            ],
             SeededTestedObjects =
             [
                 Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
@@ -605,13 +640,13 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         Assert.Equal(
             "SourceId,SourceName,WindowStartUtc,WindowEndUtc,GroupBy,Numerator,Opportunity,GroupKey,GroupName,TestedObjectCount,OpportunityCount,DefectBitCount,DpmoPpm",
             lines[0]);
-        // OVERALL: 6 tested, 6 opps, 4 defect bits (2+1+1), 666666.6667
+        // OVERALL: 6 tested, 150 opps (100+50 comp tests), 4 defect bits (2+1+1).
         Assert.StartsWith(
-            "postreflow,Post-reflow AOI,2026-01-01T00:00:00Z,2026-01-02T00:00:00Z,AoiMachine,Aoi,All,OVERALL,Overall,6,6,4,",
+            "postreflow,Post-reflow AOI,2026-01-01T00:00:00Z,2026-01-02T00:00:00Z,AoiMachine,Aoi,All,OVERALL,Overall,6,150,4,",
             lines[1], StringComparison.Ordinal);
-        // Machine 10 first (750000), then 11 (500000).
-        Assert.Contains(",AoiMachine,Aoi,All,10,AOI-10,4,4,3,750000", lines[2], StringComparison.Ordinal);
-        Assert.Contains(",AoiMachine,Aoi,All,11,AOI-11,2,2,1,500000", lines[3], StringComparison.Ordinal);
+        // Machine 10 first (30000 = 1e6*3/100), then 11 (20000 = 1e6*1/50).
+        Assert.Contains(",AoiMachine,Aoi,All,10,AOI-10,4,100,3,30000", lines[2], StringComparison.Ordinal);
+        Assert.Contains(",AoiMachine,Aoi,All,11,AOI-11,2,50,1,20000", lines[3], StringComparison.Ordinal);
         authed.Dispose();
         await factory!.DisposeAsync();
     }
@@ -635,6 +670,11 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     {
         var fake = new FakeAoiSource(_postDescriptor)
         {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 10, nbTestsOnComp: 100),
+                Card(11, WindowStartEpoch + 20, nbTestsOnComp: 50),
+            ],
             SeededTestedObjects =
             [
                 Obj(10, WindowStartEpoch + 60, ComponentType, BitObjectMissing | BitPolarityError, BitObjectMissing | BitPolarityError),
@@ -669,24 +709,25 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         Assert.Equal("postreflow", summary.Cell("B3").GetString());
         Assert.Equal("AoiMachine", summary.Cell("B7").GetString());
         Assert.Equal("Aoi", summary.Cell("B8").GetString());
-        // Overall metrics.
+        // Overall metrics: 5 tested objects, 150 comp-test opportunities,
+        // 4 defect bits.
         Assert.Equal("Tested Objects", summary.Cell("A12").GetString());
         Assert.Equal(5, (int)summary.Cell("B12").GetDouble());
-        Assert.Equal(5, (int)summary.Cell("B13").GetDouble());
+        Assert.Equal(150, (int)summary.Cell("B13").GetDouble());
         Assert.Equal(4, (int)summary.Cell("B14").GetDouble());
 
         var rows = workbook.Worksheet("Rows");
         Assert.Equal("GroupKey", rows.Cell(1, 1).GetString());
-        // Row 2 = highest DPMO = machine 10.
+        // Row 2 = highest DPMO = machine 10 (3 defects / 100 tests).
         Assert.Equal("10", rows.Cell(2, 1).GetString());
         Assert.Equal("AOI-10", rows.Cell(2, 2).GetString());
         Assert.Equal(3, (int)rows.Cell(2, 3).GetDouble());
-        Assert.Equal(3, (int)rows.Cell(2, 4).GetDouble());
+        Assert.Equal(100, (int)rows.Cell(2, 4).GetDouble());
         Assert.Equal(3, (int)rows.Cell(2, 5).GetDouble());
-        Assert.Equal(1_000_000d, rows.Cell(2, 6).GetDouble(), 4);
-        // Row 3 = machine 11.
+        Assert.Equal(30_000d, rows.Cell(2, 6).GetDouble(), 4);
+        // Row 3 = machine 11 (1 defect / 50 tests).
         Assert.Equal("11", rows.Cell(3, 1).GetString());
-        Assert.Equal(500_000d, rows.Cell(3, 6).GetDouble(), 4);
+        Assert.Equal(20_000d, rows.Cell(3, 6).GetDouble(), 4);
 
         authed.Dispose();
         await factory!.DisposeAsync();
@@ -765,6 +806,11 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
 
         var fake = new FakeAoiSource(_postDescriptor)
         {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 5, nbTestsOnComp: 100, productId: 100),
+                Card(10, WindowStartEpoch + 6, nbTestsOnComp: 20, productId: 200),
+            ],
             SeededTestedObjects = objects,
             SeededProducts =
             [

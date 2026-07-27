@@ -93,6 +93,32 @@ public static class AppParameterDefaults
             ValueType: AppParameterValueTypes.Bool,
             Value: "false",
             Description: "Global master switch for automatic treatments. Parity with Vieweb batchIsOn."),
+
+        // Skip-classification thresholds + repair-button map (see the
+        // skip-classification domain). Consumed by DPMO / FPY / Skip
+        // Summary when a skip toggle or status filter is active. Editable
+        // via the dedicated Skip classification admin screen (which reads
+        // and writes these very rows).
+        new(
+            Key: "skip.missing_ratio_threshold",
+            ValueType: AppParameterValueTypes.Decimal,
+            Value: "0.50",
+            Description: "Empty-board heuristic: fraction of a card's components flagged 'missing' before it is classed HeuristicMissing (0-1)."),
+        new(
+            Key: "skip.min_component_floor",
+            ValueType: AppParameterValueTypes.Int,
+            Value: "8",
+            Description: "Empty-board heuristic: minimum Number_Of_Component before the missing-ratio may fire (guards tiny cards)."),
+        new(
+            Key: "skip.absolute_missing_floor",
+            ValueType: AppParameterValueTypes.Int,
+            Value: "4",
+            Description: "Empty-board heuristic: minimum absolute missing-component count before the missing-ratio may fire."),
+        new(
+            Key: "skip.repair_button_meanings",
+            ValueType: AppParameterValueTypes.String,
+            Value: "{\"X-OUT\":\"ManualSkip\"}",
+            Description: "JSON map of repair-button label -> meaning (Normal|ManualSkip|FalseCall|ConfirmedRealMissing). Case-insensitive labels."),
     };
 }
 

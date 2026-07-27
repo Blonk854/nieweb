@@ -53,7 +53,23 @@ public sealed record CardRow(
     int NbOfErrorObject,
     int MachineId,
     int ProductId,
-    int PanelNumericDate);
+    int PanelNumericDate,
+    // NbOfTestsOnComp: CARDS.Nb_Of_Tests_On_Comp — the number of
+    // component-level inspection *opportunities* on this sub-panel.
+    // This is the canonical DPMO / PPM denominator for component
+    // defects (VIT aoi-quality-metrics: DPMO = 1e6 · defects /
+    // Σ Nb_Of_Tests_On_Comp). It is NOT the defect count — production
+    // TESTED_OBJECT is defect-only, so opportunities must come from
+    // this aggregate, never from a TESTED_OBJECT row count. `int NOT
+    // NULL` on both live schemas; defaults to 0 for sources/tests that
+    // do not project it.
+    int NbOfTestsOnComp = 0,
+    // NbOfTestsOnPads: CARDS.Nb_Of_Tests_On_Pads — paste-pad
+    // inspection opportunities, the DPMO / PPM denominator for paste
+    // defects. Paste is a pre-reflow (SPI) stage, so this column only
+    // exists on sources advertising Capabilities.PastePrintMetrics;
+    // it is `null` on post-reflow sources whose schema omits it.
+    int? NbOfTestsOnPads = null);
 
 /// <summary>
 /// One row of the <c>TESTED_OBJECT</c> table. Fields <see cref="MachineId"/>,

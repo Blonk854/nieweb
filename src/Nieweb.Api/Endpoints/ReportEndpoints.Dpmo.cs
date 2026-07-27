@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
 using ClosedXML.Excel;
+using Nieweb.Api.SkipClassification;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 
@@ -41,7 +42,10 @@ public static partial class ReportEndpoints
     /// When <c>true</c> and <see cref="DpmoGroupBy.Defect"/>, emit rows
     /// for defect bits flagged obsolete in the catalogue. Default <c>false</c>.
     /// </param>
+    /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c> to exclude skipped / empty boards.</param>
+    /// <param name="skipStatuses">Optional comma-separated SkipClass names; keeps only boards whose class is in the set.</param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
+    /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task<IResult> RunDpmoTableAsync(
@@ -54,13 +58,16 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? includeObsoleteBits,
+        string? skipExclusion,
+        string? skipStatuses,
         IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
         if (built.Error is not null)
         {
             return built.Error;
@@ -74,8 +81,12 @@ public static partial class ReportEndpoints
             built.Filter.Window.StartUtc,
             built.Filter.Window.EndUtcExclusive);
 
+        var effectiveFilter = built.Filter! with
+        {
+            SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
+        };
         var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .RunAsync(built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
         return Results.Ok(result);
     }
@@ -90,6 +101,8 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? includeObsoleteBits,
+        string? skipExclusion,
+        string? skipStatuses,
         IEnumerable<IAoiSource> sources)
     {
         var baseParse = TryBuildBaseRequest(sourceId, startUtc, endUtc, sources);
@@ -110,6 +123,10 @@ public static partial class ReportEndpoints
         {
             return (null, null, ProblemFor("opportunity", error!));
         }
+        if (!TryParseEnumAlias<SkipExclusion>(skipExclusion, required: false, out var skipValue, out error, defaultValue: SkipExclusion.Raw))
+        {
+            return (null, null, ProblemFor("skipExclusion", error!));
+        }
 
         var filter = new DpmoTableFilter(
             Window: baseParse.Window,
@@ -118,7 +135,9 @@ public static partial class ReportEndpoints
             Opportunity: opportunityValue,
             MachineIds: ParseIntList(machineIds),
             ProductIds: ParseIntList(productIds),
-            IncludeObsoleteBits: includeObsoleteBits ?? false);
+            IncludeObsoleteBits: includeObsoleteBits ?? false,
+            SkipExclusion: skipValue,
+            SkipStatuses: ParseSkipClassList(skipStatuses));
 
         return (baseParse.Source, filter, null);
     }
@@ -295,7 +314,10 @@ public static partial class ReportEndpoints
     /// <param name="machineIds">Optional comma-separated int list.</param>
     /// <param name="productIds">Optional comma-separated int list.</param>
     /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
+    /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
+    /// <param name="skipStatuses">Optional comma-separated SkipClass names; keeps only boards whose class is in the set.</param>
     /// <param name="sources">All registered AOI sources.</param>
+    /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task ExportDpmoTableCsvAsync(
@@ -309,7 +331,10 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? includeObsoleteBits,
+        string? skipExclusion,
+        string? skipStatuses,
         IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -317,7 +342,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);
@@ -332,8 +357,12 @@ public static partial class ReportEndpoints
             built.Filter.Window.StartUtc,
             built.Filter.Window.EndUtcExclusive);
 
+        var effectiveFilter = built.Filter! with
+        {
+            SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
+        };
         var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .RunAsync(built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
 
         var filename = string.Create(CultureInfo.InvariantCulture,
@@ -418,7 +447,10 @@ public static partial class ReportEndpoints
     /// <param name="machineIds">Optional comma-separated int list.</param>
     /// <param name="productIds">Optional comma-separated int list.</param>
     /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
+    /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
+    /// <param name="skipStatuses">Optional comma-separated SkipClass names; keeps only boards whose class is in the set.</param>
     /// <param name="sources">All registered AOI sources.</param>
+    /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task ExportDpmoTableXlsxAsync(
@@ -432,7 +464,10 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? includeObsoleteBits,
+        string? skipExclusion,
+        string? skipStatuses,
         IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -440,7 +475,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);
@@ -455,8 +490,12 @@ public static partial class ReportEndpoints
             built.Filter.Window.StartUtc,
             built.Filter.Window.EndUtcExclusive);
 
+        var effectiveFilter = built.Filter! with
+        {
+            SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
+        };
         var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .RunAsync(built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
 
         var filename = string.Create(CultureInfo.InvariantCulture,

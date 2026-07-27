@@ -14,15 +14,31 @@ namespace Nieweb.Reports;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The report streams
-/// <see cref="IAoiSource.StreamTestedObjectsAsync"/> once, applying
-/// DB-level filters (<see cref="ParetoFilter.MachineIds"/>,
+/// The report is a <b>two-pass</b> aggregation. Pass 1 streams
+/// <see cref="IAoiSource.StreamCardsAsync"/> and sums the AOI's own
+/// per-sub-panel test counts (<see cref="CardRow.NbOfTestsOnComp"/> /
+/// <see cref="CardRow.NbOfTestsOnPads"/>) to form the DPMO / PPM
+/// opportunity denominator — never a TESTED_OBJECT row count, since
+/// production TESTED_OBJECT is defect-only. Pass 2 streams
+/// <see cref="IAoiSource.StreamTestedObjectsAsync"/> for the defect
+/// numerator, applying DB-level filters
+/// (<see cref="ParetoFilter.MachineIds"/>,
 /// <see cref="ParetoFilter.ProductIds"/>) as query parameters and the
 /// in-memory narrowing filters
 /// (<see cref="ParetoFilter.DefectBits"/>,
 /// <see cref="ParetoFilter.Topologies"/>,
 /// <see cref="ParetoFilter.PartNumbers"/>,
 /// <see cref="ParetoFilter.JedecNames"/>) row-by-row.
+/// </para>
+/// <para>
+/// Bars (absolute defect counts) are unaffected by the denominator, so
+/// the volume-weighted ranking is always correct. The rate decorations
+/// (opportunity share, DPMO) and the <see cref="ParetoWeight.Dpmo"/> /
+/// <see cref="ParetoWeight.Ppm"/> weights use the card-derived
+/// denominator on the card-derivable axes (AOI machine, product,
+/// defect, day, shift); object-level axes (reference designator, part
+/// number, JEDEC) have no card denominator on a defect-only table, so
+/// their rate is suppressed (0) pending LIBRARY placement counts.
 /// </para>
 /// <para>
 /// Because the report is stateless, drill-down is expressed by the
@@ -113,11 +129,60 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             ? null
             : timeBuckets.Select(b => b.StartUtc.ToUnixTimeSeconds()).ToArray();
 
-        var overall = new Accumulator();
-        var perGroup = new Dictionary<GroupKey, Accumulator>();
-        // Defect axis: overall opportunity count is the denominator
-        // for every defect row (a component that didn't fire this bit
-        // is still an opportunity for it). Track counts per bit here.
+        // ---- Pass 1: opportunity denominator, streamed from CARDS. ----
+        // Opportunities are CARDS inspection test counts
+        // (Nb_Of_Tests_On_Comp / _On_Pads), NEVER a TESTED_OBJECT row
+        // count: production TESTED_OBJECT is defect-only, so counting
+        // its rows collapses the denominator and pins DPMO near 1e6.
+        // Only card-derivable axes (AOI / product / defect / day /
+        // shift / overall) get a per-group denominator; object-level
+        // axes fall back to a count-only ranking below.
+        long opportunitiesOverall = 0;
+        var opportunitiesByMachine = filter.Axis == ParetoAxis.AoiMachine
+            ? new Dictionary<int, long>()
+            : null;
+        var opportunitiesByProduct = filter.Axis == ParetoAxis.Product
+            ? new Dictionary<int, long>()
+            : null;
+        var opportunitiesByBucket = filter.Axis is ParetoAxis.Day or ParetoAxis.Shift
+            ? new Dictionary<string, long>(StringComparer.Ordinal)
+            : null;
+
+        var cardQuery = new CardQuery
+        {
+            Window = filter.Window,
+            MachineIds = filter.MachineIds,
+            ProductIds = filter.ProductIds,
+        };
+        await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
+        {
+            var opp = OpportunityFor(card, filter.Opportunity);
+            opportunitiesOverall += opp;
+            if (opportunitiesByMachine is not null)
+            {
+                opportunitiesByMachine.TryGetValue(card.MachineId, out var m);
+                opportunitiesByMachine[card.MachineId] = m + opp;
+            }
+            if (opportunitiesByProduct is not null)
+            {
+                opportunitiesByProduct.TryGetValue(card.ProductId, out var p);
+                opportunitiesByProduct[card.ProductId] = p + opp;
+            }
+            if (opportunitiesByBucket is not null)
+            {
+                var bucket = FindBucket(timeBuckets!, bucketStartEpochs!, card.PanelNumericDate);
+                if (bucket is not null)
+                {
+                    opportunitiesByBucket.TryGetValue(bucket.Label, out var b);
+                    opportunitiesByBucket[bucket.Label] = b + opp;
+                }
+            }
+        }
+
+        // ---- Pass 2: defect numerator, streamed from TESTED_OBJECT. ----
+        long testedObjectsOverall = 0;
+        long defectsOverall = 0;
+        var defectsByGroup = new Dictionary<GroupKey, long>();
         var perDefectBit = filter.Axis == ParetoAxis.Defect
             ? new Dictionary<int, long>()
             : null;
@@ -151,7 +216,14 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 continue;
             }
 
-            var isOpportunity = IsOpportunity(obj.ObjectTypeId, filter.Opportunity);
+            // The numerator honours the opportunity flavour so it stays
+            // consistent with the card-derived denominator (a components
+            // Pareto counts component defects only).
+            if (!IsOpportunity(obj.ObjectTypeId, filter.Opportunity))
+            {
+                continue;
+            }
+
             var errorField = filter.Numerator switch
             {
                 DpmoNumerator.Aoi => obj.ErrorTable,
@@ -159,11 +231,8 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 DpmoNumerator.Dummy => obj.ErrorTable & ~obj.ErrorTableAr,
                 _ => 0L,
             };
-            // DefectBits filter: only rows carrying at least one of
-            // the requested bits contribute. Note the filter narrows
-            // to those bits ONLY when computing rows; opportunity
-            // counting stays over the same objects because a "defect
-            // present" filter answers "given this defect, who owns it?"
+            // DefectBits filter: only rows carrying at least one of the
+            // requested bits contribute.
             if (defectBitMask != 0)
             {
                 errorField &= defectBitMask;
@@ -171,12 +240,14 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
 
             var defectBits = DefectBitDecoder.CountBits(errorField);
 
-            overall.Add(isOpportunity, defectBits);
+            testedObjectsOverall++;
+            defectsOverall += defectBits;
 
             if (perDefectBit is not null)
             {
                 // Group by defect bit: opportunity denominator is the
-                // overall opportunity count, applied at emit time.
+                // overall card-derived opportunity count, applied at
+                // emit time.
                 foreach (var info in DefectBitDecoder.Decode(errorField))
                 {
                     if (!filter.IncludeObsoleteBits && info.IsObsolete)
@@ -189,12 +260,22 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 continue;
             }
 
-            if (!isOpportunity && defectBits == 0)
+            // Pareto ranks defect contributors — a zero-defect object
+            // is no contributor, so only tally groups that carry a
+            // defect (the denominator already came from the card pass).
+            if (defectBits == 0)
             {
                 continue;
             }
 
-            AddToGroups(perGroup, filter, obj, isOpportunity, defectBits, timeBuckets, bucketStartEpochs);
+            var key = GroupKeyFor(filter.Axis, obj, timeBuckets, bucketStartEpochs);
+            if (key is null)
+            {
+                // Row falls outside every decomposed time bucket.
+                continue;
+            }
+            defectsByGroup.TryGetValue(key.Value, out var d);
+            defectsByGroup[key.Value] = d + defectBits;
         }
 
         // Resolve display names only for axes that need them.
@@ -207,11 +288,23 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 .ToDictionary(p => p.ProductId, p => p.ProductName)
             : null;
 
+        var overallKpi = new DpmoKpi(
+            TestedObjectCount: testedObjectsOverall,
+            OpportunityCount: opportunitiesOverall,
+            DefectBitCount: defectsOverall,
+            DpmoPpm: opportunitiesOverall == 0
+                ? 0d
+                : 1_000_000d * defectsOverall / opportunitiesOverall);
+
         var (visibleRows, othersBucket) = BuildRows(
             filter,
-            overall,
-            perGroup,
+            defectsOverall,
+            opportunitiesOverall,
+            defectsByGroup,
             perDefectBit,
+            opportunitiesByMachine,
+            opportunitiesByProduct,
+            opportunitiesByBucket,
             machineNames,
             productNames);
 
@@ -223,25 +316,41 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             Opportunity: filter.Opportunity,
             Weight: filter.Weight,
             AppliedFilters: EchoAppliedFilters(filter),
-            Overall: overall.ToKpi(),
+            Overall: overallKpi,
             Rows: visibleRows,
             OthersBucket: othersBucket);
     }
 
     private static (IReadOnlyList<ParetoRow> Rows, ParetoRow? Others) BuildRows(
         ParetoFilter filter,
-        Accumulator overall,
-        Dictionary<GroupKey, Accumulator> perGroup,
+        long totalDefects,
+        long totalOpportunities,
+        Dictionary<GroupKey, long> defectsByGroup,
         Dictionary<int, long>? perDefectBit,
+        Dictionary<int, long>? opportunitiesByMachine,
+        Dictionary<int, long>? opportunitiesByProduct,
+        Dictionary<string, long>? opportunitiesByBucket,
         Dictionary<int, string?>? machineNames,
         Dictionary<int, string?>? productNames)
     {
+        // Per-group opportunity denominator, resolved by axis from the
+        // card pass. Object-level axes (reference designator / part /
+        // JEDEC) have no card-derived denominator, so they report 0 and
+        // the rate is suppressed.
+        long OpportunityForGroup(GroupKey key) => filter.Axis switch
+        {
+            ParetoAxis.AoiMachine =>
+                key.IntValue is int mid && opportunitiesByMachine!.TryGetValue(mid, out var m) ? m : 0,
+            ParetoAxis.Product =>
+                key.IntValue is int pid && opportunitiesByProduct!.TryGetValue(pid, out var p) ? p : 0,
+            ParetoAxis.Day or ParetoAxis.Shift =>
+                key.StringValue is string lbl && opportunitiesByBucket!.TryGetValue(lbl, out var b) ? b : 0,
+            _ => 0,
+        };
+
         // Step 1: materialise every bucket as an "unranked" row.
         //   - Axis=Defect uses the defect-bit tally with an overall-scoped denominator.
-        //   - Every other axis uses per-group accumulators.
-        var totalOpportunities = overall.OpportunityCount;
-        var totalDefects = overall.DefectBitCount;
-
+        //   - Every other axis uses per-group defect counts + card-derived opportunities.
         List<Unranked> unranked;
         if (perDefectBit is not null)
         {
@@ -258,14 +367,14 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         }
         else
         {
-            unranked = new List<Unranked>(perGroup.Count);
-            foreach (var (key, bucket) in perGroup)
+            unranked = new List<Unranked>(defectsByGroup.Count);
+            foreach (var (key, defects) in defectsByGroup)
             {
                 unranked.Add(new Unranked(
                     Key: key.ToDisplayKey(),
                     Name: ResolveName(key, filter.Axis, machineNames, productNames),
-                    DefectCount: bucket.DefectBitCount,
-                    OpportunityCount: bucket.OpportunityCount));
+                    DefectCount: defects,
+                    OpportunityCount: OpportunityForGroup(key)));
             }
         }
 
@@ -393,58 +502,55 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         _ => false,
     };
 
-    private static void AddToGroups(
-        Dictionary<GroupKey, Accumulator> perGroup,
-        ParetoFilter filter,
+    private static GroupKey? GroupKeyFor(
+        ParetoAxis axis,
         TestedObjectRow obj,
-        bool isOpportunity,
-        int defectBits,
         IReadOnlyList<TimeBucketRange>? timeBuckets,
         long[]? bucketStartEpochs)
     {
-        switch (filter.Axis)
+        switch (axis)
         {
             case ParetoAxis.AoiMachine:
-                Bump(perGroup, GroupKey.Int(obj.MachineId), isOpportunity, defectBits);
-                break;
+                return GroupKey.Int(obj.MachineId);
             case ParetoAxis.Product:
-                Bump(perGroup, GroupKey.Int(obj.ProductId), isOpportunity, defectBits);
-                break;
+                return GroupKey.Int(obj.ProductId);
             case ParetoAxis.ReferenceDesignator:
-                Bump(perGroup, GroupKey.String(obj.Topology), isOpportunity, defectBits);
-                break;
+                return GroupKey.String(obj.Topology);
             case ParetoAxis.PartNumber:
-                Bump(perGroup, GroupKey.String(obj.PartNumberName), isOpportunity, defectBits);
-                break;
+                return GroupKey.String(obj.PartNumberName);
             case ParetoAxis.Jedec:
-                Bump(perGroup, GroupKey.String(obj.JedecName), isOpportunity, defectBits);
-                break;
+                return GroupKey.String(obj.JedecName);
             case ParetoAxis.Day:
             case ParetoAxis.Shift:
             {
+                // Row is routed to at most one time bucket; a null
+                // means it fell outside the decomposed window (should
+                // not happen once the DB-level window filter holds).
                 var bucket = FindBucket(timeBuckets!, bucketStartEpochs!, obj.PanelNumericDate);
-                if (bucket is null)
-                {
-                    // Row is outside every decomposed bucket. This
-                    // should not happen once the DB-level window
-                    // filter is honoured, but skipping is the safe
-                    // fallback — count-only KPIs stay correct
-                    // because the row is already tallied in Overall.
-                    return;
-                }
-                Bump(perGroup, GroupKey.String(bucket.Label), isOpportunity, defectBits);
-                break;
+                return bucket is null ? null : GroupKey.String(bucket.Label);
             }
             case ParetoAxis.Defect:
-                // Handled inline in RunAsync so the denominator can
-                // be the overall opportunity count.
                 throw new InvalidOperationException(
-                    "ParetoAxis.Defect must be handled in RunAsync, not in AddToGroups.");
+                    "ParetoAxis.Defect is tallied inline in RunAsync, not grouped.");
             default:
                 throw new ArgumentOutOfRangeException(
-                    nameof(filter), filter.Axis, "Unknown ParetoAxis.");
+                    nameof(axis), axis, "Unknown ParetoAxis.");
         }
     }
+
+    /// <summary>
+    /// Card-level inspection opportunity count for the requested DPMO
+    /// flavour — the canonical DPMO / PPM denominator. Paste
+    /// opportunities are <c>null</c> on post-reflow sources (no paste
+    /// stage), so they contribute 0.
+    /// </summary>
+    private static long OpportunityFor(CardRow card, DpmoOpportunity opportunity) => opportunity switch
+    {
+        DpmoOpportunity.Components => card.NbOfTestsOnComp,
+        DpmoOpportunity.Paste => card.NbOfTestsOnPads ?? 0,
+        DpmoOpportunity.All => card.NbOfTestsOnComp + (card.NbOfTestsOnPads ?? 0),
+        _ => 0,
+    };
 
     /// <summary>
     /// Binary search: returns the bucket whose half-open
@@ -472,20 +578,6 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         }
         var bucket = buckets[idx];
         return panelEpoch < bucket.EndUtcExclusive.ToUnixTimeSeconds() ? bucket : null;
-    }
-
-    private static void Bump(
-        Dictionary<GroupKey, Accumulator> perGroup,
-        GroupKey key,
-        bool isOpportunity,
-        int defectBits)
-    {
-        if (!perGroup.TryGetValue(key, out var bucket))
-        {
-            bucket = new Accumulator();
-            perGroup[key] = bucket;
-        }
-        bucket.Add(isOpportunity, defectBits);
     }
 
     /// <summary>
@@ -571,35 +663,4 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         string? Name,
         long DefectCount,
         long OpportunityCount);
-
-    private sealed class Accumulator
-    {
-        private long _testedObjects;
-        private long _opportunities;
-        private long _defectBits;
-
-        public long TestedObjectCount => _testedObjects;
-        public long OpportunityCount => _opportunities;
-        public long DefectBitCount => _defectBits;
-
-        public void Add(bool isOpportunity, int defectBits)
-        {
-            _testedObjects++;
-            if (isOpportunity)
-            {
-                _opportunities++;
-            }
-            _defectBits += defectBits;
-        }
-
-        public DpmoKpi ToKpi()
-        {
-            var dpmo = _opportunities == 0 ? 0d : 1_000_000d * _defectBits / _opportunities;
-            return new DpmoKpi(
-                TestedObjectCount: _testedObjects,
-                OpportunityCount: _opportunities,
-                DefectBitCount: _defectBits,
-                DpmoPpm: dpmo);
-        }
-    }
 }

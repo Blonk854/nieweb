@@ -92,14 +92,35 @@ internal sealed class FakeAoiSource : IAoiSource, IPinLevelSource
     public IAsyncEnumerable<CardRow> StreamCardsAsync(CardQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        return EmptyAsync(ct);
+        return FilterAsync(SeededCards, query, ct);
 
-        static async IAsyncEnumerable<CardRow> EmptyAsync(
+        static async IAsyncEnumerable<CardRow> FilterAsync(
+            IReadOnlyList<CardRow> seed,
+            CardQuery q,
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken innerCt)
         {
-            innerCt.ThrowIfCancellationRequested();
-            await Task.CompletedTask.ConfigureAwait(false);
-            yield break;
+            foreach (var card in seed)
+            {
+                innerCt.ThrowIfCancellationRequested();
+                if (card.PanelNumericDate < q.Window.StartEpochSeconds)
+                {
+                    continue;
+                }
+                if (card.PanelNumericDate >= q.Window.EndEpochSecondsExclusive)
+                {
+                    continue;
+                }
+                if (q.MachineIds is { Count: > 0 } && !q.MachineIds.Contains(card.MachineId))
+                {
+                    continue;
+                }
+                if (q.ProductIds is { Count: > 0 } && !q.ProductIds.Contains(card.ProductId))
+                {
+                    continue;
+                }
+                yield return card;
+                await Task.Yield();
+            }
         }
     }
 

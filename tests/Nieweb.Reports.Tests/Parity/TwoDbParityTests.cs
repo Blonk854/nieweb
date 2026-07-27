@@ -263,7 +263,12 @@ public sealed class TwoDbParityTests
             NewObj(machineId: 10, date: start + 62, errorTable: 0, errorTableAr: 0),
         };
 
-        var source = NewSource(ParityDescriptors.PreReflow, objects: objects, machines: SeedMachines());
+        // Denominator comes from CARDS: 3 component test opportunities.
+        var source = NewSource(
+            ParityDescriptors.PreReflow,
+            objects: objects,
+            machines: SeedMachines(),
+            cards: [NewCard(machineId: 10, date: start + 60, nbTestsOnComp: 3)]);
         var result = await DpmoTableReport.Instance.RunAsync(
             source,
             new DpmoTableFilter(_oneDay, DpmoGroupBy.AoiMachine, DpmoNumerator.Real, DpmoOpportunity.All),
@@ -293,7 +298,12 @@ public sealed class TwoDbParityTests
             NewObj(machineId: 10, date: start + 62, errorTable: 0, errorTableAr: 0),
         };
 
-        var source = NewSource(ParityDescriptors.PostReflow, objects: objects, machines: SeedMachines());
+        // Denominator comes from CARDS: 3 component test opportunities.
+        var source = NewSource(
+            ParityDescriptors.PostReflow,
+            objects: objects,
+            machines: SeedMachines(),
+            cards: [NewCard(machineId: 10, date: start + 60, nbTestsOnComp: 3)]);
         var result = await DpmoTableReport.Instance.RunAsync(
             source,
             new DpmoTableFilter(_oneDay, DpmoGroupBy.AoiMachine, DpmoNumerator.Real, DpmoOpportunity.All),
@@ -313,13 +323,32 @@ public sealed class TwoDbParityTests
         SourceDescriptor descriptor,
         IReadOnlyList<PanelRow>? panels = null,
         IReadOnlyList<Machine>? machines = null,
-        IReadOnlyList<TestedObjectRow>? objects = null) =>
+        IReadOnlyList<TestedObjectRow>? objects = null,
+        IReadOnlyList<CardRow>? cards = null) =>
         new(descriptor)
         {
             SeededPanels = panels ?? [],
             SeededMachines = machines ?? [],
             SeededTestedObjects = objects ?? [],
+            SeededCards = cards ?? [],
         };
+
+    // CARDS row carrying the DPMO/PPM opportunity denominator
+    // (Nb_Of_Tests_On_Comp). Opportunities come from cards, never from a
+    // (defect-only) tested-object row count.
+    private static CardRow NewCard(int machineId, int date, int nbTestsOnComp) =>
+        new(
+            PanelId: 1,
+            CardIdOnPanel: 1,
+            CardStatus: 0,
+            AnomalyBr: 0,
+            AnomalyAr: 0,
+            NbOfTestedObject: 0,
+            NbOfErrorObject: 0,
+            MachineId: machineId,
+            ProductId: 500,
+            PanelNumericDate: date,
+            NbOfTestsOnComp: nbTestsOnComp);
 
     private static IReadOnlyList<PanelRow> SeedYieldPanels()
     {

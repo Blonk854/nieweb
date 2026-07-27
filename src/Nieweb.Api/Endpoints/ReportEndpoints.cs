@@ -4,6 +4,7 @@ using System.Text;
 using ClosedXML.Excel;
 using Nieweb.DataSources;
 using Nieweb.Reports;
+using Nieweb.Reports.Common.Skips;
 
 namespace Nieweb.Api.Endpoints;
 
@@ -51,6 +52,15 @@ public static partial class ReportEndpoints
         group.MapGet("/panel-yield/export.xlsx", ExportPanelYieldXlsxAsync)
             .WithName("ReportsPanelYieldExportXlsx");
 
+        group.MapGet("/fpy-table", RunFpyTableAsync)
+            .WithName("ReportsFpyTable");
+
+        group.MapGet("/fpy-table/export.csv", ExportFpyTableCsvAsync)
+            .WithName("ReportsFpyTableExportCsv");
+
+        group.MapGet("/fpy-table/export.xlsx", ExportFpyTableXlsxAsync)
+            .WithName("ReportsFpyTableExportXlsx");
+
         group.MapGet("/dpmo-table", RunDpmoTableAsync)
             .WithName("ReportsDpmoTable");
 
@@ -74,6 +84,9 @@ public static partial class ReportEndpoints
 
         group.MapGet("/trend", RunTrendAsync)
             .WithName("ReportsTrend");
+
+        group.MapGet("/skip-summary", RunSkipSummaryAsync)
+            .WithName("ReportsSkipSummary");
 
         MapReportPdfEndpoints(group);
         MapReportExportEndpoints(group);
@@ -518,6 +531,34 @@ public static partial class ReportEndpoints
             }
         }
         return list.Count == 0 ? null : list;
+    }
+
+    /// <summary>
+    /// Parse a comma-separated list of <see cref="SkipClass"/> names
+    /// (e.g. <c>ManualSkip,MachineFlagged</c>) into a distinct set used
+    /// as a positive narrowing filter. Case-insensitive; dashes and
+    /// underscores are stripped so kebab / snake aliases match. Unknown
+    /// tokens are ignored; an empty / all-invalid input returns
+    /// <c>null</c> (no status narrowing).
+    /// </summary>
+    private static List<SkipClass>? ParseSkipClassList(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+        var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var set = new HashSet<SkipClass>();
+        foreach (var part in parts)
+        {
+            var normalized = part.Replace("-", string.Empty, StringComparison.Ordinal)
+                                 .Replace("_", string.Empty, StringComparison.Ordinal);
+            if (Enum.TryParse<SkipClass>(normalized, ignoreCase: true, out var value) && Enum.IsDefined(value))
+            {
+                set.Add(value);
+            }
+        }
+        return set.Count == 0 ? null : [.. set];
     }
 
     /// <summary>

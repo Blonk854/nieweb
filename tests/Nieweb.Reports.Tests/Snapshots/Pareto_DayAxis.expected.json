@@ -26,9 +26,9 @@
   },
   "overall": {
     "testedObjectCount": 20,
-    "opportunityCount": 20,
+    "opportunityCount": 200,
     "defectBitCount": 7,
-    "dpmoPpm": 350000
+    "dpmoPpm": 35000
   },
   "rows": [
     {
@@ -36,9 +36,9 @@
       "groupName": "2026-03-01",
       "defectCount": 5,
       "weightedScore": 5,
-      "opportunityCount": 10,
+      "opportunityCount": 100,
       "opportunitySharePercent": 50,
-      "dpmoPpm": 500000,
+      "dpmoPpm": 50000,
       "defectSharePercent": 71.42857142857143,
       "cumulativePercent": 71.42857142857143,
       "isVitalFew": true
@@ -48,9 +48,9 @@
       "groupName": "2026-03-02",
       "defectCount": 2,
       "weightedScore": 2,
-      "opportunityCount": 10,
+      "opportunityCount": 100,
       "opportunitySharePercent": 50,
-      "dpmoPpm": 200000,
+      "dpmoPpm": 20000,
       "defectSharePercent": 28.571428571428573,
       "cumulativePercent": 100,
       "isVitalFew": true

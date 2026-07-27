@@ -15,6 +15,9 @@ export type TranslationBundle = {
         home: string;
         panelYield: string;
         pareto: string;
+        dpmo: string;
+        fpy: string;
+        skipSummary: string;
         canvasDemo: string;
         boardTrace: string;
         adminUsers: string;
@@ -23,6 +26,7 @@ export type TranslationBundle = {
         myReports: string;
         adminBoardSvgs: string;
         adminParameters: string;
+        adminSkipClassification: string;
         adminProductionLines: string;
         adminShifts: string;
         settings: string;
@@ -241,6 +245,175 @@ export type TranslationBundle = {
                 Day: string;
                 Shift: string;
             };
+        };
+    };
+    skipSummary: {
+        title: string;
+        subtitle: string;
+        filters: {
+            heading: string;
+            source: string;
+            sourcePlaceholder: string;
+            from: string;
+            to: string;
+            machines: string;
+            machinesPlaceholder: string;
+            products: string;
+            productsPlaceholder: string;
+            onlyLastInspection: string;
+            onlyLastInspectionHint: string;
+            submit: string;
+            reset: string;
+            emptyPrompt: string;
+            missingRequired: string;
+        };
+        results: {
+            heading: string;
+            errorTitle: string;
+            source: string;
+            window: string;
+            totalCards: string;
+            totalComponents: string;
+            skippedCards: string;
+            skippedCardPercent: string;
+            class: string;
+            cardCount: string;
+            componentCount: string;
+            cardPercent: string;
+        };
+        classLabel: {
+            None: string;
+            ManualSkip: string;
+            MachineFlagged: string;
+            HeuristicMissing: string;
+        };
+    };
+    dpmo: {
+        title: string;
+        subtitle: string;
+        filters: {
+            heading: string;
+            source: string;
+            sourcePlaceholder: string;
+            groupBy: string;
+            from: string;
+            to: string;
+            numerator: string;
+            opportunity: string;
+            skipExclusion: string;
+            skipExclusionHint: string;
+            skipStatuses: string;
+            skipStatusesHint: string;
+            skipStatusesPlaceholder: string;
+            includeObsoleteBits: string;
+            includeObsoleteBitsHint: string;
+            machines: string;
+            machinesPlaceholder: string;
+            products: string;
+            productsPlaceholder: string;
+            submit: string;
+            reset: string;
+            print: string;
+            exportCsv: string;
+            exportXlsx: string;
+            exportPdf: string;
+            emptyPrompt: string;
+            missingRequired: string;
+        };
+        groupBy: {
+            AoiMachine: string;
+            Defect: string;
+            Product: string;
+            ReferenceDesignator: string;
+            PartNumber: string;
+            Jedec: string;
+        };
+        numerator: {
+            Aoi: string;
+            Real: string;
+            Dummy: string;
+        };
+        opportunity: {
+            All: string;
+            Components: string;
+            Paste: string;
+        };
+        skipExclusion: {
+            Raw: string;
+            Clean: string;
+        };
+        results: {
+            heading: string;
+            errorTitle: string;
+            source: string;
+            window: string;
+            overallPpm: string;
+            skipExcludedCards: string;
+            group: string;
+            unassigned: string;
+            dpmoPpm: string;
+            defects: string;
+            opportunities: string;
+            testedObjects: string;
+        };
+    };
+    fpy: {
+        title: string;
+        subtitle: string;
+        filters: {
+            heading: string;
+            source: string;
+            sourcePlaceholder: string;
+            groupBy: string;
+            from: string;
+            to: string;
+            granularity: string;
+            skipExclusion: string;
+            skipExclusionHint: string;
+            skipStatuses: string;
+            skipStatusesHint: string;
+            skipStatusesPlaceholder: string;
+            onlyLastInspection: string;
+            onlyLastInspectionHint: string;
+            machines: string;
+            machinesPlaceholder: string;
+            products: string;
+            productsPlaceholder: string;
+            submit: string;
+            reset: string;
+            print: string;
+            exportCsv: string;
+            exportXlsx: string;
+            exportPdf: string;
+            emptyPrompt: string;
+            missingRequired: string;
+        };
+        granularity: {
+            Panel: string;
+            Board: string;
+        };
+        groupBy: {
+            AoiMachine: string;
+            Product: string;
+        };
+        skipExclusion: {
+            Raw: string;
+            Clean: string;
+        };
+        results: {
+            heading: string;
+            errorTitle: string;
+            source: string;
+            window: string;
+            overallAoi: string;
+            skipExcludedRows: string;
+            group: string;
+            unassigned: string;
+            fpyAoi: string;
+            fpyDiagnostic: string;
+            fpyAfterRepair: string;
+            inspected: string;
+            faulty: string;
         };
     };
     filters: {
@@ -1405,6 +1578,44 @@ export type TranslationBundle = {
             };
             actions: {
                 remove: string;
+            };
+            save: {
+                submit: string;
+                success: string;
+                validationFailed: string;
+                unexpectedError: string;
+            };
+        };
+        skipClassification: {
+            title: string;
+            subtitle: string;
+            forbidden: string;
+            reload: string;
+            loadError: string;
+            thresholds: {
+                heading: string;
+                hint: string;
+                missingRatio: string;
+                missingRatioHint: string;
+                minComponentFloor: string;
+                minComponentFloorHint: string;
+                absoluteMissingFloor: string;
+                absoluteMissingFloorHint: string;
+            };
+            buttons: {
+                heading: string;
+                hint: string;
+                add: string;
+                remove: string;
+                empty: string;
+                label: string;
+                meaning: string;
+            };
+            meaning: {
+                Normal: string;
+                ManualSkip: string;
+                FalseCall: string;
+                ConfirmedRealMissing: string;
             };
             save: {
                 submit: string;

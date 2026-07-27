@@ -98,6 +98,11 @@ public sealed class ParetoReportTests
 
         var source = new FakeAoiSource(_postReflow)
         {
+            SeededCards =
+            [
+                Card(machineId: 10, date: start + 10, nbTestsOnComp: 100, productId: 100),
+                Card(machineId: 10, date: start + 20, nbTestsOnComp: 20, productId: 200),
+            ],
             SeededTestedObjects = objects,
             SeededProducts =
             [
@@ -173,7 +178,11 @@ public sealed class ParetoReportTests
             objects.Add(Obj(10, start + 90 + i, 33_000 + i, ComponentType, 0, 0));
         }
 
-        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards = [Card(machineId: 10, date: start + 10, nbTestsOnComp: 26)],
+            SeededTestedObjects = objects,
+        };
         var filter = new ParetoFilter(_oneDay, ParetoAxis.Defect);
 
         var result = await ParetoReport.Instance.RunAsync(
@@ -479,6 +488,23 @@ public sealed class ParetoReportTests
             JedecName: jedecName);
     }
 
+    // CARDS row carrying the DPMO/PPM opportunity denominator
+    // (Nb_Of_Tests_On_Comp). Opportunities come from cards, never from a
+    // (defect-only) tested-object row count.
+    private static CardRow Card(int machineId, int date, int nbTestsOnComp, int productId = 500)
+        => new(
+            PanelId: 1,
+            CardIdOnPanel: 1,
+            CardStatus: 0,
+            AnomalyBr: 0,
+            AnomalyAr: 0,
+            NbOfTestedObject: 0,
+            NbOfErrorObject: 0,
+            MachineId: machineId,
+            ProductId: productId,
+            PanelNumericDate: date,
+            NbOfTestsOnComp: nbTestsOnComp);
+
     // ---------------------------------------------------------------
     // CR1: Day / Shift axes + Dpmo / Ppm weights
     // ---------------------------------------------------------------
@@ -522,7 +548,15 @@ public sealed class ParetoReportTests
                 objectTypeId: ComponentType, errorTable: 0, errorTableAr: 0));
         }
 
-        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(machineId: 1, date: day1 + 5, nbTestsOnComp: 100),
+                Card(machineId: 1, date: day2 + 5, nbTestsOnComp: 100),
+            ],
+            SeededTestedObjects = objects,
+        };
         var filter = new ParetoFilter(
             window,
             ParetoAxis.Day,
@@ -564,7 +598,16 @@ public sealed class ParetoReportTests
             Obj(1, shift2Time, 3, ComponentType, BitObjectMissing, BitObjectMissing),
             Obj(1, shift3Time, 4, ComponentType, 0, 0),
         };
-        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(machineId: 1, date: shift1Time, nbTestsOnComp: 100),
+                Card(machineId: 1, date: shift2Time, nbTestsOnComp: 100),
+                Card(machineId: 1, date: shift3Time, nbTestsOnComp: 100),
+            ],
+            SeededTestedObjects = objects,
+        };
         var shifts = ShiftDefinition.FromStarts(
             new[] { new TimeOnly(8, 0), new TimeOnly(16, 0), new TimeOnly(0, 0) });
 
@@ -577,8 +620,9 @@ public sealed class ParetoReportTests
         var result = await ParetoReport.Instance.RunAsync(
             source, filter, TestContext.Current.CancellationToken);
 
-        // Two shifts have defects; the 00:00 shift only has a clean
-        // opportunity so it still shows up (opportunity counted).
+        // Two shifts carry defects and rank as bars; the 00:00 shift
+        // has only a clean opportunity (no defect), so it is not a
+        // Pareto contributor and does not appear as a bar.
         Assert.Contains(result.Rows, r => r.DefectCount == 2);
         Assert.Contains(result.Rows, r => r.DefectCount == 1);
         SnapshotAssert.Match(result, "Pareto_ShiftAxis");
@@ -632,7 +676,15 @@ public sealed class ParetoReportTests
                 errorTableAr: hasDefect ? BitObjectMissing : 0,
                 productId: 200));
         }
-        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(machineId: 10, date: start + 10, nbTestsOnComp: 100, productId: 100),
+                Card(machineId: 10, date: start + 20, nbTestsOnComp: 20, productId: 200),
+            ],
+            SeededTestedObjects = objects,
+        };
 
         var byCount = await ParetoReport.Instance.RunAsync(
             source,
@@ -683,7 +735,15 @@ public sealed class ParetoReportTests
                 errorTableAr: hasDefect ? BitObjectMissing : 0,
                 productId: 200));
         }
-        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(machineId: 10, date: start + 10, nbTestsOnComp: 100, productId: 100),
+                Card(machineId: 10, date: start + 20, nbTestsOnComp: 20, productId: 200),
+            ],
+            SeededTestedObjects = objects,
+        };
 
         var byDpmo = await ParetoReport.Instance.RunAsync(
             source,

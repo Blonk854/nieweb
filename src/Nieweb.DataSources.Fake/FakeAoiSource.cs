@@ -232,7 +232,11 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
             NbOfErrorObject: parent.NbOfErrorObject,
             MachineId: parent.MachineId,
             ProductId: parent.ProductId,
-            PanelNumericDate: parent.PanelNumericDate);
+            PanelNumericDate: parent.PanelNumericDate,
+            // One component test-opportunity per nominal component so
+            // this fake yields a sane DPMO denominator (opportunities
+            // come from CARDS, never from a TESTED_OBJECT row count).
+            NbOfTestsOnComp: parent.NbOfTestedObject);
         return Task.FromResult<IReadOnlyList<CardRow>>([row]);
     }
 
@@ -307,7 +311,10 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
                 NbOfErrorObject: panel.NbOfErrorObject,
                 MachineId: panel.MachineId,
                 ProductId: panel.ProductId,
-                PanelNumericDate: panel.PanelNumericDate);
+                PanelNumericDate: panel.PanelNumericDate,
+                // One component test-opportunity per nominal component
+                // (see ListCardsForPanelAsync for rationale).
+                NbOfTestsOnComp: panel.NbOfTestedObject);
         }
     }
 

@@ -1,6 +1,26 @@
 using Nieweb.DataSources;
+using Nieweb.Reports.Common.Skips;
 
 namespace Nieweb.Reports;
+
+/// <summary>
+/// Whether an FPY table counts the raw inspected population or excludes
+/// skipped / empty sub-panels first (see <see cref="SkipSummaryReport"/>
+/// and the <c>skip-classification</c> domain).
+/// </summary>
+public enum SkipExclusion
+{
+    /// <summary>Count every panel / board verbatim (legacy Vieweb parity).</summary>
+    Raw = 0,
+
+    /// <summary>
+    /// Exclude skipped boards (manual X-OUT / machine skip mark /
+    /// disabled-skip missing heuristic) so the KPI reflects the clean
+    /// production population. Panel-level FPY re-derives panel goodness
+    /// from the surviving non-skip boards.
+    /// </summary>
+    Clean = 1,
+}
 
 /// <summary>
 /// Whether an FPY table aggregates whole-panel or per-board rows
@@ -41,13 +61,34 @@ public enum FpyGroupBy
 /// most recent inspection of each panel. Sources without
 /// <see cref="Capabilities.IsLastInspectionFilter"/> silently ignore this.
 /// </param>
+/// <param name="SkipExclusion">
+/// <see cref="SkipExclusion.Raw"/> (default) counts every panel / board;
+/// <see cref="SkipExclusion.Clean"/> first drops skipped / empty boards.
+/// </param>
+/// <param name="SkipConfig">
+/// Skip-classification thresholds used when
+/// <paramref name="SkipExclusion"/> is <see cref="SkipExclusion.Clean"/>.
+/// <c>null</c> uses <see cref="SkipClassificationConfig.Default"/>.
+/// </param>
+/// <param name="SkipStatuses">
+/// Optional positive narrowing filter on the computed per-board
+/// <see cref="SkipClass"/>: when non-empty, only boards whose class is
+/// in the set contribute. Composes with <paramref name="SkipExclusion"/>
+/// (a board must satisfy both). Panel-level FPY re-derives panel status
+/// from the surviving boards, so a status filter restricts the panel
+/// verdict to the selected classes. <c>null</c> / empty applies no
+/// status narrowing.
+/// </param>
 public sealed record FpyTableFilter(
     DateRange Window,
     FpyGranularity Granularity,
     FpyGroupBy GroupBy,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    bool OnlyLastInspection = true);
+    bool OnlyLastInspection = true,
+    SkipExclusion SkipExclusion = SkipExclusion.Raw,
+    SkipClassificationConfig? SkipConfig = null,
+    IReadOnlyCollection<SkipClass>? SkipStatuses = null);
 
 /// <summary>
 /// FPY / status counts for a single scope (row-level or grand total).
@@ -106,4 +147,6 @@ public sealed record FpyTableResult(
     FpyGranularity Granularity,
     FpyGroupBy GroupBy,
     FpyKpi Overall,
-    IReadOnlyList<FpyTableRow> Rows);
+    IReadOnlyList<FpyTableRow> Rows,
+    SkipExclusion SkipExclusion = SkipExclusion.Raw,
+    long SkipExcludedRows = 0);

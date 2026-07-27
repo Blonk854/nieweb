@@ -618,12 +618,13 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         // silently truncating.
         var narrow = checked((int)panelId);
 
-        const string Sql = """
+        var sql = $"""
             SELECT
               c.Panel_Id, c.Card_Number, c.Card_Status,
               c.Anomaly_BR, c.Anomaly_AR,
               c.Number_Of_Component, c.Number_Of_Anomaly,
-              p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date
+              p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date,
+              c.Nb_Of_Tests_On_Comp, {PadsTestCountColumn()}
             FROM dbo.CARDS  c WITH (NOLOCK)
             JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
             WHERE c.Panel_Id = @panelId
@@ -631,7 +632,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             """;
 
         return await ExecuteListAsync(
-            Sql,
+            sql,
             bindParameters: p => p.Add(new SqlParameter("@panelId", SqlDbType.Int) { Value = narrow }),
             map: MapCardRow,
             ct).ConfigureAwait(false);
@@ -1118,6 +1119,21 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
     // ---- Shared CARDS query builder ----------------------------------------
 
+    /// <summary>
+    /// SQL expression for the paste-pad test-opportunity count column
+    /// (<c>CARDS.Nb_Of_Tests_On_Pads</c>) projected at slot 11 of the
+    /// CARDS SELECT. Paste inspection is a pre-reflow (SPI) stage, so
+    /// the column only exists on sources advertising
+    /// <see cref="Capabilities.PastePrintMetrics"/>; on post-reflow
+    /// sources we project a typed <c>NULL</c> so <see cref="MapCardRow"/>
+    /// can read slot 11 uniformly and surface
+    /// <see cref="CardRow.NbOfTestsOnPads"/> as <c>null</c>.
+    /// </summary>
+    private string PadsTestCountColumn() =>
+        Descriptor.Caps.HasFlag(Capabilities.PastePrintMetrics)
+            ? "c.Nb_Of_Tests_On_Pads"
+            : "CAST(NULL AS int)";
+
     private (string Sql, Action<SqlParameterCollection> Bind) BuildCardsQuery(
         CardQuery q, int topCount)
     {
@@ -1129,12 +1145,14 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
         var sb = new StringBuilder(1024);
         sb.Append(
-            """
+            System.Globalization.CultureInfo.InvariantCulture,
+            $"""
             SELECT TOP (@topCount)
               c.Panel_Id, c.Card_Number, c.Card_Status,
               c.Anomaly_BR, c.Anomaly_AR,
               c.Number_Of_Component, c.Number_Of_Anomaly,
-              p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date
+              p.Machine_Id, p.Product_Id, p.Panel_Numeric_Date,
+              c.Nb_Of_Tests_On_Comp, {PadsTestCountColumn()}
             FROM dbo.CARDS  c WITH (NOLOCK)
             JOIN dbo.PANELS p WITH (NOLOCK) ON p.Panel_Id = c.Panel_Id
             WHERE p.Panel_Numeric_Date >= @startEpoch
@@ -1223,5 +1241,11 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         NbOfErrorObject: r.GetInt32(6),
         MachineId: r.GetInt32(7),
         ProductId: r.GetInt32(8),
-        PanelNumericDate: r.GetInt32(9));
+        PanelNumericDate: r.GetInt32(9),
+        // Slot 10 (Nb_Of_Tests_On_Comp) is int NOT NULL on both live
+        // schemas. Slot 11 (Nb_Of_Tests_On_Pads) is projected as a
+        // typed NULL on post-reflow sources (see PadsTestCountColumn),
+        // so read it defensively.
+        NbOfTestsOnComp: r.GetInt32(10),
+        NbOfTestsOnPads: r.IsDBNull(11) ? null : r.GetInt32(11));
 }

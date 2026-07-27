@@ -21,5 +21,7 @@
     "defectBitCount": 0,
     "dpmoPpm": 0
   },
-  "rows": []
+  "rows": [],
+  "skipExclusion": "Raw",
+  "skipExcludedCards": 0
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using Nieweb.Api.SkipClassification;
 using Nieweb.DataSources;
 using Nieweb.Pdf;
 using Nieweb.Reports;
@@ -35,6 +36,9 @@ public static partial class ReportEndpoints
 
         group.MapGet("/dpmo-table/export.pdf", ExportDpmoTablePdfAsync)
              .WithName("ReportsDpmoTableExportPdf");
+
+        group.MapGet("/fpy-table/export.pdf", ExportFpyTablePdfAsync)
+             .WithName("ReportsFpyTableExportPdf");
 
         group.MapGet("/pareto/export.pdf", ExportParetoPdfAsync)
              .WithName("ReportsParetoExportPdf");
@@ -90,8 +94,11 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         bool? includeObsoleteBits,
+        string? skipExclusion,
+        string? skipStatuses,
         string? tz,
         IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -99,7 +106,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);
@@ -114,8 +121,12 @@ public static partial class ReportEndpoints
             built.Filter.Window.StartUtc,
             built.Filter.Window.EndUtcExclusive);
 
+        var effectiveFilter = built.Filter! with
+        {
+            SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
+        };
         var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+            .RunAsync(built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
 
         var dpmoTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
@@ -124,6 +135,44 @@ public static partial class ReportEndpoints
             filenameStem: string.Create(CultureInfo.InvariantCulture,
                 $"dpmo-{built.Source.Descriptor.Id}-{result.GroupBy}-{built.Filter.Window.StartUtc:yyyyMMdd}-{built.Filter.Window.EndUtcExclusive:yyyyMMdd}"),
             render: stream => DpmoTablePdfRenderer.Render(result, ResolveDisplayName(context.User), stream, timeZone: dpmoTz),
+            cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static async Task ExportFpyTablePdfAsync(
+        HttpContext context,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? granularity,
+        string? groupBy,
+        string? machineIds,
+        string? productIds,
+        bool? onlyLastInspection,
+        string? skipExclusion,
+        string? skipStatuses,
+        string? tz,
+        IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var result = await BuildFpyResultAsync(
+            context, sourceId, startUtc, endUtc, granularity, groupBy,
+            machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
+            sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+        if (result is null)
+        {
+            return;
+        }
+
+        var fpyTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
+        await WritePdfAsync(
+            context,
+            filenameStem: string.Create(CultureInfo.InvariantCulture,
+                $"fpy-{result.Source.Id}-{result.Granularity}-{result.Window.StartUtc:yyyyMMdd}-{result.Window.EndUtcExclusive:yyyyMMdd}"),
+            render: stream => FpyTablePdfRenderer.Render(result, ResolveDisplayName(context.User), stream, timeZone: fpyTz),
             cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }

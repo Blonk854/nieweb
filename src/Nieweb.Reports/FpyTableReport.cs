@@ -1,4 +1,5 @@
 using Nieweb.DataSources;
+using Nieweb.Reports.Common.Skips;
 
 namespace Nieweb.Reports;
 
@@ -63,8 +64,42 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
 
         var overall = new Accumulator();
         var perGroup = new Dictionary<int, Accumulator>();
+        long skipExcludedRows = 0;
 
-        if (filter.Granularity == FpyGranularity.Panel)
+        // Two composable per-board skip predicates:
+        //   * SkipExclusion.Clean drops any non-None (skipped) board.
+        //   * SkipStatuses (when set) keeps only boards whose class is in
+        //     the set (positive narrowing, e.g. "ManualSkip only").
+        // A board is kept iff it satisfies BOTH. Whenever either predicate
+        // is active we must classify boards, and panel-level FPY is
+        // re-derived from the surviving boards (the AOI's own Panel_Status
+        // reflects every board, so it can't be trusted once we drop some).
+        var config = filter.SkipConfig ?? SkipClassificationConfig.Default;
+        var statusFilter = filter.SkipStatuses is { Count: > 0 }
+            ? new HashSet<SkipClass>(filter.SkipStatuses)
+            : null;
+        var needsIndex = filter.SkipExclusion == SkipExclusion.Clean || statusFilter is not null;
+        bool KeepClass(SkipClass cls) =>
+            (filter.SkipExclusion != SkipExclusion.Clean || cls == SkipClass.None)
+            && (statusFilter is null || statusFilter.Contains(cls));
+
+        if (needsIndex)
+        {
+            // Classify every board and keep only the ones the predicate
+            // admits (manual X-OUT / machine skip mark / disabled-skip
+            // missing are dropped in Clean mode; a status filter narrows
+            // further to the selected classes).
+            var index = await SkipInputsIndex.BuildAsync(
+                source, filter.Window, filter.MachineIds, filter.ProductIds,
+                filter.OnlyLastInspection, config, cancellationToken).ConfigureAwait(false);
+
+            skipExcludedRows = filter.Granularity == FpyGranularity.Board
+                ? await AccumulateFilteredBoardAsync(
+                    source, filter, index, config, KeepClass, overall, perGroup, cancellationToken).ConfigureAwait(false)
+                : await AccumulateFilteredPanelAsync(
+                    source, filter, index, config, KeepClass, overall, perGroup, cancellationToken).ConfigureAwait(false);
+        }
+        else if (filter.Granularity == FpyGranularity.Panel)
         {
             var panelQuery = new PanelQuery
             {
@@ -77,12 +112,7 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
             {
                 overall.Add(panel.PanelStatus);
                 var key = filter.GroupBy == FpyGroupBy.AoiMachine ? panel.MachineId : panel.ProductId;
-                if (!perGroup.TryGetValue(key, out var bucket))
-                {
-                    bucket = new Accumulator();
-                    perGroup[key] = bucket;
-                }
-                bucket.Add(panel.PanelStatus);
+                GetBucket(perGroup, key).Add(panel.PanelStatus);
             }
         }
         else
@@ -97,12 +127,7 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
             {
                 overall.Add(card.CardStatus);
                 var key = filter.GroupBy == FpyGroupBy.AoiMachine ? card.MachineId : card.ProductId;
-                if (!perGroup.TryGetValue(key, out var bucket))
-                {
-                    bucket = new Accumulator();
-                    perGroup[key] = bucket;
-                }
-                bucket.Add(card.CardStatus);
+                GetBucket(perGroup, key).Add(card.CardStatus);
             }
         }
 
@@ -131,7 +156,161 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
             Granularity: filter.Granularity,
             GroupBy: filter.GroupBy,
             Overall: overall.ToKpi(),
-            Rows: rows);
+            Rows: rows,
+            SkipExclusion: filter.SkipExclusion,
+            SkipExcludedRows: skipExcludedRows);
+    }
+
+    private static Accumulator GetBucket(Dictionary<int, Accumulator> perGroup, int key)
+    {
+        if (!perGroup.TryGetValue(key, out var bucket))
+        {
+            bucket = new Accumulator();
+            perGroup[key] = bucket;
+        }
+        return bucket;
+    }
+
+    /// <summary>
+    /// Filtered board-level FPY: classify each board and keep only the
+    /// ones <paramref name="keep"/> admits. Returns the number of
+    /// excluded boards.
+    /// </summary>
+    private static async Task<long> AccumulateFilteredBoardAsync(
+        IAoiSource source,
+        FpyTableFilter filter,
+        SkipInputsIndex index,
+        SkipClassificationConfig config,
+        Func<SkipClass, bool> keep,
+        Accumulator overall,
+        Dictionary<int, Accumulator> perGroup,
+        CancellationToken cancellationToken)
+    {
+        long excluded = 0;
+        var cardQuery = new CardQuery
+        {
+            Window = filter.Window,
+            MachineIds = filter.MachineIds,
+            ProductIds = filter.ProductIds,
+        };
+        await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
+        {
+            if (!keep(index.Classify(card, config)))
+            {
+                excluded++;
+                continue;
+            }
+            overall.Add(card.CardStatus);
+            var key = filter.GroupBy == FpyGroupBy.AoiMachine ? card.MachineId : card.ProductId;
+            GetBucket(perGroup, key).Add(card.CardStatus);
+        }
+        return excluded;
+    }
+
+    /// <summary>
+    /// Filtered panel-level FPY: a panel with no excluded board keeps the
+    /// AOI's own <c>Panel_Status</c>; a panel with some excluded boards is
+    /// re-derived from its surviving (kept) boards; a fully-excluded panel
+    /// is dropped. Returns the number of excluded panels.
+    /// </summary>
+    private static async Task<long> AccumulateFilteredPanelAsync(
+        IAoiSource source,
+        FpyTableFilter filter,
+        SkipInputsIndex index,
+        SkipClassificationConfig config,
+        Func<SkipClass, bool> keep,
+        Accumulator overall,
+        Dictionary<int, Accumulator> perGroup,
+        CancellationToken cancellationToken)
+    {
+        // First pass: group cards by panel, recording whether the panel
+        // has any excluded board and the statuses of the survivors.
+        var perPanel = new Dictionary<long, PanelCards>();
+        var cardQuery = new CardQuery
+        {
+            Window = filter.Window,
+            MachineIds = filter.MachineIds,
+            ProductIds = filter.ProductIds,
+        };
+        await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
+        {
+            var kept = keep(index.Classify(card, config));
+            if (!perPanel.TryGetValue(card.PanelId, out var cards))
+            {
+                cards = new PanelCards();
+                perPanel[card.PanelId] = cards;
+            }
+            if (!kept)
+            {
+                cards.HasSkip = true;
+            }
+            else
+            {
+                cards.NonSkipStatuses.Add(card.CardStatus);
+            }
+        }
+
+        // Second pass: fold every panel in scope into the FPY buckets.
+        long excluded = 0;
+        foreach (var (panelId, info) in index.Panels)
+        {
+            int effectiveStatus;
+            if (!perPanel.TryGetValue(panelId, out var cards) || !cards.HasSkip)
+            {
+                // No excluded board — trust the AOI's own panel verdict so
+                // a no-op filter is identical to raw.
+                effectiveStatus = info.PanelStatus;
+            }
+            else if (cards.NonSkipStatuses.Count == 0)
+            {
+                // Every board on the panel was excluded.
+                excluded++;
+                continue;
+            }
+            else
+            {
+                effectiveStatus = EffectivePanelStatus(cards.NonSkipStatuses);
+            }
+
+            overall.Add(effectiveStatus);
+            var key = filter.GroupBy == FpyGroupBy.AoiMachine ? info.MachineId : info.ProductId;
+            GetBucket(perGroup, key).Add(effectiveStatus);
+        }
+        return excluded;
+    }
+
+    /// <summary>
+    /// The effective status of a panel re-derived from its surviving
+    /// (non-skip) boards: the panel is only as good as its worst board.
+    /// Goodness order (best → worst): 1 (good AOI) &lt; 2 (good
+    /// diagnostic) &lt; 3 (repaired) &lt; faulty. Status 0 (not inspected)
+    /// is ignored unless it is all that is present, in which case the
+    /// panel is not-inspected.
+    /// </summary>
+    private static int EffectivePanelStatus(List<int> nonSkipStatuses)
+    {
+        var worstStatus = 0;
+        var worstRank = -1;
+        foreach (var status in nonSkipStatuses)
+        {
+            if (status == 0)
+            {
+                continue;
+            }
+            var rank = status switch { 1 => 0, 2 => 1, 3 => 2, _ => 3 }; // -1 / -2 / unknown = faulty
+            if (rank > worstRank)
+            {
+                worstRank = rank;
+                worstStatus = status;
+            }
+        }
+        return worstStatus;
+    }
+
+    private sealed class PanelCards
+    {
+        public bool HasSkip { get; set; }
+        public List<int> NonSkipStatuses { get; } = [];
     }
 
     /// <summary>

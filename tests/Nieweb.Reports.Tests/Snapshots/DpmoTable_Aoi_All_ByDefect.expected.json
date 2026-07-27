@@ -42,5 +42,7 @@
         "dpmoPpm": 500000
       }
     }
-  ]
+  ],
+  "skipExclusion": "Raw",
+  "skipExcludedCards": 0
 }

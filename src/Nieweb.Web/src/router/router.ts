@@ -11,6 +11,12 @@ import { PanelYieldRoute } from "../routes/panel-yield";
 import { validatePanelYieldSearch } from "../routes/panel-yield.search";
 import { ParetoRoute } from "../routes/pareto";
 import { validateParetoSearch } from "../routes/pareto.search";
+import { SkipSummaryRoute } from "../routes/skip-summary";
+import { validateSkipSummarySearch } from "../routes/skip-summary.search";
+import { DpmoRoute } from "../routes/dpmo";
+import { validateDpmoSearch } from "../routes/dpmo.search";
+import { FpyRoute } from "../routes/fpy";
+import { validateFpySearch } from "../routes/fpy.search";
 import { CanvasDemoRoute } from "../routes/canvas-demo";
 import { validateCanvasDemoSearch } from "../routes/canvas-demo.search";
 import { TraceabilityBoardRoute } from "../routes/traceability-board";
@@ -25,6 +31,7 @@ import { AdminReportEditorRoute, MyReportEditorRoute } from "../routes/admin-rep
 import { MyReportsRoute } from "../routes/my-reports";
 import { AdminBoardSvgsRoute } from "../routes/admin-board-svgs";
 import { AdminParametersRoute } from "../routes/admin-parameters";
+import { AdminSkipClassificationRoute } from "../routes/admin-skip-classification";
 import { AdminProductionLinesRoute } from "../routes/admin-production-lines";
 import { AdminShiftsRoute } from "../routes/admin-shifts";
 import { ChangePasswordRoute } from "../routes/change-password";
@@ -58,6 +65,33 @@ const paretoRoute = createRoute({
     component: ParetoRoute,
     validateSearch: validateParetoSearch,
     // Same auth-gating story as panelYieldRoute.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const skipSummaryRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/skip-summary",
+    component: SkipSummaryRoute,
+    validateSearch: validateSkipSummarySearch,
+    // Same auth-gating story as the other report routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const dpmoRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/dpmo",
+    component: DpmoRoute,
+    validateSearch: validateDpmoSearch,
+    // Same auth-gating story as the other report routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const fpyRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/fpy",
+    component: FpyRoute,
+    validateSearch: validateFpySearch,
+    // Same auth-gating story as the other report routes.
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
@@ -155,6 +189,14 @@ const adminParametersRoute = createRoute({
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
+const adminSkipClassificationRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/admin/skip-classification",
+    component: AdminSkipClassificationRoute,
+    // Same defence-in-depth story as the other admin routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
 const adminProductionLinesRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: "/admin/production-lines",
@@ -237,6 +279,9 @@ const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
     paretoRoute,
+    skipSummaryRoute,
+    dpmoRoute,
+    fpyRoute,
     canvasDemoRoute,
     traceabilityBoardRoute,
     loginRoute,
@@ -249,6 +294,7 @@ const routeTree = rootRoute.addChildren([
     myReportEditorRoute,
     adminBoardSvgsRoute,
     adminParametersRoute,
+    adminSkipClassificationRoute,
     adminProductionLinesRoute,
     adminShiftsRoute,
     changePasswordRoute,
@@ -261,6 +307,9 @@ const routeTree = rootRoute.addChildren([
 // PanelYieldSearch back.
 export { panelYieldRoute };
 export { paretoRoute };
+export { skipSummaryRoute };
+export { dpmoRoute };
+export { fpyRoute };
 export { canvasDemoRoute };
 export { traceabilityBoardRoute };
 

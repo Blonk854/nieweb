@@ -280,6 +280,39 @@ foreach (var name in wanted)
                     $"        {r.GroupKey,-6} '{r.GroupName}' defects={r.Kpi.DefectBitCount,6} opps={r.Kpi.OpportunityCount,7} dpmo={r.Kpi.DpmoPpm,10:N0} ppm");
             }
 
+            // Clean population (skipped / empty boards excluded) — the
+            // skip-adjusted DPMO. Exercises the SkipInputsIndex + classifier
+            // end-to-end against real rows.
+            var dpmoClean = await DpmoTableReport.Instance.RunAsync(
+                source,
+                new DpmoTableFilter(
+                    Window: reportWindow,
+                    GroupBy: DpmoGroupBy.Defect,
+                    Numerator: DpmoNumerator.Real,
+                    Opportunity: DpmoOpportunity.All,
+                    SkipExclusion: SkipExclusion.Clean),
+                cts.Token);
+            Console.WriteLine(
+                $"      DPMO(Defect) CLEAN: total defects={dpmoClean.Overall.DefectBitCount}, " +
+                $"opps={dpmoClean.Overall.OpportunityCount}, " +
+                $"dpmo={dpmoClean.Overall.DpmoPpm:N0} ppm, " +
+                $"skipExcludedCards={dpmoClean.SkipExcludedCards}");
+
+            // Board-level FPY, raw vs clean, over the same window.
+            var fpyRaw = await FpyTableReport.Instance.RunAsync(
+                source,
+                new FpyTableFilter(reportWindow, FpyGranularity.Board, FpyGroupBy.AoiMachine),
+                cts.Token);
+            var fpyClean = await FpyTableReport.Instance.RunAsync(
+                source,
+                new FpyTableFilter(reportWindow, FpyGranularity.Board, FpyGroupBy.AoiMachine,
+                    SkipExclusion: SkipExclusion.Clean),
+                cts.Token);
+            Console.WriteLine(
+                $"      FPY(Board) raw:   inspected={fpyRaw.Overall.InspectedCount}, FPY-AOI={fpyRaw.Overall.FpyAoiPercent:F2}%");
+            Console.WriteLine(
+                $"      FPY(Board) clean: inspected={fpyClean.Overall.InspectedCount}, FPY-AOI={fpyClean.Overall.FpyAoiPercent:F2}%, skipExcluded={fpyClean.SkipExcludedRows}");
+
             // Pareto and DPMO totals over the same scope must agree exactly
             // (both aggregate the same DefectBitDecoder counts). If they
             // ever diverge, a report layer bug slipped through — fail loud.

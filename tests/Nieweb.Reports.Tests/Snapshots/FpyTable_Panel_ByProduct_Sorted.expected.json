@@ -59,5 +59,7 @@
         "fpyAfterRepairPercent": 75
       }
     }
-  ]
+  ],
+  "skipExclusion": "Raw",
+  "skipExcludedRows": 0
 }

@@ -16,31 +16,33 @@
   "numerator": "Aoi",
   "opportunity": "All",
   "overall": {
-    "testedObjectCount": 6,
-    "opportunityCount": 6,
+    "testedObjectCount": 3,
+    "opportunityCount": 150,
     "defectBitCount": 4,
-    "dpmoPpm": 666666.6666666666
+    "dpmoPpm": 26666.666666666668
   },
   "rows": [
     {
       "groupKey": "10",
       "groupName": "AOI-10",
       "kpi": {
-        "testedObjectCount": 4,
-        "opportunityCount": 4,
+        "testedObjectCount": 2,
+        "opportunityCount": 100,
         "defectBitCount": 3,
-        "dpmoPpm": 750000
+        "dpmoPpm": 30000
       }
     },
     {
       "groupKey": "11",
       "groupName": "AOI-11",
       "kpi": {
-        "testedObjectCount": 2,
-        "opportunityCount": 2,
+        "testedObjectCount": 1,
+        "opportunityCount": 50,
         "defectBitCount": 1,
-        "dpmoPpm": 500000
+        "dpmoPpm": 20000
       }
     }
-  ]
+  ],
+  "skipExclusion": "Raw",
+  "skipExcludedCards": 0
 }

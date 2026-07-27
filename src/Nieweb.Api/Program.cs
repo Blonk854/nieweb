@@ -135,6 +135,11 @@ try
     // section Nieweb:Identity - see appsettings.json for defaults.
     builder.Services.AddNiewebIdentity(builder.Configuration);
 
+    // Security master switch (Nieweb:Security:RelaxedLogin) — consumed by
+    // the login / whoami handlers to bypass forced password rotation.
+    builder.Services.Configure<Nieweb.Api.Auth.SecurityOptions>(
+        builder.Configuration.GetSection(Nieweb.Api.Auth.SecurityOptions.SectionName));
+
     // JWT bearer authentication for /auth/* and every future
     // [Authorize]-protected endpoint. Validation parameters are wired
     // through the options pipeline so a test host (or a future secret
@@ -173,6 +178,11 @@ try
     // canonical source for tolerance intervals, MSA constants, and the
     // batch master switch.
     builder.Services.AddScoped<Nieweb.Api.Parameters.IAppParameters, Nieweb.Api.Parameters.EfAppParameters>();
+
+    // Skip-classification config (skip.* app parameters). Backs
+    // /api/admin/skip-classification and feeds the DPMO / FPY / Skip
+    // Summary reports the admin-tuned thresholds + repair-button map.
+    builder.Services.AddScoped<Nieweb.Api.SkipClassification.ISkipClassificationConfigProvider, Nieweb.Api.SkipClassification.SkipClassificationConfigProvider>();
 
     // Production lines + shift cycle (PL1). Back the admin
     // "Production lines" and "Shift definition" pages and feed the
@@ -450,6 +460,7 @@ try
     app.MapSavedViewEndpoints();
     app.MapAdminUsersEndpoints();
     app.MapAdminParametersEndpoints();
+    app.MapAdminSkipClassificationEndpoints();
     app.MapAdminProductionLinesEndpoints();
     app.MapAdminShiftsEndpoints();
     app.MapAdminReportsEndpoints();

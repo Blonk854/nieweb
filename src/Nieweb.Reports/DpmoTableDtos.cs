@@ -1,5 +1,6 @@
 using Nieweb.DataSources;
 using Nieweb.Reports.Common.Defects;
+using Nieweb.Reports.Common.Skips;
 
 namespace Nieweb.Reports;
 
@@ -101,6 +102,24 @@ public enum DpmoOpportunity
 /// <see cref="DefectBitDecoder.All"/>. Defaults to <c>false</c> — the
 /// modern UI hides obsolete columns by default.
 /// </param>
+/// <param name="SkipExclusion">
+/// <see cref="SkipExclusion.Raw"/> (default) counts every board;
+/// <see cref="SkipExclusion.Clean"/> excludes skipped / empty boards
+/// from both the opportunity denominator and the defect numerator.
+/// </param>
+/// <param name="SkipConfig">
+/// Skip-classification thresholds used when
+/// <paramref name="SkipExclusion"/> is <see cref="SkipExclusion.Clean"/>.
+/// <c>null</c> uses <see cref="SkipClassificationConfig.Default"/>.
+/// </param>
+/// <param name="SkipStatuses">
+/// Optional positive narrowing filter on the computed per-board
+/// <see cref="SkipClass"/>: when non-empty, only boards whose class is
+/// in the set are counted (both denominator and numerator). Composes
+/// with <paramref name="SkipExclusion"/> — a board must satisfy both.
+/// <c>null</c> / empty applies no status narrowing. Requires the same
+/// per-board classification as <see cref="SkipExclusion.Clean"/>.
+/// </param>
 public sealed record DpmoTableFilter(
     DateRange Window,
     DpmoGroupBy GroupBy,
@@ -108,7 +127,10 @@ public sealed record DpmoTableFilter(
     DpmoOpportunity Opportunity,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    bool IncludeObsoleteBits = false);
+    bool IncludeObsoleteBits = false,
+    SkipExclusion SkipExclusion = SkipExclusion.Raw,
+    SkipClassificationConfig? SkipConfig = null,
+    IReadOnlyCollection<SkipClass>? SkipStatuses = null);
 
 /// <summary>
 /// DPMO counts for a single scope (row-level or grand total).
@@ -157,4 +179,6 @@ public sealed record DpmoTableResult(
     DpmoNumerator Numerator,
     DpmoOpportunity Opportunity,
     DpmoKpi Overall,
-    IReadOnlyList<DpmoTableRow> Rows);
+    IReadOnlyList<DpmoTableRow> Rows,
+    SkipExclusion SkipExclusion = SkipExclusion.Raw,
+    long SkipExcludedCards = 0);

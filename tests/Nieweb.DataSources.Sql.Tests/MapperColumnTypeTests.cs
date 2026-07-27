@@ -280,7 +280,9 @@ public sealed class MapperColumnTypeTests
             /* c.Number_Of_Anomaly    */ 3,
             /* p.Machine_Id           */ 10,
             /* p.Product_Id           */ 100,
-            /* p.Panel_Numeric_Date   */ 1_700_000_000);
+            /* p.Panel_Numeric_Date   */ 1_700_000_000,
+            /* c.Nb_Of_Tests_On_Comp  */ 500,
+            /* c.Nb_Of_Tests_On_Pads  */ 250);
         using var reader = dt.CreateDataReader();
         Assert.True(reader.Read());
 
@@ -296,6 +298,8 @@ public sealed class MapperColumnTypeTests
         Assert.Equal(10, row.MachineId);
         Assert.Equal(100, row.ProductId);
         Assert.Equal(1_700_000_000, row.PanelNumericDate);
+        Assert.Equal(500, row.NbOfTestsOnComp);
+        Assert.Equal(250, row.NbOfTestsOnPads);
     }
 
     [Fact]
@@ -306,7 +310,9 @@ public sealed class MapperColumnTypeTests
         // int-to-long widening path doesn't sign-extend or otherwise
         // mangle a zero.
         var dt = NewCardTable();
-        dt.Rows.Add(1, 1, 1, 0, 0, 10, 0, 1, 1, 1_700_000_000);
+        // Slot 10 = Nb_Of_Tests_On_Comp (8), slot 11 = Nb_Of_Tests_On_Pads
+        // as DBNull to exercise the post-reflow "paste column absent" path.
+        dt.Rows.Add(1, 1, 1, 0, 0, 10, 0, 1, 1, 1_700_000_000, 8, DBNull.Value);
         using var reader = dt.CreateDataReader();
         Assert.True(reader.Read());
 
@@ -315,6 +321,8 @@ public sealed class MapperColumnTypeTests
         Assert.Equal(0L, row.AnomalyBr);
         Assert.Equal(0L, row.AnomalyAr);
         Assert.Equal(0, row.NbOfErrorObject);
+        Assert.Equal(8, row.NbOfTestsOnComp);
+        Assert.Null(row.NbOfTestsOnPads);
     }
 
     // ---------- Helpers ----------
@@ -436,6 +444,12 @@ public sealed class MapperColumnTypeTests
         dt.Columns.Add("Machine_Id", typeof(int));
         dt.Columns.Add("Product_Id", typeof(int));
         dt.Columns.Add("Panel_Numeric_Date", typeof(int));
+        // Nb_Of_Tests_On_Comp — int NOT NULL on both DBs (the DPMO/PPM
+        // component-test denominator). Nb_Of_Tests_On_Pads — paste
+        // denominator, projected as a typed NULL on post-reflow (paste
+        // is a pre-reflow stage), so it is nullable here.
+        dt.Columns.Add("Nb_Of_Tests_On_Comp", typeof(int));
+        dt.Columns.Add("Nb_Of_Tests_On_Pads", typeof(int)).AllowDBNull = true;
         return dt;
     }
 }
