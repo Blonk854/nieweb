@@ -289,6 +289,100 @@ describe("AdminReportsRoute", () => {
             expect(postCount).toBeGreaterThanOrEqual(1);
         });
     });
+
+    it("creates a report from a template and adds its tiles", async () => {
+        signInAs(["Admin"]);
+        let createChromeJson: string | null = null;
+        let entityCount = 0;
+        const fetchMock = stubFetch([
+            {
+                match: (u) => u.endsWith("/api/admin/report-groups"),
+                status: 200,
+                body: [],
+            },
+            {
+                match: (u, i) =>
+                    u.endsWith("/api/admin/reports") && (i?.method ?? "GET") === "GET",
+                status: 200,
+                body: [],
+            },
+            {
+                match: (u, i) =>
+                    u.endsWith("/api/admin/reports") && i?.method === "POST",
+                status: 201,
+                body: {
+                    id: 99,
+                    title: "Yield + defects",
+                    description: null,
+                    reportGroupId: null,
+                    groupName: null,
+                    ownerDisplayName: "Root Admin",
+                    isLocked: false,
+                    isPinnedHome: false,
+                    displayOrder: 0,
+                    refreshFrequencySeconds: null,
+                    chromeJson: null,
+                    entityCount: 0,
+                    createdUtc: new Date().toISOString(),
+                    lastModifiedUtc: new Date().toISOString(),
+                },
+            },
+            {
+                match: (u, i) =>
+                    /\/api\/admin\/reports\/99\/entities$/.test(u) &&
+                    i?.method === "POST",
+                status: 201,
+                body: {
+                    id: 1,
+                    reportId: 99,
+                    tileType: "panelYield",
+                    title: null,
+                    displayOrder: 0,
+                    configJson: "{}",
+                    createdUtc: new Date().toISOString(),
+                    lastModifiedUtc: new Date().toISOString(),
+                },
+            },
+        ]);
+        const orig = fetchMock.getMockImplementation()!;
+        fetchMock.mockImplementation(async (input, init) => {
+            const url =
+                typeof input === "string" ? input : (input as Request).url;
+            if (url.endsWith("/api/admin/reports") && init?.method === "POST") {
+                const parsed = init?.body
+                    ? (JSON.parse(init.body as string) as { chromeJson?: string | null })
+                    : null;
+                createChromeJson = parsed?.chromeJson ?? null;
+            }
+            if (
+                /\/api\/admin\/reports\/99\/entities$/.test(url) &&
+                init?.method === "POST"
+            ) {
+                entityCount++;
+            }
+            return orig(input, init);
+        });
+
+        renderAdminReports();
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole("button", { name: /add report/i }));
+        const dialog = await screen.findByRole("dialog");
+        // Pick the "Yield + defects" template (two tiles). Selecting it
+        // auto-fills the title, so Save passes validation.
+        await user.click(
+            within(dialog).getByTestId("report-template-yield-and-defects"),
+        );
+        await user.click(within(dialog).getByRole("button", { name: /^save$/i }));
+
+        // Both template tiles are POSTed to the new report.
+        await waitFor(() => {
+            expect(entityCount).toBe(2);
+        });
+        // The template's default window preset is baked into the report chrome.
+        expect(createChromeJson).toBe(
+            JSON.stringify({ defaultWindowPreset: "last7d" }),
+        );
+    });
 });
 
 /**

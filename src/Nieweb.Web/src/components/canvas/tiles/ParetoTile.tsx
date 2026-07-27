@@ -1,10 +1,12 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { Alert, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { runParetoReport } from "../../../api/pareto";
 import type { ParetoSearch } from "../../../routes/pareto.search";
+import { parseParetoTileConfig } from "../../reportConfig/tileConfig";
+import type { TileProps } from "./registry";
 import {
     canvasFiltersReady,
     useCanvasFilters,
@@ -25,16 +27,16 @@ const ParetoChart = lazy(() =>
  * Uses the same defaults as the stand-alone `/report/pareto` route
  * (axis=Defect, numerator=Real, opportunity=Components,
  * weight=Count, topN=10) — the boss-approved "DPMO real defects"
- * view. Canvas-level source / window / narrowing filters are read
- * from `useCanvasFilters()` and forwarded to the API. Advanced
- * per-tile overrides are intentionally out of scope for F10; the
- * report editor (`RC2`) will add per-tile filter overrides on top
- * of this fanout later.
+ * view. The tile's own per-tile config (`configJson`) overrides that
+ * analytic shape; canvas-level source / window / narrowing filters
+ * are read from `useCanvasFilters()` and forwarded to the API.
  */
-export function ParetoTile() {
+export function ParetoTile({ config }: TileProps) {
     const { t } = useTranslation();
     const { filters } = useCanvasFilters();
     const ready = canvasFiltersReady(filters);
+
+    const cfg = useMemo(() => parseParetoTileConfig(config), [config]);
 
     const search: ParetoSearch = {
         sourceId: filters.sourceId,
@@ -42,11 +44,12 @@ export function ParetoTile() {
         endUtc: filters.endUtc,
         machineIds: filters.machineIds,
         productIds: filters.productIds,
-        axis: "Defect",
-        numerator: "Real",
-        opportunity: "Components",
-        weight: "Count",
-        topN: 10,
+        axis: cfg.axis,
+        numerator: cfg.numerator,
+        opportunity: cfg.opportunity,
+        weight: cfg.weight,
+        topN: cfg.topN,
+        vitalFewThreshold: cfg.vitalFewThreshold,
     };
 
     const reportQuery = useQuery({
@@ -58,6 +61,11 @@ export function ParetoTile() {
             filters.endUtc,
             filters.machineIds?.join(",") ?? "",
             filters.productIds?.join(",") ?? "",
+            cfg.axis,
+            cfg.numerator,
+            cfg.opportunity,
+            cfg.weight,
+            cfg.topN ?? "",
         ],
         queryFn: () => runParetoReport(search),
         enabled: ready,

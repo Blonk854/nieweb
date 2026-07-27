@@ -20,6 +20,7 @@ export type TranslationBundle = {
         adminUsers: string;
         adminAudit: string;
         adminReports: string;
+        myReports: string;
         adminBoardSvgs: string;
         adminParameters: string;
         adminProductionLines: string;
@@ -30,6 +31,35 @@ export type TranslationBundle = {
         signIn: string;
         signOut: string;
         changePassword: string;
+    };
+    myReports: {
+        title: string;
+        subtitle: string;
+        forbidden: string;
+        newReport: string;
+        empty: string;
+        locked: string;
+        open: string;
+        duplicate: string;
+        delete: string;
+        cancel: string;
+        deleteConfirmTitle: string;
+        deleteConfirmBody: string;
+        columns: {
+            title: string;
+            tiles: string;
+            updated: string;
+        };
+        create: {
+            title: string;
+            templateLabel: string;
+            titleLabel: string;
+            titlePlaceholder: string;
+            descriptionLabel: string;
+            submit: string;
+            titleRequired: string;
+            unexpectedError: string;
+        };
     };
     home: {
         title: string;
@@ -927,6 +957,14 @@ export type TranslationBundle = {
                     titleRequired: string;
                     ownerRequired: string;
                     unexpectedError: string;
+                    template: {
+                        label: string;
+                        blank: { name: string; desc: string };
+                        yieldOverview: { name: string; desc: string };
+                        topDefects: { name: string; desc: string };
+                        yieldAndDefects: { name: string; desc: string };
+                        defectsByMachine: { name: string; desc: string };
+                    };
                 };
                 delete: {
                     confirmTitle: string;
@@ -961,6 +999,18 @@ export type TranslationBundle = {
                     displayOrderLabel: string;
                     isLockedLabel: string;
                     isPinnedHomeLabel: string;
+                    defaultSourceLabel: string;
+                    defaultSourceHint: string;
+                    defaultSourcePlaceholder: string;
+                    defaultWindowLabel: string;
+                    defaultWindowHint: string;
+                    defaultWindowPlaceholder: string;
+                    windowPreset: {
+                        today: string;
+                        yesterday: string;
+                        last7d: string;
+                        last30d: string;
+                    };
                     submit: string;
                     saving: string;
                     saved: string;
@@ -1011,6 +1061,63 @@ export type TranslationBundle = {
                     commentLabel: string;
                     commentHint: string;
                     commentPlaceholder: string;
+                    advancedLabel: string;
+                    config: {
+                        panelYield: {
+                            onlyLastInspection: {
+                                label: string;
+                                help: string;
+                            };
+                        };
+                        pareto: {
+                            axis: {
+                                label: string;
+                                help: string;
+                                options: {
+                                    Defect: string;
+                                    Product: string;
+                                    AoiMachine: string;
+                                    ReferenceDesignator: string;
+                                    PartNumber: string;
+                                    Jedec: string;
+                                    Day: string;
+                                    Shift: string;
+                                };
+                            };
+                            numerator: {
+                                label: string;
+                                help: string;
+                                options: {
+                                    Aoi: string;
+                                    Real: string;
+                                    Dummy: string;
+                                };
+                            };
+                            opportunity: {
+                                label: string;
+                                help: string;
+                                options: {
+                                    All: string;
+                                    Components: string;
+                                    Paste: string;
+                                };
+                            };
+                            weight: {
+                                label: string;
+                                help: string;
+                                options: {
+                                    Count: string;
+                                    Dpmo: string;
+                                    Ppm: string;
+                                };
+                            };
+                            topN: {
+                                label: string;
+                                help: string;
+                                placeholder: string;
+                            };
+                        };
+                    };
                     save: string;
                     saved: string;
                     saveError: string;

@@ -96,6 +96,8 @@ function SideNav() {
     const { t } = useTranslation();
     const user = useSessionStore((s) => s.user);
     const isAdmin = user?.roles.includes("Admin") ?? false;
+    const canAuthor =
+        (user?.roles.includes("Author") || user?.roles.includes("Admin")) ?? false;
     // The Settings parent groups the low-frequency admin + account
     // pages so the top-level nav stays focused on reports. It renders
     // whenever *any* child would render (an admin sees all 6 admin
@@ -144,6 +146,15 @@ function SideNav() {
                 leftSection={<IconBarcode size={18} />}
                 active={active.startsWith("/traceability/board")}
             />
+            {canAuthor && (
+                <NavLink
+                    component={Link}
+                    to="/reports"
+                    label={t("nav.myReports")}
+                    leftSection={<IconChartBar size={18} />}
+                    active={active === "/reports" || active.startsWith("/reports/")}
+                />
+            )}
             {isAdmin && (
                 <NavLink
                     component={Link}

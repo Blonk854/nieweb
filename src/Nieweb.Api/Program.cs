@@ -453,6 +453,7 @@ try
     app.MapAdminProductionLinesEndpoints();
     app.MapAdminShiftsEndpoints();
     app.MapAdminReportsEndpoints();
+    app.MapAuthorReportsEndpoints();
     app.MapAdminBoardSvgSourcesEndpoints();
     app.MapAdminBoardSvgOperationsEndpoints();
     app.MapAdminDataSourcesEndpoints();

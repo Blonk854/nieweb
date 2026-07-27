@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { fetchSources } from "../../../api/sources";
 import { runPanelYieldReport } from "../../../api/reports";
 import { KpiCards } from "../../KpiCards";
+import { parsePanelYieldTileConfig } from "../../reportConfig/tileConfig";
+import type { TileProps } from "./registry";
 import {
     canvasFiltersReady,
     useCanvasFilters,
@@ -30,10 +32,12 @@ const FpyBarChart = lazy(() =>
  * filters, empty response, 4xx / 5xx) render a scoped `<Alert>` so
  * one bad tile never blanks the whole canvas.
  */
-export function PanelYieldTile() {
+export function PanelYieldTile({ config }: TileProps) {
     const { t } = useTranslation();
     const { filters } = useCanvasFilters();
     const ready = canvasFiltersReady(filters);
+
+    const cfg = useMemo(() => parsePanelYieldTileConfig(config), [config]);
 
     const sourcesQuery = useQuery({
         queryKey: ["sources"],
@@ -49,6 +53,7 @@ export function PanelYieldTile() {
             filters.endUtc,
             filters.machineIds?.join(",") ?? "",
             filters.productIds?.join(",") ?? "",
+            cfg.onlyLastInspection,
         ],
         queryFn: () =>
             runPanelYieldReport({
@@ -57,7 +62,7 @@ export function PanelYieldTile() {
                 endUtc: filters.endUtc,
                 machineIds: filters.machineIds,
                 productIds: filters.productIds,
-                onlyLastInspection: true,
+                onlyLastInspection: cfg.onlyLastInspection,
             }),
         enabled: ready,
     });

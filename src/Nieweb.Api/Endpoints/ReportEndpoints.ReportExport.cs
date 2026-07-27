@@ -189,8 +189,8 @@ public static partial class ReportEndpoints
 
             object? result = tile.TileType switch
             {
-                "panelYield" => await RunPanelYieldForTileAsync(source, filter, logger, cancellationToken).ConfigureAwait(false),
-                "pareto"     => await RunParetoForTileAsync(source, filter, machineIds, productIds, logger, cancellationToken).ConfigureAwait(false),
+                "panelYield" => await RunPanelYieldForTileAsync(source, filter, tile.ConfigJson, logger, cancellationToken).ConfigureAwait(false),
+                "pareto"     => await RunParetoForTileAsync(source, filter, machineIds, productIds, tile.ConfigJson, logger, cancellationToken).ConfigureAwait(false),
                 "comment"    => ExtractCommentResult(tile.ConfigJson),
                 _            => null,
             };
@@ -204,10 +204,17 @@ public static partial class ReportEndpoints
 
     private static async Task<PanelYieldResult> RunPanelYieldForTileAsync(
         IAoiSource source,
-        PanelYieldFilter filter,
+        PanelYieldFilter shared,
+        string? configJson,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
+        // The only per-tile knob for panel-yield is OnlyLastInspection.
+        // When the tile does not set it, inherit the report-level value
+        // from the shared filter so behaviour is unchanged.
+        var onlyLast = ParsePanelYieldOnlyLastInspection(configJson) ?? shared.OnlyLastInspection;
+        var filter = shared with { OnlyLastInspection = onlyLast };
+
         LogRunning(logger, source.Descriptor.Id, filter.Window.StartUtc, filter.Window.EndUtcExclusive);
         return await PanelYieldByLineReport.Instance
             .RunAsync(source, filter, cancellationToken)
@@ -219,23 +226,26 @@ public static partial class ReportEndpoints
         PanelYieldFilter shared,
         string? machineIds,
         string? productIds,
+        string? configJson,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
-        // For the multi-tile export we use the same default Pareto
-        // shape the SPA canvas tile does: axis=Defect (per-defect-bit
-        // bars), Real numerator, All-object opportunity, Count-weighted
-        // score, no top-N trimming so users see the full histogram
-        // side-by-side with the panel-yield tile.
+        // Analytic shape (axis / numerator / opportunity / weight /
+        // top-N / vital-few) comes from the tile's own ConfigJson so the
+        // exported chart matches what the author configured on screen.
+        // Missing / malformed config falls back to the canonical default
+        // (see ParetoTileDefault). The report-level window and machine /
+        // product narrowing still come from the shared export filters.
+        var cfg = ParseParetoTileConfig(configJson);
         var filter = new ParetoFilter(
             Window: shared.Window,
-            Axis: ParetoAxis.Defect,
-            Numerator: DpmoNumerator.Real,
-            Opportunity: DpmoOpportunity.All,
-            Weight: ParetoWeight.Count,
-            TopN: null,
+            Axis: cfg.Axis,
+            Numerator: cfg.Numerator,
+            Opportunity: cfg.Opportunity,
+            Weight: cfg.Weight,
+            TopN: cfg.TopN,
             IncludeOthersBucket: true,
-            VitalFewThresholdPercent: 80.0,
+            VitalFewThresholdPercent: cfg.VitalFewThresholdPercent,
             IncludeObsoleteBits: false,
             MachineIds: ParseIntList(machineIds),
             ProductIds: ParseIntList(productIds),

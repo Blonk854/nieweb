@@ -353,6 +353,55 @@ public sealed class ReportExportEndpointTests : IClassFixture<NiewebApiFactory>
     }
 
     [Fact]
+    public async Task Xlsx_ParetoTile_HonorsPerTileConfig()
+    {
+        var fake = new FakeAoiSource(_postDescriptor)
+        {
+            SeededPanels =
+            [
+                Panel(1, 10, status: 1),
+                Panel(2, 10, status: 2),
+                Panel(3, 11, status: 1),
+            ],
+            SeededMachines =
+            [
+                new Machine(10, 2, "AOI-10", "AOI"),
+                new Machine(11, 2, "AOI-11", "AOI"),
+            ],
+            SeededTestedObjects =
+            [
+                Obj(10, WindowStartEpoch + 60, BitObjectMissing),
+                Obj(10, WindowStartEpoch + 61, 0),
+                Obj(11, WindowStartEpoch + 70, BitObjectMissing),
+            ],
+        };
+        var (authed, factory) = await AuthedClientAsync("rc5-xlsx-pareto-config@nieweb.test", fake);
+        var reportId = await SeedReportWithConfigsAsync(
+            factory!,
+            "Configured Pareto report",
+            ("pareto", "By machine", "{\"axis\":\"AoiMachine\",\"numerator\":\"Aoi\",\"weight\":\"Dpmo\"}"));
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/{reportId}/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var stream = new MemoryStream(bytes);
+        using var wb = new XLWorkbook(stream);
+
+        // The pareto tile's sheet must echo the per-tile config, not the
+        // hardcoded default (axis=Defect / numerator=Real / weight=Count).
+        // This proves ConfigJson now drives the export end to end.
+        var paretoSheet = wb.Worksheets.ElementAt(1);
+        Assert.Equal("AoiMachine", paretoSheet.Cell("B3").GetString());
+        Assert.Equal("Aoi", paretoSheet.Cell("B4").GetString());
+        Assert.Equal("Dpmo", paretoSheet.Cell("B5").GetString());
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Xlsx_UnknownTileType_RendersPlaceholderSheet()
     {
         var (authed, factory) = await AuthedClientAsync("rc5-xlsx-unknown-tile@nieweb.test", new FakeAoiSource(_postDescriptor));

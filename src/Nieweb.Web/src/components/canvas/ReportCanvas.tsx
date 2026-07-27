@@ -22,6 +22,12 @@ export type CanvasTile = {
      */
     id: string;
     type: TileType;
+    /**
+     * The tile's stored `configJson` (per-tile analytic knobs). When
+     * omitted the tile renders its documented defaults. Report-level
+     * filters still come from the canvas fanout, never from here.
+     */
+    config?: string;
 };
 
 /**
@@ -202,7 +208,7 @@ function CanvasTileCard(props: {
                     </Tooltip>
                 </Group>
             </Group>
-            <TileComponent />
+            <TileComponent config={tile.config} />
         </Card>
     );
 }

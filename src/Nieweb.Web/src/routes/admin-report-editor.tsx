@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+    Accordion,
     ActionIcon,
     Alert,
     Badge,
@@ -28,6 +29,7 @@ import {
     IconArrowDown,
     IconArrowLeft,
     IconArrowUp,
+    IconCode,
     IconCopy,
     IconDownload,
     IconEye,
@@ -41,15 +43,6 @@ import {
 import { useTranslation } from "react-i18next";
 
 import {
-    addAdminReportEntity,
-    duplicateAdminReport,
-    getAdminReport,
-    listAdminReportGroups,
-    lockAdminReport,
-    removeAdminReportEntity,
-    unlockAdminReport,
-    updateAdminReport,
-    updateAdminReportEntity,
     type DuplicateReportRequest,
     type EntityRequest,
     type ReportDetailDto,
@@ -59,6 +52,12 @@ import {
     type UpdateReportRequest,
 } from "../api/adminReports";
 import {
+    ReportsApiProvider,
+    adminReportsAdapter,
+    authorReportsAdapter,
+    useReportsApi,
+} from "../api/reportsApi";
+import {
     downloadReportExport,
     reportExportUrl,
     type ReportExportFilter,
@@ -66,6 +65,15 @@ import {
 } from "../api/reportExport";
 import { fetchSources, type SourceInfo } from "../api/sources";
 import { TILE_LABEL_KEYS, TILE_TYPES, type TileType } from "../components/canvas/tileTypes";
+import { TileConfigForm } from "../components/reportConfig/TileConfigForm";
+import { hasTileConfigForm } from "../components/reportConfig/tileConfigSchema";
+import {
+    readChromeDefaults,
+    writeChromeDefaults,
+    resolveWindowPreset,
+    REPORT_WINDOW_PRESETS,
+    type ReportWindowPreset,
+} from "../components/reportConfig/reportChrome";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
 import {
     instantIsoToWallClock,
@@ -97,19 +105,45 @@ import { useSessionStore } from "../state/session";
  * client-side undo / batching is deliberately deferred.
  */
 
-const groupsQueryKey = ["admin", "report-groups"] as const;
-const reportQueryKey = (id: number) => ["admin", "report", id] as const;
+const groupsQueryKey = (mode: string) => [mode, "report-groups"] as const;
+const reportQueryKey = (mode: string, id: number) => [mode, "report", id] as const;
+// The list query the two surfaces invalidate on write differs: the
+// admin list is `["admin","reports"]`, the author "My Reports" list is
+// `["reports","mine"]`. Invalidating the inactive one is a harmless
+// no-op, but targeting the right key keeps each list fresh in place.
+const listQueryKey = (mode: string) =>
+    mode === "author" ? (["reports", "mine"] as const) : (["admin", "reports"] as const);
 
 export function AdminReportEditorRoute() {
+    return (
+        <ReportsApiProvider adapter={adminReportsAdapter}>
+            <ReportEditorScreen />
+        </ReportsApiProvider>
+    );
+}
+
+export function MyReportEditorRoute() {
+    return (
+        <ReportsApiProvider adapter={authorReportsAdapter}>
+            <ReportEditorScreen />
+        </ReportsApiProvider>
+    );
+}
+
+function ReportEditorScreen() {
     const { t } = useTranslation();
+    const api = useReportsApi();
     const params = useParams({ strict: false }) as { id?: string };
     const user = useSessionStore((s) => s.user);
-    const isAdmin = user?.roles.includes("Admin") ?? false;
+    const allowed =
+        api.mode === "author"
+            ? ((user?.roles.includes("Author") || user?.roles.includes("Admin")) ?? false)
+            : (user?.roles.includes("Admin") ?? false);
 
     const reportId = params.id !== undefined ? Number(params.id) : NaN;
     const idValid = Number.isFinite(reportId) && Number.isInteger(reportId);
 
-    if (!isAdmin) {
+    if (!allowed) {
         return (
             <Stack gap="md">
                 <Title order={2}>{t("admin.reports.title")}</Title>
@@ -146,11 +180,12 @@ export function AdminReportEditorRoute() {
 
 function BackLink() {
     const { t } = useTranslation();
+    const api = useReportsApi();
     return (
         <Group gap="xs">
             <Button
                 component={Link}
-                to="/admin/reports"
+                to={api.mode === "author" ? "/reports" : "/admin/reports"}
                 variant="subtle"
                 size="xs"
                 leftSection={<IconArrowLeft size={14} />}
@@ -164,14 +199,15 @@ function BackLink() {
 function EditorBody(props: { reportId: number }) {
     const { t } = useTranslation();
     const { reportId } = props;
+    const api = useReportsApi();
 
     const groupsQuery = useQuery({
-        queryKey: groupsQueryKey,
-        queryFn: listAdminReportGroups,
+        queryKey: groupsQueryKey(api.mode),
+        queryFn: api.listGroups,
     });
     const reportQuery = useQuery({
-        queryKey: reportQueryKey(reportId),
-        queryFn: () => getAdminReport(reportId),
+        queryKey: reportQueryKey(api.mode, reportId),
+        queryFn: () => api.getReport(reportId),
     });
 
     if (reportQuery.isPending) {
@@ -227,6 +263,8 @@ type HeaderFormValues = {
     displayOrder: number;
     isLocked: boolean;
     isPinnedHome: boolean;
+    defaultSourceId: string | null;
+    defaultWindowPreset: string | null;
 };
 
 function HeaderForm(props: {
@@ -235,21 +273,32 @@ function HeaderForm(props: {
 }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const api = useReportsApi();
     const [savedFlash, setSavedFlash] = useState(false);
     const [serverError, setServerError] = useState<string | null>(null);
     const report = props.detail.report;
 
+    const sourcesQuery = useQuery({
+        queryKey: ["sources"] as const,
+        queryFn: fetchSources,
+    });
+
     const initial: HeaderFormValues = useMemo(
-        () => ({
-            title: report.title,
-            description: report.description ?? "",
-            groupId: report.reportGroupId !== null ? String(report.reportGroupId) : null,
-            refreshSeconds:
-                report.refreshFrequencySeconds ?? "",
-            displayOrder: report.displayOrder,
-            isLocked: report.isLocked,
-            isPinnedHome: report.isPinnedHome,
-        }),
+        () => {
+            const chrome = readChromeDefaults(report.chromeJson);
+            return {
+                title: report.title,
+                description: report.description ?? "",
+                groupId: report.reportGroupId !== null ? String(report.reportGroupId) : null,
+                refreshSeconds:
+                    report.refreshFrequencySeconds ?? "",
+                displayOrder: report.displayOrder,
+                isLocked: report.isLocked,
+                isPinnedHome: report.isPinnedHome,
+                defaultSourceId: chrome.defaultSourceId ?? null,
+                defaultWindowPreset: chrome.defaultWindowPreset ?? null,
+            };
+        },
         [report],
     );
 
@@ -280,14 +329,32 @@ function HeaderForm(props: {
         [props.groups],
     );
 
+    const sourceOptions = useMemo(
+        () =>
+            (sourcesQuery.data ?? []).map((s: SourceInfo) => ({
+                value: s.id,
+                label: s.available ? s.displayName : `${s.displayName} (unavailable)`,
+            })),
+        [sourcesQuery.data],
+    );
+
+    const presetOptions = useMemo(
+        () =>
+            REPORT_WINDOW_PRESETS.map((p) => ({
+                value: p,
+                label: t(`admin.reports.editor.header.windowPreset.${p}` as const),
+            })),
+        [t],
+    );
+
     const mutation = useMutation({
-        mutationFn: (body: UpdateReportRequest) => updateAdminReport(report.id, body),
+        mutationFn: (body: UpdateReportRequest) => api.updateReport(report.id, body),
         onSuccess: async () => {
             setServerError(null);
             setSavedFlash(true);
             window.setTimeout(() => setSavedFlash(false), 1500);
-            await queryClient.invalidateQueries({ queryKey: reportQueryKey(report.id) });
-            await queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
+            await queryClient.invalidateQueries({ queryKey: reportQueryKey(api.mode, report.id) });
+            await queryClient.invalidateQueries({ queryKey: listQueryKey(api.mode) });
         },
         onError: () => {
             setServerError(t("admin.reports.editor.header.unexpectedError"));
@@ -311,7 +378,12 @@ function HeaderForm(props: {
                         isPinnedHome: values.isPinnedHome,
                         refreshFrequencySeconds:
                             values.refreshSeconds === "" ? null : values.refreshSeconds,
-                        chromeJson: report.chromeJson,
+                        chromeJson: writeChromeDefaults(report.chromeJson, {
+                            defaultSourceId: values.defaultSourceId ?? undefined,
+                            defaultWindowPreset:
+                                (values.defaultWindowPreset as ReportWindowPreset | null) ??
+                                undefined,
+                        }),
                         displayOrder: values.displayOrder,
                     });
                 })}
@@ -364,6 +436,25 @@ function HeaderForm(props: {
                             )
                         }
                     />
+                    <Group grow>
+                        <Select
+                            label={t("admin.reports.editor.header.defaultSourceLabel")}
+                            description={t("admin.reports.editor.header.defaultSourceHint")}
+                            placeholder={t("admin.reports.editor.header.defaultSourcePlaceholder")}
+                            data={sourceOptions}
+                            clearable
+                            disabled={sourcesQuery.isPending}
+                            {...form.getInputProps("defaultSourceId")}
+                        />
+                        <Select
+                            label={t("admin.reports.editor.header.defaultWindowLabel")}
+                            description={t("admin.reports.editor.header.defaultWindowHint")}
+                            placeholder={t("admin.reports.editor.header.defaultWindowPlaceholder")}
+                            data={presetOptions}
+                            clearable
+                            {...form.getInputProps("defaultWindowPreset")}
+                        />
+                    </Group>
                     <Group>
                         <Checkbox
                             label={t("admin.reports.editor.header.isPinnedHomeLabel")}
@@ -409,20 +500,21 @@ function HeaderForm(props: {
 function TilesCard(props: { detail: ReportDetailDto }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const api = useReportsApi();
     const router = useRouter();
     const detail = props.detail;
     const reportId = detail.report.id;
 
     const invalidate = async () => {
-        await queryClient.invalidateQueries({ queryKey: reportQueryKey(reportId) });
-        await queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
+        await queryClient.invalidateQueries({ queryKey: reportQueryKey(api.mode, reportId) });
+        await queryClient.invalidateQueries({ queryKey: listQueryKey(api.mode) });
         // Re-render the parent so `detail` refreshes with new tiles.
         await router.invalidate();
     };
 
     const addMutation = useMutation({
         mutationFn: (type: TileType) =>
-            addAdminReportEntity(reportId, {
+            api.addEntity(reportId, {
                 tileType: type,
                 displayOrder: -1,
                 configJson: "{}",
@@ -432,7 +524,7 @@ function TilesCard(props: { detail: ReportDetailDto }) {
 
     const moveMutation = useMutation({
         mutationFn: (args: { entity: ReportEntityDto; newOrder: number }) =>
-            updateAdminReportEntity(reportId, args.entity.id, {
+            api.updateEntity(reportId, args.entity.id, {
                 tileType: args.entity.tileType,
                 title: args.entity.title,
                 displayOrder: args.newOrder,
@@ -442,7 +534,7 @@ function TilesCard(props: { detail: ReportDetailDto }) {
     });
 
     const removeMutation = useMutation({
-        mutationFn: (entityId: number) => removeAdminReportEntity(reportId, entityId),
+        mutationFn: (entityId: number) => api.removeEntity(reportId, entityId),
         onSuccess: invalidate,
     });
 
@@ -514,7 +606,7 @@ function TilesCard(props: { detail: ReportDetailDto }) {
                             onMoveDown={() => handleMove(index, 1)}
                             onRemove={() => removeMutation.mutate(entity.id)}
                             onSave={(body) =>
-                                updateAdminReportEntity(reportId, entity.id, body).then(
+                                api.updateEntity(reportId, entity.id, body).then(
                                     invalidate,
                                 )
                             }
@@ -687,45 +779,74 @@ function TileRow(props: {
                         onChange={(e) => setTileTitle(e.currentTarget.value)}
                     />
                 </Group>
-                <Textarea
-                    label={
-                        isComment
-                            ? t("admin.reports.editor.tiles.commentLabel")
-                            : t("admin.reports.editor.tiles.configLabel")
-                    }
-                    description={
-                        isComment
-                            ? t("admin.reports.editor.tiles.commentHint")
-                            : t("admin.reports.editor.tiles.configHint")
-                    }
-                    placeholder={
-                        isComment
-                            ? t("admin.reports.editor.tiles.commentPlaceholder")
-                            : undefined
-                    }
-                    autosize
-                    minRows={isComment ? 6 : 3}
-                    maxRows={isComment ? 20 : 12}
-                    styles={
-                        isComment
-                            ? undefined
-                            : {
-                                input: {
-                                    fontFamily:
-                                        "ui-monospace, SFMono-Regular, Menlo, monospace",
-                                },
-                            }
-                    }
-                    value={isComment ? currentMarkdown : configText}
-                    onChange={(e) => {
-                        const next = e.currentTarget.value;
-                        if (isComment) {
-                            setConfigText(JSON.stringify({ markdown: next }));
-                        } else {
-                            setConfigText(next);
-                        }
-                    }}
-                />
+                {isComment ? (
+                    <Textarea
+                        label={t("admin.reports.editor.tiles.commentLabel")}
+                        description={t("admin.reports.editor.tiles.commentHint")}
+                        placeholder={t("admin.reports.editor.tiles.commentPlaceholder")}
+                        autosize
+                        minRows={6}
+                        maxRows={20}
+                        value={currentMarkdown}
+                        onChange={(e) => {
+                            setConfigText(
+                                JSON.stringify({ markdown: e.currentTarget.value }),
+                            );
+                        }}
+                    />
+                ) : hasTileConfigForm(tileType) ? (
+                    <Stack gap="sm">
+                        <TileConfigForm
+                            tileType={tileType}
+                            value={configText}
+                            onChange={setConfigText}
+                        />
+                        <Accordion variant="contained">
+                            <Accordion.Item value="advanced-json">
+                                <Accordion.Control
+                                    icon={<IconCode size={16} />}
+                                >
+                                    {t("admin.reports.editor.tiles.advancedLabel")}
+                                </Accordion.Control>
+                                <Accordion.Panel>
+                                    <Textarea
+                                        aria-label={t("admin.reports.editor.tiles.configLabel")}
+                                        description={t("admin.reports.editor.tiles.configHint")}
+                                        autosize
+                                        minRows={3}
+                                        maxRows={12}
+                                        styles={{
+                                            input: {
+                                                fontFamily:
+                                                    "ui-monospace, SFMono-Regular, Menlo, monospace",
+                                            },
+                                        }}
+                                        value={configText}
+                                        onChange={(e) =>
+                                            setConfigText(e.currentTarget.value)
+                                        }
+                                    />
+                                </Accordion.Panel>
+                            </Accordion.Item>
+                        </Accordion>
+                    </Stack>
+                ) : (
+                    <Textarea
+                        label={t("admin.reports.editor.tiles.configLabel")}
+                        description={t("admin.reports.editor.tiles.configHint")}
+                        autosize
+                        minRows={3}
+                        maxRows={12}
+                        styles={{
+                            input: {
+                                fontFamily:
+                                    "ui-monospace, SFMono-Regular, Menlo, monospace",
+                            },
+                        }}
+                        value={configText}
+                        onChange={(e) => setConfigText(e.currentTarget.value)}
+                    />
+                )}
                 {status.kind === "error" && (
                     <Alert
                         role="alert"
@@ -850,6 +971,7 @@ function LockActionsCard(props: { detail: ReportDetailDto }) {
 function LockReportModal(props: { reportId: number; onClose: () => void }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const api = useReportsApi();
     const [serverError, setServerError] = useState<string | null>(null);
     const form = useForm<ReportPasswordRequest>({
         initialValues: { password: "" },
@@ -861,11 +983,11 @@ function LockReportModal(props: { reportId: number; onClose: () => void }) {
         },
     });
     const mutation = useMutation({
-        mutationFn: (body: ReportPasswordRequest) => lockAdminReport(props.reportId, body),
+        mutationFn: (body: ReportPasswordRequest) => api.lock(props.reportId, body),
         onSuccess: async () => {
             setServerError(null);
-            await queryClient.invalidateQueries({ queryKey: reportQueryKey(props.reportId) });
-            await queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
+            await queryClient.invalidateQueries({ queryKey: reportQueryKey(api.mode, props.reportId) });
+            await queryClient.invalidateQueries({ queryKey: listQueryKey(api.mode) });
             props.onClose();
         },
         onError: () => setServerError(t("admin.reports.editor.lock.unexpectedError")),
@@ -910,6 +1032,7 @@ function LockReportModal(props: { reportId: number; onClose: () => void }) {
 function UnlockReportModal(props: { reportId: number; onClose: () => void }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const api = useReportsApi();
     const [serverError, setServerError] = useState<string | null>(null);
     const form = useForm<ReportPasswordRequest>({
         initialValues: { password: "" },
@@ -921,11 +1044,11 @@ function UnlockReportModal(props: { reportId: number; onClose: () => void }) {
         },
     });
     const mutation = useMutation({
-        mutationFn: (body: ReportPasswordRequest) => unlockAdminReport(props.reportId, body),
+        mutationFn: (body: ReportPasswordRequest) => api.unlock(props.reportId, body),
         onSuccess: async () => {
             setServerError(null);
-            await queryClient.invalidateQueries({ queryKey: reportQueryKey(props.reportId) });
-            await queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
+            await queryClient.invalidateQueries({ queryKey: reportQueryKey(api.mode, props.reportId) });
+            await queryClient.invalidateQueries({ queryKey: listQueryKey(api.mode) });
             props.onClose();
         },
         onError: (err) => {
@@ -986,6 +1109,7 @@ function DuplicateFromEditorModal(props: {
 }) {
     const { t } = useTranslation();
     const queryClient = useQueryClient();
+    const api = useReportsApi();
     const router = useRouter();
     const [serverError, setServerError] = useState<string | null>(null);
     const form = useForm<DuplicateReportRequest>({
@@ -1002,12 +1126,13 @@ function DuplicateFromEditorModal(props: {
     });
     const mutation = useMutation({
         mutationFn: (body: DuplicateReportRequest) =>
-            duplicateAdminReport(props.report.id, body),
+            api.duplicate(props.report.id, body),
         onSuccess: async (dto) => {
             setServerError(null);
-            await queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
+            await queryClient.invalidateQueries({ queryKey: listQueryKey(api.mode) });
             props.onClose();
-            void router.navigate({ to: `/admin/reports/${dto.id}` });
+            const prefix = api.mode === "author" ? "/reports" : "/admin/reports";
+            void router.navigate({ to: `${prefix}/${dto.id}` });
         },
         onError: () => setServerError(t("admin.reports.editor.lock.unexpectedError")),
     });
@@ -1032,11 +1157,13 @@ function DuplicateFromEditorModal(props: {
                         label={t("admin.reports.editor.lock.duplicateTitleField")}
                         {...form.getInputProps("title")}
                     />
-                    <TextInput
-                        label={t("admin.reports.editor.lock.duplicateOwner")}
-                        withAsterisk
-                        {...form.getInputProps("ownerDisplayName")}
-                    />
+                    {api.mode === "admin" && (
+                        <TextInput
+                            label={t("admin.reports.editor.lock.duplicateOwner")}
+                            withAsterisk
+                            {...form.getInputProps("ownerDisplayName")}
+                        />
+                    )}
                     {serverError !== null && (
                         <Alert role="alert" icon={<IconAlertCircle size={16} />} color="red" variant="light">
                             {serverError}
@@ -1084,7 +1211,16 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
     // UTC means a user in JST who opens the dialog just after midnight
     // Tokyo time sees "yesterday" as the day that just ended locally,
     // not the previous UTC day.
+    const chromeDefaults = readChromeDefaults(props.detail.report.chromeJson);
+    const defaultWindowPreset = chromeDefaults.defaultWindowPreset;
+
+    // Seed the window from the report's saved default preset when the
+    // author set one; otherwise fall back to "yesterday 00:00 -> today
+    // 00:00" in the user's configured time zone.
     const defaults = useMemo(() => {
+        if (defaultWindowPreset) {
+            return resolveWindowPreset(defaultWindowPreset, timeZone);
+        }
         // Today's Y-M-D as it appears in `timeZone`.
         const todayWall = instantIsoToWallClock(new Date().toISOString(), timeZone, "T");
         const todayDate = todayWall.slice(0, 10);
@@ -1098,9 +1234,11 @@ function ExportReportCard(props: { detail: ReportDetailDto }) {
             start: `${yesterdayDate}T00:00`,
             end: `${todayDate}T00:00`,
         };
-    }, [timeZone]);
+    }, [timeZone, defaultWindowPreset]);
 
-    const [sourceId, setSourceId] = useState<string | null>(null);
+    const [sourceId, setSourceId] = useState<string | null>(
+        chromeDefaults.defaultSourceId ?? null,
+    );
     const [startLocal, setStartLocal] = useState<string>(defaults.start);
     const [endLocal, setEndLocal] = useState<string>(defaults.end);
     const [busy, setBusy] = useState<ReportExportFormat | null>(null);

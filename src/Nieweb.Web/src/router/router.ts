@@ -21,7 +21,8 @@ import { OidcReturnRoute } from "../routes/oidc-return";
 import { AdminUsersRoute } from "../routes/admin-users";
 import { AdminAuditRoute } from "../routes/admin-audit";
 import { AdminReportsRoute } from "../routes/admin-reports";
-import { AdminReportEditorRoute } from "../routes/admin-report-editor";
+import { AdminReportEditorRoute, MyReportEditorRoute } from "../routes/admin-report-editor";
+import { MyReportsRoute } from "../routes/my-reports";
 import { AdminBoardSvgsRoute } from "../routes/admin-board-svgs";
 import { AdminParametersRoute } from "../routes/admin-parameters";
 import { AdminProductionLinesRoute } from "../routes/admin-production-lines";
@@ -213,6 +214,25 @@ const settingsDatabasesRoute = createRoute({
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
+// Self-service "My Reports" list for Author / Admin users (RC2). The
+// Author-role check lives inside the component so signed-in non-authors
+// see a localised forbidden panel rather than a silent bounce.
+const myReportsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/reports",
+    component: MyReportsRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+// Author-facing editor for one of the caller's own reports. Reuses the
+// shared report editor with the owner-scoped `/api/reports` adapter.
+const myReportEditorRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/reports/$id",
+    component: MyReportEditorRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
 const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
@@ -225,6 +245,8 @@ const routeTree = rootRoute.addChildren([
     adminAuditRoute,
     adminReportsRoute,
     adminReportEditorRoute,
+    myReportsRoute,
+    myReportEditorRoute,
     adminBoardSvgsRoute,
     adminParametersRoute,
     adminProductionLinesRoute,

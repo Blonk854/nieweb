@@ -13,7 +13,7 @@ import {
 } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import i18n from "../i18n";
-import { AdminReportEditorRoute } from "./admin-report-editor";
+import { AdminReportEditorRoute, MyReportEditorRoute } from "./admin-report-editor";
 import { useSessionStore } from "../state/session";
 
 /**
@@ -199,6 +199,9 @@ describe("AdminReportEditorRoute", () => {
 
         const row = await screen.findByTestId("tile-row-200");
         const user = userEvent.setup();
+        // The raw JSON editor now lives behind the "Advanced (JSON)"
+        // disclosure — non-technical users use the guided form above it.
+        await user.click(within(row).getByRole("button", { name: /advanced \(json\)/i }));
         const textarea = within(row).getByLabelText(/config json/i);
         await user.clear(textarea);
         await user.type(textarea, "not-json");
@@ -492,5 +495,76 @@ describe("AdminReportEditorRoute", () => {
             tileType: "comment",
             configJson: JSON.stringify({ markdown: "Hello world." }),
         });
+    });
+});
+
+function renderMyEditor(reportId = 7) {
+    const rootRoute = createRootRoute({ component: Outlet });
+    const listRoute = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/reports",
+        component: () => null,
+    });
+    const editorRoute = createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/reports/$id",
+        component: MyReportEditorRoute,
+    });
+    const routeTree = rootRoute.addChildren([listRoute, editorRoute]);
+    const router = createRouter({
+        routeTree,
+        history: createMemoryHistory({ initialEntries: [`/reports/${reportId}`] }),
+    });
+    const client = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+    return render(
+        <MantineProvider>
+            <QueryClientProvider client={client}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>
+        </MantineProvider>,
+    );
+}
+
+describe("MyReportEditorRoute (author mode)", () => {
+    beforeEach(() => {
+        void i18n.changeLanguage("en");
+        useSessionStore.getState().clear();
+        window.localStorage.clear();
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    it("loads the report through the owner-scoped /api/reports endpoint", async () => {
+        signInAs(["Author"]);
+        // Only the author endpoint is stubbed; if the editor hit the admin
+        // endpoint instead the fetch stub would throw "Unexpected fetch".
+        stubFetch([
+            {
+                match: (u, i) =>
+                    /\/api\/reports\/7$/.test(u) && (i?.method ?? "GET") === "GET",
+                status: 200,
+                body: detailBody([
+                    { id: 400, tileType: "pareto", displayOrder: 0, configJson: "{}" },
+                ]),
+            },
+        ]);
+        renderMyEditor();
+        expect(await screen.findByText("Test report")).toBeInTheDocument();
+        expect(await screen.findByTestId("tile-row-400")).toBeInTheDocument();
+    });
+
+    it("shows a forbidden alert for a Reader", async () => {
+        signInAs(["Reader"]);
+        renderMyEditor();
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
     });
 });

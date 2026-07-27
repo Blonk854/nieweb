@@ -9,6 +9,7 @@ import {
     Modal,
     NumberInput,
     Select,
+    SimpleGrid,
     Stack,
     Table,
     Text,
@@ -33,6 +34,7 @@ import { useTranslation } from "react-i18next";
 
 import {
     createAdminReport,
+    addAdminReportEntity,
     createAdminReportGroup,
     deleteAdminReport,
     deleteAdminReportGroup,
@@ -51,6 +53,11 @@ import {
 import { ApiError } from "../api/client";
 import { useSessionStore } from "../state/session";
 import { relativeFromNow } from "../components/freshness";
+import {
+    REPORT_TEMPLATES,
+    DEFAULT_TEMPLATE_ID,
+    type ReportTemplate,
+} from "../components/reportConfig/reportTemplates";
 
 /**
  * Admin route `/admin/reports` — the RC2 entry point for
@@ -712,7 +719,9 @@ function CreateReportModal(props: {
     onSaved: () => Promise<void> | void;
 }) {
     const { t } = useTranslation();
+    const tr = t as unknown as (key: string) => string;
     const [serverError, setServerError] = useState<string | null>(null);
+    const [templateId, setTemplateId] = useState<string>(DEFAULT_TEMPLATE_ID);
     type FormValues = {
         title: string;
         description: string;
@@ -748,10 +757,27 @@ function CreateReportModal(props: {
     );
 
     const mutation = useMutation({
-        mutationFn: (body: CreateReportRequest) => createAdminReport(body),
+        mutationFn: async (input: {
+            body: CreateReportRequest;
+            tiles: ReportTemplate["tiles"];
+        }) => {
+            const report = await createAdminReport(input.body);
+            // Expand the chosen template's tiles onto the fresh report.
+            let order = 0;
+            for (const tile of input.tiles) {
+                await addAdminReportEntity(report.id, {
+                    tileType: tile.tileType,
+                    title: null,
+                    displayOrder: order++,
+                    configJson: tile.configJson,
+                });
+            }
+            return report;
+        },
         onSuccess: async () => {
             setServerError(null);
             form.reset();
+            setTemplateId(DEFAULT_TEMPLATE_ID);
             await props.onSaved();
         },
         onError: () => {
@@ -765,6 +791,7 @@ function CreateReportModal(props: {
             onClose={() => {
                 form.reset();
                 setServerError(null);
+                setTemplateId(DEFAULT_TEMPLATE_ID);
                 props.onClose();
             }}
             title={t("admin.reports.list.create.title")}
@@ -772,22 +799,74 @@ function CreateReportModal(props: {
         >
             <form
                 onSubmit={form.onSubmit((values) => {
+                    const template =
+                        REPORT_TEMPLATES.find((tpl) => tpl.id === templateId) ??
+                        REPORT_TEMPLATES[0];
                     const desc = values.description.trim();
                     mutation.mutate({
-                        title: values.title.trim(),
-                        description: desc.length > 0 ? desc : null,
-                        reportGroupId:
-                            values.groupId !== null
-                                ? Number(values.groupId)
-                                : null,
-                        ownerDisplayName: values.owner.trim(),
-                        isLocked: false,
-                        isPinnedHome: false,
-                        displayOrder: 0,
+                        body: {
+                            title: values.title.trim(),
+                            description: desc.length > 0 ? desc : null,
+                            reportGroupId:
+                                values.groupId !== null
+                                    ? Number(values.groupId)
+                                    : null,
+                            ownerDisplayName: values.owner.trim(),
+                            isLocked: false,
+                            isPinnedHome: false,
+                            displayOrder: 0,
+                            chromeJson: template.chromeJson,
+                        },
+                        tiles: template.tiles,
                     });
                 })}
             >
                 <Stack gap="sm">
+                    <Stack gap={4}>
+                        <Text size="sm" fw={500}>
+                            {t("admin.reports.list.create.template.label")}
+                        </Text>
+                        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+                            {REPORT_TEMPLATES.map((tpl) => {
+                                const selected = tpl.id === templateId;
+                                return (
+                                    <Card
+                                        key={tpl.id}
+                                        withBorder
+                                        padding="sm"
+                                        radius="md"
+                                        data-testid={`report-template-${tpl.id}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-pressed={selected}
+                                        onClick={() => {
+                                            setTemplateId(tpl.id);
+                                            if (
+                                                tpl.id !== "blank" &&
+                                                form.values.title.trim().length === 0
+                                            ) {
+                                                form.setFieldValue("title", tr(tpl.nameKey));
+                                            }
+                                        }}
+                                        style={{
+                                            cursor: "pointer",
+                                            borderColor: selected
+                                                ? "var(--mantine-color-blue-filled)"
+                                                : undefined,
+                                            borderWidth: selected ? 2 : undefined,
+                                        }}
+                                    >
+                                        <Text fw={600} size="sm">
+                                            {tr(tpl.nameKey)}
+                                        </Text>
+                                        <Text size="xs" c="dimmed">
+                                            {tr(tpl.descKey)}
+                                        </Text>
+                                    </Card>
+                                );
+                            })}
+                        </SimpleGrid>
+                    </Stack>
                     <TextInput
                         label={t("admin.reports.list.create.titleLabel")}
                         placeholder={t("admin.reports.list.create.titlePlaceholder")}
