@@ -43,6 +43,12 @@ public static class IdentityServiceCollectionExtensions
         services.Configure<Argon2idOptions>(
             configuration.GetSection("Nieweb:Identity:Argon2id"));
 
+        // Master switch: when Nieweb:Security:RelaxedLogin is true we
+        // minimise the password rules and disable lockout. The strict
+        // config is still read first, so flipping the flag off restores
+        // the hardened policy with no code change.
+        var relaxedLogin = configuration.GetValue<bool>("Nieweb:Security:RelaxedLogin");
+
         services
             .AddIdentityCore<NiewebUser>(options =>
             {
@@ -52,6 +58,17 @@ public static class IdentityServiceCollectionExtensions
                 // Nieweb keys off email for unique login regardless of
                 // whether the user is local or OIDC-provisioned.
                 options.User.RequireUniqueEmail = true;
+
+                if (relaxedLogin)
+                {
+                    options.Password.RequiredLength = 1;
+                    options.Password.RequireDigit = false;
+                    options.Password.RequireLowercase = false;
+                    options.Password.RequireUppercase = false;
+                    options.Password.RequireNonAlphanumeric = false;
+                    options.Password.RequiredUniqueChars = 0;
+                    options.Lockout.AllowedForNewUsers = false;
+                }
             })
             .AddRoles<NiewebRole>()
             .AddEntityFrameworkStores<NiewebDbContext>()

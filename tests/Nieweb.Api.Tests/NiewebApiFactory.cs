@@ -53,6 +53,9 @@ public class NiewebApiFactory : WebApplicationFactory<Program>
                 ["Nieweb:Identity:Password:RequireUppercase"] = "false",
                 ["Nieweb:Identity:Password:RequireNonAlphanumeric"] = "false",
                 ["Nieweb:Identity:Password:RequiredUniqueChars"] = "1",
+                // Exercise the hardened login path in tests (appsettings.json
+                // ships RelaxedLogin=true for the dev pilot).
+                ["Nieweb:Security:RelaxedLogin"] = "false",
                 // Disable the board-SVG sync background service so the
                 // test host doesn't touch real disk on every boot. The
                 // /sync and /status endpoints still work because they

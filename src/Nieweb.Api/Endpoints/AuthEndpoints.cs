@@ -78,8 +78,13 @@ public static partial class AuthEndpoints
     /// <summary>Login request body.</summary>
     public sealed record LoginRequest
     {
-        /// <summary>Registered email address (case-insensitive).</summary>
-        [Required, EmailAddress]
+        /// <summary>
+        /// Login identifier: a registered email address <b>or</b> a
+        /// username (both case-insensitive). The field is named
+        /// <c>Email</c> for wire compatibility but is treated as an
+        /// identifier — email lookup is tried first, then username.
+        /// </summary>
+        [Required]
         public string Email { get; init; } = string.Empty;
 
         /// <summary>Plain-text password. Never logged, never stored.</summary>
@@ -144,12 +149,18 @@ public static partial class AuthEndpoints
         UserManager<NiewebUser> users,
         IJwtTokenIssuer tokens,
         Audit.IAuditLog audit,
+        Microsoft.Extensions.Options.IOptions<Auth.SecurityOptions> security,
         ILogger<LoginRequestMarker> logger,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(security);
 
-        var user = await users.FindByEmailAsync(request.Email).ConfigureAwait(false);
+        // Accept an email OR a username. Email is tried first (the common
+        // case); usernames that happen to contain '@' still resolve via
+        // the fallback.
+        var user = await users.FindByEmailAsync(request.Email).ConfigureAwait(false)
+            ?? await users.FindByNameAsync(request.Email).ConfigureAwait(false);
         if (user is null || user.IsDisabled)
         {
             // Do not disclose whether the account exists.
@@ -205,26 +216,31 @@ public static partial class AuthEndpoints
         var issued = tokens.Issue(user, (IReadOnlyCollection<string>)roles);
 
         LogGranted(logger, user.Id);
+        // Relaxed-login mode leaves the MustRotatePassword column intact
+        // but does not force the change on the client.
+        var mustRotate = user.MustRotatePassword && !security.Value.RelaxedLogin;
         await audit.WriteAsync(
             Audit.AuditEventTypes.AuthSignInOk,
             Audit.AuditTargetTypes.Session,
             user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
             actorUserId: user.Id,
             actorDisplayName: user.DisplayName,
-            details: new { email = user.Email, mustRotatePassword = user.MustRotatePassword, roles },
+            details: new { email = user.Email, mustRotatePassword = mustRotate, roles },
             cancellationToken).ConfigureAwait(false);
         return Results.Ok(new LoginResponse(
             issued.AccessToken,
             "Bearer",
             issued.ExpiresUtc,
-            user.MustRotatePassword));
+            mustRotate));
     }
 
     private static async Task<IResult> WhoAmIAsync(
         ClaimsPrincipal principal,
-        UserManager<NiewebUser> users)
+        UserManager<NiewebUser> users,
+        Microsoft.Extensions.Options.IOptions<Auth.SecurityOptions> security)
     {
         ArgumentNullException.ThrowIfNull(principal);
+        ArgumentNullException.ThrowIfNull(security);
 
         // The MustRotatePassword flag lives in the DB, not the JWT,
         // so a token issued just before an admin flips the flag stops

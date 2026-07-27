@@ -95,11 +95,8 @@ export function LoginRoute() {
                 if (!value.trim()) {
                     return t("login.form.emailRequired");
                 }
-                // Deliberately-permissive check; the server does the
-                // authoritative validation via [EmailAddress].
-                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
-                    return t("login.form.emailInvalid");
-                }
+                // Accepts an email OR a username; the server resolves
+                // whichever it is. No client-side format requirement.
                 return null;
             },
             password: (value) =>
@@ -225,7 +222,7 @@ export function LoginRoute() {
                         <TextInput
                             label={t("login.form.emailLabel")}
                             placeholder={t("login.form.emailPlaceholder")}
-                            type="email"
+                            type="text"
                             autoComplete="username"
                             required
                             {...form.getInputProps("email")}
