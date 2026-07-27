@@ -130,6 +130,27 @@ describe("RootLayout SideNav", () => {
         expect(screen.queryByText("Settings")).not.toBeInTheDocument();
     });
 
+    it("moves the active highlight to the current route (no locked item)", async () => {
+        signInAs(["Reader"]);
+        renderLayoutAt("/");
+        const user = userEvent.setup();
+
+        const panelYield = await screen.findByRole("link", {
+            name: "Panel Yield by Line",
+        });
+        const pareto = screen.getByRole("link", { name: "Pareto" });
+
+        await user.click(panelYield);
+        expect(panelYield).toHaveAttribute("data-active");
+        expect(pareto).not.toHaveAttribute("data-active");
+
+        // Selecting another item must release the previous highlight —
+        // the reported bug left the first-clicked item locked as active.
+        await user.click(pareto);
+        expect(pareto).toHaveAttribute("data-active");
+        expect(panelYield).not.toHaveAttribute("data-active");
+    });
+
     it("shows Timezone and Change password under Settings for non-admin users", async () => {
         signInAs(["Reader"]);
         renderLayoutAt("/");
@@ -140,7 +161,7 @@ describe("RootLayout SideNav", () => {
             within(branch).queryByText("Audit trail"),
         ).not.toBeInTheDocument();
         expect(
-            within(branch).queryByText("Board SVGs"),
+            within(branch).queryByText("Panel SVGs"),
         ).not.toBeInTheDocument();
         expect(
             within(branch).queryByText("Production lines"),
@@ -168,7 +189,7 @@ describe("RootLayout SideNav", () => {
         for (const label of [
             "Users",
             "Audit trail",
-            "Board SVGs",
+            "Panel SVGs",
             "Production lines",
             "Shifts",
             "MSA parameters",

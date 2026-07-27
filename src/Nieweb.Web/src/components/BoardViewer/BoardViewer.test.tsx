@@ -119,7 +119,7 @@ describe("BoardViewer", () => {
             highlights: [],
         });
         expect(
-            screen.getByText(/Select a product to view its board layout\./i),
+            screen.getByText(/Select a product to view its panel layout\./i),
         ).toBeInTheDocument();
         expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -439,7 +439,7 @@ describe("BoardViewer", () => {
             highlights: [{ subpanelIndex: 1, reference: "U1" }],
         });
 
-        await screen.findByText(/Board layout not yet available/i);
+        await screen.findByText(/Panel layout not yet available/i);
         const retry = screen.getByRole("button", { name: /Retry/i });
         const user = userEvent.setup();
         await user.click(retry);

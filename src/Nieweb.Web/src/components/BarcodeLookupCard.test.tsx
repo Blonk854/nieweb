@@ -57,7 +57,7 @@ describe("BarcodeLookupCard", () => {
         expect(
             await screen.findByRole("heading", {
                 level: 4,
-                name: /look up a board by barcode/i,
+                name: /look up a panel by barcode/i,
             }),
         ).toBeInTheDocument();
         expect(screen.getByTestId("home-barcode-input")).toBeInTheDocument();

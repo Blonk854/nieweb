@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import {
     AppShell,
@@ -91,8 +91,11 @@ export function RootLayout() {
 }
 
 function SideNav() {
-    const router = useRouter();
-    const active = router.state.location.pathname;
+    // Subscribe to the location so the nav re-renders on every
+    // navigation. Reading router.state imperatively (via useRouter) is
+    // NOT reactive, which left the first-selected item locked as active
+    // while later selections also lit up.
+    const active = useRouterState({ select: (s) => s.location.pathname });
     const { t } = useTranslation();
     const user = useSessionStore((s) => s.user);
     const isAdmin = user?.roles.includes("Admin") ?? false;
@@ -131,6 +134,27 @@ function SideNav() {
                 label={t("nav.pareto")}
                 leftSection={<IconChartBar size={18} />}
                 active={active.startsWith("/report/pareto")}
+            />
+            <NavLink
+                component={Link}
+                to="/report/dpmo"
+                label={t("nav.dpmo")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/dpmo")}
+            />
+            <NavLink
+                component={Link}
+                to="/report/fpy"
+                label={t("nav.fpy")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/fpy")}
+            />
+            <NavLink
+                component={Link}
+                to="/report/skip-summary"
+                label={t("nav.skipSummary")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/skip-summary")}
             />
             <NavLink
                 component={Link}
@@ -227,6 +251,15 @@ function SideNav() {
                             label={t("nav.adminParameters")}
                             leftSection={<IconAdjustments size={18} />}
                             active={active.startsWith("/admin/parameters")}
+                        />
+                    )}
+                    {isAdmin && (
+                        <NavLink
+                            component={Link}
+                            to="/admin/skip-classification"
+                            label={t("nav.adminSkipClassification")}
+                            leftSection={<IconAdjustments size={18} />}
+                            active={active.startsWith("/admin/skip-classification")}
                         />
                     )}
                     {user && (
