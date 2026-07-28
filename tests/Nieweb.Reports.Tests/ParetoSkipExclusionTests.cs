@@ -93,6 +93,28 @@ public sealed class ParetoSkipExclusionTests
         Assert.Equal(50L, result.Rows[0].DefectCount);
     }
 
+    [Fact]
+    public async Task Clean_WithManualSkipException_KeepsBothBoards()
+    {
+        var source = BuildSource();
+        // Clean removes skipped boards, but ManualSkip is listed as an
+        // exception, so the X-OUT board is kept alongside the clean board.
+        var filter = new ParetoFilter(_oneDay, ParetoAxis.Defect, Numerator: DpmoNumerator.Aoi)
+        {
+            SkipExclusion = SkipExclusion.Clean,
+            SkipStatuses = [SkipClass.ManualSkip],
+        };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        // None board (1 real defect) + ManualSkip board kept (50) → 51.
+        Assert.Equal(51L, result.Overall.DefectBitCount);
+        Assert.Equal(0L, result.SkipExcludedCards);
+        Assert.Single(result.Rows);
+        Assert.Equal(51L, result.Rows[0].DefectCount);
+    }
+
     // ---- builders (match DpmoTableSkipExclusionTests) ---------------------
 
     private static PanelRow Panel(int id, bool reviewed) => new(

@@ -325,7 +325,7 @@ export const fr: TranslationBundle = {
             skipExclusionHint:
                 "Propre exclut les sous-panneaux sautés / vides (X-OUT manuel, signalé machine, heuristique manquant) du comptage des défauts.",
             skipStatuses: "Filtre par statut de saut",
-            skipStatusesHint: "Ne conserver que les sous-panneaux des classes de saut sélectionnées (se combine avec la gestion des sauts).",
+            skipStatusesHint: "En mode Propre, conserver ces classes de saut comme exceptions ; en mode Brut, n'afficher que ces classes.",
             skipStatusesPlaceholder: "Toutes les classes",
             excludeNogo: "Exclure les programmes NOGO",
             excludeNogoHint: "Retirer tout produit dont le nom contient « NOGO » (étalons de changement de série).",
@@ -446,7 +446,7 @@ export const fr: TranslationBundle = {
             skipExclusionHint:
                 "Propre exclut les sous-panneaux sautés / vides du numérateur et du dénominateur d'opportunités.",
             skipStatuses: "Filtre par statut de saut",
-            skipStatusesHint: "Ne conserver que les sous-panneaux des classes de saut sélectionnées (se combine avec la gestion des sauts).",
+            skipStatusesHint: "En mode Propre, conserver ces classes de saut comme exceptions ; en mode Brut, n'afficher que ces classes.",
             skipStatusesPlaceholder: "Toutes les classes",
             excludeNogo: "Exclure les programmes NOGO",
             excludeNogoHint: "Retirer tout produit dont le nom contient « NOGO » (étalons de changement de série).",
@@ -518,7 +518,7 @@ export const fr: TranslationBundle = {
             skipExclusionHint:
                 "Propre exclut les sous-panneaux sautés / vides ; le FPY panneau redérive le statut du panneau à partir des sous-panneaux restants.",
             skipStatuses: "Filtre par statut de saut",
-            skipStatusesHint: "Ne conserver que les sous-panneaux des classes de saut sélectionnées (se combine avec la gestion des sauts).",
+            skipStatusesHint: "En mode Propre, conserver ces classes de saut comme exceptions ; en mode Brut, n'afficher que ces classes.",
             skipStatusesPlaceholder: "Toutes les classes",
             excludeNogo: "Exclure les programmes NOGO",
             excludeNogoHint: "Retirer tout produit dont le nom contient « NOGO » (étalons de changement de série).",

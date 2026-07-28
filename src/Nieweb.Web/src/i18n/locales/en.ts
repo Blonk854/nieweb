@@ -328,7 +328,7 @@ export const en: TranslationBundle = {
             skipExclusionHint:
                 "Clean excludes skipped / empty subpanels (manual X-OUT, machine-flagged, heuristic-missing) from the defect counts.",
             skipStatuses: "Skip status filter",
-            skipStatusesHint: "Keep only subpanels of the selected skip classes (composes with skip handling).",
+            skipStatusesHint: "In Clean mode, keep these skip classes as exceptions; in Raw mode, show only these classes.",
             skipStatusesPlaceholder: "All classes",
             excludeNogo: "Exclude NOGO programs",
             excludeNogoHint: "Drop every product whose name contains \"NOGO\" (changeover calibration coupons).",
@@ -448,7 +448,7 @@ export const en: TranslationBundle = {
             skipExclusionHint:
                 "Clean excludes skipped / empty subpanels from both the numerator and the opportunity denominator.",
             skipStatuses: "Skip status filter",
-            skipStatusesHint: "Keep only subpanels of the selected skip classes (composes with skip handling).",
+            skipStatusesHint: "In Clean mode, keep these skip classes as exceptions; in Raw mode, show only these classes.",
             skipStatusesPlaceholder: "All classes",
             excludeNogo: "Exclude NOGO programs",
             excludeNogoHint: "Drop every product whose name contains \"NOGO\" (changeover calibration coupons).",
@@ -520,7 +520,7 @@ export const en: TranslationBundle = {
             skipExclusionHint:
                 "Clean excludes skipped / empty subpanels; panel FPY re-derives panel status from the surviving subpanels.",
             skipStatuses: "Skip status filter",
-            skipStatusesHint: "Keep only subpanels of the selected skip classes (composes with skip handling).",
+            skipStatusesHint: "In Clean mode, keep these skip classes as exceptions; in Raw mode, show only these classes.",
             skipStatusesPlaceholder: "All classes",
             excludeNogo: "Exclude NOGO programs",
             excludeNogoHint: "Drop every product whose name contains \"NOGO\" (changeover calibration coupons).",

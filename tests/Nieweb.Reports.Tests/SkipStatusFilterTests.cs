@@ -82,6 +82,40 @@ public sealed class SkipStatusFilterTests
         Assert.Equal(1L, noneOnly.Overall.DefectBitCount);
     }
 
+    /// <summary>
+    /// Clean + a ManualSkip status filter keeps manual X-OUT boards as an
+    /// exception alongside the clean (None) boards, instead of the two
+    /// controls contradicting each other and returning nothing.
+    /// </summary>
+    [Fact]
+    public async Task Dpmo_Clean_WithManualSkipException_KeepsNoneAndManualSkip()
+    {
+        var source = TwoBoardSource();
+        var baseFilter = new DpmoTableFilter(
+            _oneDay, DpmoGroupBy.AoiMachine, DpmoNumerator.Aoi, DpmoOpportunity.Components);
+
+        // Clean alone drops the X-OUT board → 100 tests, 1 defect.
+        var clean = await DpmoTableReport.Instance.RunAsync(
+            source,
+            baseFilter with { SkipExclusion = SkipExclusion.Clean },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(100L, clean.Overall.OpportunityCount);
+        Assert.Equal(1L, clean.Overall.DefectBitCount);
+
+        // Clean + ManualSkip exception keeps the X-OUT board back → both boards.
+        var withException = await DpmoTableReport.Instance.RunAsync(
+            source,
+            baseFilter with
+            {
+                SkipExclusion = SkipExclusion.Clean,
+                SkipStatuses = [SkipClass.ManualSkip],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(200L, withException.Overall.OpportunityCount);
+        Assert.Equal(51L, withException.Overall.DefectBitCount);
+        Assert.Equal(0L, withException.SkipExcludedCards);
+    }
+
     // ---- FPY --------------------------------------------------------------
 
     /// <summary>
@@ -153,6 +187,47 @@ public sealed class SkipStatusFilterTests
         Assert.Equal(clean.Overall.FpyAoiPercent, noneOnly.Overall.FpyAoiPercent);
         Assert.Equal(2L, noneOnly.Overall.TotalRows);
         Assert.Equal(100d, noneOnly.Overall.FpyAoiPercent);
+    }
+
+    /// <summary>
+    /// Board-level FPY: Clean + a ManualSkip status filter keeps the X-OUT
+    /// board back as an exception, so the faulty board rejoins the good
+    /// ones (FPY 2/3) instead of being dropped (FPY 100 %).
+    /// </summary>
+    [Fact]
+    public async Task Fpy_Board_Clean_WithManualSkipException_KeepsSkippedBoard()
+    {
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededPanels = [Panel(1, panelStatus: 1)],
+            SeededCards =
+            [
+                Card(1, 1, cardStatus: 1),   // None (good)
+                Card(1, 2, cardStatus: -2),  // ManualSkip (X-OUT) — faulty
+                Card(1, 3, cardStatus: 1),   // None (good)
+            ],
+            SeededTestedObjects = [To(1, 2, repairButton: "X-OUT", objId: 1)],
+        };
+
+        var clean = await FpyTableReport.Instance.RunAsync(
+            source,
+            new FpyTableFilter(
+                _oneDay, FpyGranularity.Board, FpyGroupBy.AoiMachine,
+                SkipExclusion: SkipExclusion.Clean),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(2L, clean.Overall.TotalRows);
+        Assert.Equal(100d, clean.Overall.FpyAoiPercent);
+
+        var withException = await FpyTableReport.Instance.RunAsync(
+            source,
+            new FpyTableFilter(
+                _oneDay, FpyGranularity.Board, FpyGroupBy.AoiMachine,
+                SkipExclusion: SkipExclusion.Clean, SkipStatuses: [SkipClass.ManualSkip]),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(3L, withException.Overall.TotalRows);
+        Assert.Equal(2L, withException.Overall.GoodAoiCount);
+        Assert.Equal(100d * 2 / 3, withException.Overall.FpyAoiPercent);
+        Assert.Equal(0L, withException.SkipExcludedRows);
     }
 
     // ---- builders ---------------------------------------------------------

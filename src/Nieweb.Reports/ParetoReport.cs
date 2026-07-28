@@ -168,9 +168,20 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         var skippedCards = skipIndex is null ? null : new HashSet<(long PanelId, int CardId)>();
         long skipExcludedCards = 0;
 
-        bool KeepClass(SkipClass cls) =>
-            (filter.SkipExclusion != SkipExclusion.Clean || cls == SkipClass.None)
-            && (skipStatusFilter is null || skipStatusFilter.Contains(cls));
+        bool KeepClass(SkipClass cls)
+        {
+            // No status filter: Clean drops skipped (non-None) boards; Raw keeps all.
+            if (skipStatusFilter is null)
+            {
+                return filter.SkipExclusion != SkipExclusion.Clean || cls == SkipClass.None;
+            }
+            // With a status filter set:
+            //  - Clean: the selected classes are kept as exceptions alongside None.
+            //  - Raw:   the selected classes act as a positive "show only these" filter.
+            return filter.SkipExclusion == SkipExclusion.Clean
+                ? cls == SkipClass.None || skipStatusFilter.Contains(cls)
+                : skipStatusFilter.Contains(cls);
+        }
 
         // NOGO exclusion: drop every product whose name contains "NOGO"
         // (case-insensitive) from both passes. NOGO coupons are known-
