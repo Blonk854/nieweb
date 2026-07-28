@@ -7,12 +7,11 @@ using QuestPDF.Infrastructure;
 namespace Nieweb.Pdf;
 
 /// <summary>
-/// Renders a <see cref="ParetoResult"/> to PDF. Because a PDF cannot
-/// hold an interactive chart, we emit the same tabular data ECharts
-/// consumes on the SPA (rank / group / defect count / opportunity /
-/// DPMO / defect % / cumulative %) — the visual bar-chart lives in
-/// the browser view and its PNG can be attached to the PDF later via
-/// a chart-image endpoint.
+/// Renders a <see cref="ParetoResult"/> to PDF: the same volume-weighted
+/// bar + cumulative-percent chart the SPA draws (as a native SVG via
+/// <see cref="ParetoChartSvg"/>), followed by the ranked data table
+/// (rank / group / defect count / opportunity / DPMO / defect % /
+/// cumulative %).
 /// </summary>
 public static class ParetoPdfRenderer
 {
@@ -22,12 +21,17 @@ public static class ParetoPdfRenderer
     /// <param name="destination">Target stream.</param>
     /// <param name="generatedAt">Rendering timestamp (defaults to now UTC).</param>
     /// <param name="timeZone">Display time zone (defaults to UTC when null).</param>
+    /// <param name="vitalFewThresholdPercent">
+    /// Vital-few cumulative-% threshold to draw as the dashed line on the
+    /// chart (defaults to 80).
+    /// </param>
     public static void Render(
         ParetoResult result,
         string generatedByDisplayName,
         Stream destination,
         DateTimeOffset? generatedAt = null,
-        TimeZoneInfo? timeZone = null)
+        TimeZoneInfo? timeZone = null,
+        double vitalFewThresholdPercent = 80)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(generatedByDisplayName);
@@ -44,19 +48,23 @@ public static class ParetoPdfRenderer
             subtitle: subtitle,
             generatedByDisplayName: generatedByDisplayName,
             generatedAt: generatedAt ?? DateTimeOffset.UtcNow,
-            body: body => Compose(body, result),
+            body: body => Compose(body, result, vitalFewThresholdPercent),
             timeZone: tz,
             footerNote: $"Source: {result.Source.DisplayName}   ·   Window: {window}");
 
         doc.Render(destination);
     }
 
-    private static void Compose(IContainer body, ParetoResult result)
+    private static void Compose(IContainer body, ParetoResult result, double vitalFewThresholdPercent)
     {
         body.Column(col =>
         {
             col.Spacing(10);
             col.Item().Element(c => ComposeOverall(c, result));
+            if (result.Rows.Count > 0)
+            {
+                col.Item().Height(230).Svg(ParetoChartSvg.Build(result, vitalFewThresholdPercent));
+            }
             col.Item().Text($"Ranked rows ({result.Rows.Count}{(result.OthersBucket is null ? "" : " + Others")})")
                .SemiBold().FontSize(11);
             col.Item().Element(c => ComposeRows(c, result));

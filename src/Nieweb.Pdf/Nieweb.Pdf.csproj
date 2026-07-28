@@ -6,6 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Nieweb.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!--
       QuestPDF 2024.x. The Community MIT licence covers every use as
       long as the licensee's annual gross revenue is under USD 1M

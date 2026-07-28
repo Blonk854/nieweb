@@ -262,7 +262,8 @@ public static partial class ReportEndpoints
                 result,
                 ResolveDisplayName(context.User),
                 stream,
-                timeZone: built.Filter.SiteTimeZone ?? Nieweb.Pdf.NiewebPdfTimestamps.Resolve(null)),
+                timeZone: built.Filter.SiteTimeZone ?? Nieweb.Pdf.NiewebPdfTimestamps.Resolve(null),
+                vitalFewThresholdPercent: built.Filter.VitalFewThresholdPercent),
             cancellationToken: cancellationToken)
             .ConfigureAwait(false);
     }
