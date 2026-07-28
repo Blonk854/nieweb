@@ -428,63 +428,63 @@ export function ParetoRoute() {
                                 {t("pareto.filters.skipExclusionHint")}
                             </Text>
                         </Stack>
-                        <MultiSelect
-                            label={t("pareto.filters.skipStatuses")}
-                            description={t("pareto.filters.skipStatusesHint")}
-                            inputWrapperOrder={["label", "input", "description", "error"]}
-                            placeholder={t("pareto.filters.skipStatusesPlaceholder")}
-                            data={SKIP_STATUS_VALUES.map((c) => ({
-                                value: c,
-                                label: t(`skipSummary.classLabel.${c}`),
-                            }))}
-                            value={form.skipStatuses}
-                            onChange={(vals) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    skipStatuses: vals as SkipStatus[],
-                                }))
-                            }
-                            clearable
-                            style={{ minWidth: 260 }}
-                        />
+                        <Stack gap="sm">
+                            <MultiSelect
+                                label={t("pareto.filters.skipStatuses")}
+                                description={t("pareto.filters.skipStatusesHint")}
+                                inputWrapperOrder={["label", "input", "description", "error"]}
+                                placeholder={t("pareto.filters.skipStatusesPlaceholder")}
+                                data={SKIP_STATUS_VALUES.map((c) => ({
+                                    value: c,
+                                    label: t(`skipSummary.classLabel.${c}`),
+                                }))}
+                                value={form.skipStatuses}
+                                onChange={(vals) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        skipStatuses: vals as SkipStatus[],
+                                    }))
+                                }
+                                clearable
+                                style={{ minWidth: 260 }}
+                            />
+                            <Group gap="sm" align="flex-end">
+                                <DateTimePicker
+                                    label={t("pareto.filters.from")}
+                                    value={form.from}
+                                    onChange={(value) =>
+                                        setForm((prev) => ({ ...prev, from: value }))
+                                    }
+                                    valueFormat="YYYY-MM-DD HH:mm"
+                                    clearable
+                                    required
+                                    w={190}
+                                />
+                                <DateTimePicker
+                                    label={t("pareto.filters.to")}
+                                    value={form.to}
+                                    onChange={(value) =>
+                                        setForm((prev) => ({ ...prev, to: value }))
+                                    }
+                                    valueFormat="YYYY-MM-DD HH:mm"
+                                    clearable
+                                    required
+                                    w={190}
+                                />
+                            </Group>
+                        </Stack>
                     </Group>
 
-                    <Group justify="space-between" align="flex-end">
-                        <Switch
-                            label={t("pareto.filters.excludeNogo")}
-                            checked={form.excludeNogo}
-                            onChange={(e) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    excludeNogo: e.currentTarget.checked,
-                                }))
-                            }
-                        />
-                        <Group gap="sm" align="flex-end">
-                            <DateTimePicker
-                                label={t("pareto.filters.from")}
-                                value={form.from}
-                                onChange={(value) =>
-                                    setForm((prev) => ({ ...prev, from: value }))
-                                }
-                                valueFormat="YYYY-MM-DD HH:mm"
-                                clearable
-                                required
-                                w={190}
-                            />
-                            <DateTimePicker
-                                label={t("pareto.filters.to")}
-                                value={form.to}
-                                onChange={(value) =>
-                                    setForm((prev) => ({ ...prev, to: value }))
-                                }
-                                valueFormat="YYYY-MM-DD HH:mm"
-                                clearable
-                                required
-                                w={190}
-                            />
-                        </Group>
-                    </Group>
+                    <Switch
+                        label={t("pareto.filters.excludeNogo")}
+                        checked={form.excludeNogo}
+                        onChange={(e) =>
+                            setForm((prev) => ({
+                                ...prev,
+                                excludeNogo: e.currentTarget.checked,
+                            }))
+                        }
+                    />
 
                     {(() => {
                         const chips: {
@@ -805,11 +805,7 @@ function ResultsCard(props: {
     } = props;
 
     if (!enabled) {
-        return (
-            <Card withBorder padding="lg" radius="md">
-                <Text c="dimmed">{t("pareto.filters.emptyPrompt")}</Text>
-            </Card>
-        );
+        return null;
     }
 
     return (
