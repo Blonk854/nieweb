@@ -67,6 +67,18 @@ export function ParetoChart(props: ParetoChartProps) {
         }
 
         const categories = allRows.map(({ row }) => categoryLabel(row, axis));
+        // Long / numerous category names (e.g. product program names on the
+        // Product axis) must be rotated, and the axis *title* has to sit
+        // below them or it collides with the labels. Size both the label
+        // band and the axis-name gap from the longest label.
+        const maxLabelLen = categories.reduce((m, c) => Math.max(m, c.length), 0);
+        const rotateLabels = categories.length > 6 || maxLabelLen > 8;
+        const rotateDeg = rotateLabels ? 40 : 0;
+        const labelBand = rotateLabels
+            ? Math.min(130, Math.round(maxLabelLen * 6.5 * Math.sin((rotateDeg * Math.PI) / 180)))
+            : 16;
+        const xNameGap = labelBand + 26;
+        const gridBottom = labelBand + 48;
         const barValues: BarDatum[] = allRows.map(({ row, isOthers }) => ({
             value: row.defectCount,
             itemStyle: {
@@ -89,7 +101,7 @@ export function ParetoChart(props: ParetoChartProps) {
 
         return {
             aria: { enabled: true },
-            grid: { left: 60, right: 60, top: 40, bottom: 60, containLabel: true },
+            grid: { left: 60, right: 60, top: 40, bottom: gridBottom, containLabel: true },
             legend: {
                 data: [
                     t("pareto.chart.seriesDefects"),
@@ -122,10 +134,10 @@ export function ParetoChart(props: ParetoChartProps) {
             xAxis: {
                 type: "category",
                 data: categories,
-                axisLabel: { rotate: categories.length > 6 ? 30 : 0, interval: 0 },
+                axisLabel: { rotate: rotateDeg, interval: 0 },
                 name: t(`pareto.chart.axis.${axis}`),
                 nameLocation: "middle",
-                nameGap: 40,
+                nameGap: xNameGap,
             },
             yAxis: [
                 {
