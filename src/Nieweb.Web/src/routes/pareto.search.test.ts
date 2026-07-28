@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     pickDefaultSourceId,
+    paretoDrillInto,
     toApiQuery,
     validateParetoSearch,
     withDefectBit,
@@ -225,6 +226,65 @@ describe("withDefectBit / withoutDefectBit", () => {
     it("returns the same search when the bit was not present", () => {
         const search: ParetoSearch = { defectBits: [1, 5] };
         expect(withoutDefectBit(search, 3)).toBe(search);
+    });
+});
+
+describe("paretoDrillInto", () => {
+    it("appends the clicked bit and stays on the Defect axis", () => {
+        const next = paretoDrillInto({ axis: "Defect", defectBits: [1] }, "3");
+        expect(next.axis).toBe("Defect");
+        expect(next.defectBits).toEqual([1, 3]);
+    });
+
+    it("adds the product id and advances to the Defect axis", () => {
+        const next = paretoDrillInto({ axis: "Product" }, "42");
+        expect(next.axis).toBe("Defect");
+        expect(next.productIds).toEqual([42]);
+    });
+
+    it("adds the machine id and advances to the Defect axis", () => {
+        const next = paretoDrillInto(
+            { axis: "AoiMachine", machineIds: [1] },
+            "7",
+        );
+        expect(next.axis).toBe("Defect");
+        expect(next.machineIds).toEqual([1, 7]);
+    });
+
+    it("adds string buckets for reference designator / part number / JEDEC", () => {
+        expect(paretoDrillInto({ axis: "ReferenceDesignator" }, "R12")).toMatchObject({
+            axis: "Defect",
+            topologies: ["R12"],
+        });
+        expect(paretoDrillInto({ axis: "PartNumber" }, "PN-A")).toMatchObject({
+            axis: "Defect",
+            partNumbers: ["PN-A"],
+        });
+        expect(paretoDrillInto({ axis: "Jedec" }, "0402")).toMatchObject({
+            axis: "Defect",
+            jedecNames: ["0402"],
+        });
+    });
+
+    it("still advances the axis when the id is already filtered", () => {
+        const next = paretoDrillInto(
+            { axis: "Product", productIds: [42] },
+            "42",
+        );
+        expect(next.axis).toBe("Defect");
+        expect(next.productIds).toEqual([42]);
+    });
+
+    it("leaves Day / Shift bars unchanged (not drillable)", () => {
+        const day: ParetoSearch = { axis: "Day" };
+        expect(paretoDrillInto(day, "2026-07-28")).toBe(day);
+        const shift: ParetoSearch = { axis: "Shift" };
+        expect(paretoDrillInto(shift, "2026-07-28 · A")).toBe(shift);
+    });
+
+    it("ignores a non-numeric id on numeric axes", () => {
+        const search: ParetoSearch = { axis: "Product" };
+        expect(paretoDrillInto(search, "not-a-number")).toBe(search);
     });
 });
 

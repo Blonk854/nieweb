@@ -324,6 +324,8 @@ export type TranslationBundle = {
             excludeNogo: string;
             excludeNogoHint: string;
             defectBitsChipsLabel: string;
+            activeFiltersLabel: string;
+            removeFilter: string;
             defectBitChip: string;
             removeDefectBit: string;
             submit: string;

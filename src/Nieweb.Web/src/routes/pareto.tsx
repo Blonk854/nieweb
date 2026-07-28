@@ -48,8 +48,10 @@ import {
     SKIP_EXCLUSIONS,
     SKIP_STATUS_VALUES,
     pickDefaultSourceId,
-    withDefectBit,
+    paretoDrillInto,
     withoutDefectBit,
+    withoutNumericFilter,
+    withoutStringFilter,
     type ParetoAxis,
     type ParetoNumerator,
     type ParetoOpportunity,
@@ -175,38 +177,56 @@ export function ParetoRoute() {
         });
     }
 
-    // Chart bar click on the Defect axis: append the clicked bit to
-    // the URL's defectBits filter and re-fetch. The user typically
-    // then flips axis to Product / PartNumber to see which parts
-    // contain that defect. Ignored on non-Defect axes (a bar's
-    // groupKey there is a product/machine/topology id, not a bit).
+    // Chart bar click = drill-down. On the Defect axis we append the
+    // clicked bit and stay; on a category axis (Product / AOI machine /
+    // reference designator / part number / JEDEC) we add the clicked
+    // bucket to the matching narrowing filter and advance to the Defect
+    // axis so the user immediately sees the defect breakdown inside that
+    // bucket. Day / Shift bars and the Others bucket are not drillable.
     function handleBarClick(row: ParetoRow) {
-        if (search.axis !== "Defect") return;
         if (!row.groupKey) return;
-        const bit = Number(row.groupKey);
-        if (!Number.isFinite(bit) || !Number.isInteger(bit) || bit <= 0) return;
-        const next = withDefectBit(search, bit);
+        const next = paretoDrillInto(search, row.groupKey);
         if (next === search) return;
-        // Keep local form state in sync so the visible filter chips
-        // update immediately (the URL is the source of truth, but
-        // useState-in-effect would flicker on back/forward).
-        setForm((prev) => ({ ...prev, defectBits: next.defectBits ?? [] }));
-        void navigate({
-            to: "/report/pareto",
-            search: next,
-            replace: false,
-        });
+        // Keep local form state in sync so the axis selector and filter
+        // chips update immediately (the URL is the source of truth).
+        setForm((prev) => ({
+            ...prev,
+            axis: next.axis ?? "Defect",
+            defectBits: next.defectBits ?? [],
+            productIds: next.productIds ?? [],
+            machineIds: next.machineIds ?? [],
+            topologies: next.topologies ?? [],
+            partNumbers: next.partNumbers ?? [],
+            jedecNames: next.jedecNames ?? [],
+        }));
+        void navigate({ to: "/report/pareto", search: next, replace: false });
     }
 
     function removeDefectBit(bit: number) {
         const next = withoutDefectBit(search, bit);
         setForm((prev) => ({ ...prev, defectBits: next.defectBits ?? [] }));
-        void navigate({
-            to: "/report/pareto",
-            search: next,
-            replace: false,
-        });
+        void navigate({ to: "/report/pareto", search: next, replace: false });
     }
+
+    function removeNumericFilter(key: "productIds" | "machineIds", value: number) {
+        const next = withoutNumericFilter(search, key, value);
+        setForm((prev) => ({ ...prev, [key]: next[key] ?? [] }));
+        void navigate({ to: "/report/pareto", search: next, replace: false });
+    }
+
+    function removeStringFilter(
+        key: "topologies" | "partNumbers" | "jedecNames",
+        value: string,
+    ) {
+        const next = withoutStringFilter(search, key, value);
+        setForm((prev) => ({ ...prev, [key]: next[key] ?? [] }));
+        void navigate({ to: "/report/pareto", search: next, replace: false });
+    }
+
+    const productLabel = (id: number) =>
+        productsQuery.data?.find((p) => p.id === id)?.name || `#${id}`;
+    const machineLabel = (id: number) =>
+        machinesQuery.data?.find((m) => m.id === id)?.name || `#${id}`;
 
     return (
         <Stack gap="lg">
@@ -462,33 +482,79 @@ export function ParetoRoute() {
                         }
                     />
 
-                    {(search.defectBits?.length ?? 0) > 0 && (
-                        <Group gap="xs" align="center">
-                            <Text size="sm" fw={500}>
-                                {t("pareto.filters.defectBitsChipsLabel")}:
-                            </Text>
-                            {(search.defectBits ?? []).map((bit) => (
-                                <Badge
-                                    key={bit}
-                                    variant="light"
-                                    color="red"
-                                    rightSection={
-                                        <IconX
-                                            size={12}
-                                            role="button"
-                                            aria-label={t("pareto.filters.removeDefectBit", {
-                                                bit,
-                                            })}
-                                            style={{ cursor: "pointer" }}
-                                            onClick={() => removeDefectBit(bit)}
-                                        />
-                                    }
-                                >
-                                    {t("pareto.filters.defectBitChip", { bit })}
-                                </Badge>
-                            ))}
-                        </Group>
-                    )}
+                    {(() => {
+                        const chips: {
+                            key: string;
+                            label: string;
+                            color: string;
+                            onRemove: () => void;
+                        }[] = [
+                            ...(search.defectBits ?? []).map((bit) => ({
+                                key: `d-${bit}`,
+                                label: t("pareto.filters.defectBitChip", { bit }),
+                                color: "red",
+                                onRemove: () => removeDefectBit(bit),
+                            })),
+                            ...(search.productIds ?? []).map((id) => ({
+                                key: `p-${id}`,
+                                label: `${t("pareto.axis.Product")}: ${productLabel(id)}`,
+                                color: "blue",
+                                onRemove: () => removeNumericFilter("productIds", id),
+                            })),
+                            ...(search.machineIds ?? []).map((id) => ({
+                                key: `m-${id}`,
+                                label: `${t("pareto.axis.AoiMachine")}: ${machineLabel(id)}`,
+                                color: "blue",
+                                onRemove: () => removeNumericFilter("machineIds", id),
+                            })),
+                            ...(search.topologies ?? []).map((v) => ({
+                                key: `t-${v}`,
+                                label: `${t("pareto.axis.ReferenceDesignator")}: ${v}`,
+                                color: "grape",
+                                onRemove: () => removeStringFilter("topologies", v),
+                            })),
+                            ...(search.partNumbers ?? []).map((v) => ({
+                                key: `pn-${v}`,
+                                label: `${t("pareto.axis.PartNumber")}: ${v}`,
+                                color: "grape",
+                                onRemove: () => removeStringFilter("partNumbers", v),
+                            })),
+                            ...(search.jedecNames ?? []).map((v) => ({
+                                key: `j-${v}`,
+                                label: `${t("pareto.axis.Jedec")}: ${v}`,
+                                color: "grape",
+                                onRemove: () => removeStringFilter("jedecNames", v),
+                            })),
+                        ];
+                        if (chips.length === 0) return null;
+                        return (
+                            <Group gap="xs" align="center">
+                                <Text size="sm" fw={500}>
+                                    {t("pareto.filters.activeFiltersLabel")}:
+                                </Text>
+                                {chips.map((c) => (
+                                    <Badge
+                                        key={c.key}
+                                        variant="light"
+                                        color={c.color}
+                                        rightSection={
+                                            <IconX
+                                                size={12}
+                                                role="button"
+                                                aria-label={t("pareto.filters.removeFilter", {
+                                                    label: c.label,
+                                                })}
+                                                style={{ cursor: "pointer" }}
+                                                onClick={c.onRemove}
+                                            />
+                                        }
+                                    >
+                                        {c.label}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        );
+                    })()}
 
                     {!canSubmit && (
                         <Text c="dimmed" size="sm">
@@ -620,6 +686,9 @@ type FormState = {
     machineIds: number[];
     productIds: number[];
     defectBits: number[];
+    topologies: string[];
+    partNumbers: string[];
+    jedecNames: string[];
     skipExclusion: SkipExclusion;
     skipStatuses: SkipStatus[];
     excludeNogo: boolean;
@@ -639,6 +708,9 @@ function emptyForm(): FormState {
         machineIds: [],
         productIds: [],
         defectBits: [],
+        topologies: [],
+        partNumbers: [],
+        jedecNames: [],
         skipExclusion: "Raw",
         skipStatuses: [],
         excludeNogo: false,
@@ -659,6 +731,9 @@ function searchToForm(s: ParetoSearch, timeZone: string): FormState {
         machineIds: s.machineIds ?? [],
         productIds: s.productIds ?? [],
         defectBits: s.defectBits ?? [],
+        topologies: s.topologies ?? [],
+        partNumbers: s.partNumbers ?? [],
+        jedecNames: s.jedecNames ?? [],
         skipExclusion: s.skipExclusion ?? "Raw",
         skipStatuses: s.skipStatuses ?? [],
         excludeNogo: s.excludeNogo ?? false,
@@ -683,6 +758,9 @@ function formToSearch(f: FormState, timeZone: string): ParetoSearch {
         machineIds: f.machineIds.length > 0 ? f.machineIds : undefined,
         productIds: f.productIds.length > 0 ? f.productIds : undefined,
         defectBits: f.defectBits.length > 0 ? f.defectBits : undefined,
+        topologies: f.topologies.length > 0 ? f.topologies : undefined,
+        partNumbers: f.partNumbers.length > 0 ? f.partNumbers : undefined,
+        jedecNames: f.jedecNames.length > 0 ? f.jedecNames : undefined,
         skipExclusion: f.skipExclusion === "Clean" ? "Clean" : undefined,
         skipStatuses: f.skipStatuses.length > 0 ? f.skipStatuses : undefined,
         excludeNogo: f.excludeNogo ? true : undefined,
@@ -692,6 +770,17 @@ function formToSearch(f: FormState, timeZone: string): ParetoSearch {
 // ---------------------------------------------------------------
 // Results panel.
 // ---------------------------------------------------------------
+
+// Axes whose bars support click-to-drill. Day / Shift bars map to a
+// time bucket, not a narrowing filter, so they stay non-interactive.
+const DRILLABLE_AXES: ReadonlySet<ParetoAxis> = new Set<ParetoAxis>([
+    "Defect",
+    "Product",
+    "AoiMachine",
+    "ReferenceDesignator",
+    "PartNumber",
+    "Jedec",
+]);
 
 function ResultsCard(props: {
     enabled: boolean;
@@ -788,7 +877,7 @@ function ResultsCard(props: {
                                     axis={axis}
                                     vitalFewThresholdPercent={vitalFewThresholdPercent}
                                     onBarClick={
-                                        axis === "Defect" ? onBarClick : undefined
+                                        DRILLABLE_AXES.has(axis) ? onBarClick : undefined
                                     }
                                 />
                             </Suspense>

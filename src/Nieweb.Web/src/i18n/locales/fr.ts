@@ -330,6 +330,8 @@ export const fr: TranslationBundle = {
             excludeNogo: "Exclure les programmes NOGO",
             excludeNogoHint: "Retirer tout produit dont le nom contient « NOGO » (étalons de changement de série).",
             defectBitsChipsLabel: "Bits de défaut",
+            activeFiltersLabel: "Filtres actifs",
+            removeFilter: "Retirer le filtre {{label}}",
             defectBitChip: "bit {{bit}}",
             removeDefectBit: "Retirer le bit de défaut {{bit}}",
             submit: "Lancer le rapport",
