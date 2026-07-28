@@ -83,6 +83,12 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
             (filter.SkipExclusion != SkipExclusion.Clean || cls == SkipClass.None)
             && (statusFilter is null || statusFilter.Contains(cls));
 
+        // NOGO exclusion: drop every product whose name contains "NOGO"
+        // (case-insensitive) from every counting path, so changeover
+        // calibration coupons never skew the FPY numerator or denominator.
+        var nogoProductIds = await NogoProducts.BuildAsync(
+            source, filter.ExcludeNogo, cancellationToken).ConfigureAwait(false);
+
         if (needsIndex)
         {
             // Classify every board and keep only the ones the predicate
@@ -95,9 +101,9 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
 
             skipExcludedRows = filter.Granularity == FpyGranularity.Board
                 ? await AccumulateFilteredBoardAsync(
-                    source, filter, index, config, KeepClass, overall, perGroup, cancellationToken).ConfigureAwait(false)
+                    source, filter, index, config, KeepClass, nogoProductIds, overall, perGroup, cancellationToken).ConfigureAwait(false)
                 : await AccumulateFilteredPanelAsync(
-                    source, filter, index, config, KeepClass, overall, perGroup, cancellationToken).ConfigureAwait(false);
+                    source, filter, index, config, KeepClass, nogoProductIds, overall, perGroup, cancellationToken).ConfigureAwait(false);
         }
         else if (filter.Granularity == FpyGranularity.Panel)
         {
@@ -110,6 +116,10 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
             };
             await foreach (var panel in source.StreamPanelsAsync(panelQuery, cancellationToken).ConfigureAwait(false))
             {
+                if (nogoProductIds is not null && nogoProductIds.Contains(panel.ProductId))
+                {
+                    continue;
+                }
                 overall.Add(panel.PanelStatus);
                 var key = filter.GroupBy == FpyGroupBy.AoiMachine ? panel.MachineId : panel.ProductId;
                 GetBucket(perGroup, key).Add(panel.PanelStatus);
@@ -125,6 +135,10 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
             };
             await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
             {
+                if (nogoProductIds is not null && nogoProductIds.Contains(card.ProductId))
+                {
+                    continue;
+                }
                 overall.Add(card.CardStatus);
                 var key = filter.GroupBy == FpyGroupBy.AoiMachine ? card.MachineId : card.ProductId;
                 GetBucket(perGroup, key).Add(card.CardStatus);
@@ -182,6 +196,7 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
         SkipInputsIndex index,
         SkipClassificationConfig config,
         Func<SkipClass, bool> keep,
+        HashSet<int>? nogoProductIds,
         Accumulator overall,
         Dictionary<int, Accumulator> perGroup,
         CancellationToken cancellationToken)
@@ -195,6 +210,10 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
         };
         await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
         {
+            if (nogoProductIds is not null && nogoProductIds.Contains(card.ProductId))
+            {
+                continue;
+            }
             if (!keep(index.Classify(card, config)))
             {
                 excluded++;
@@ -219,6 +238,7 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
         SkipInputsIndex index,
         SkipClassificationConfig config,
         Func<SkipClass, bool> keep,
+        HashSet<int>? nogoProductIds,
         Accumulator overall,
         Dictionary<int, Accumulator> perGroup,
         CancellationToken cancellationToken)
@@ -254,6 +274,10 @@ public sealed class FpyTableReport : IReport<FpyTableFilter, FpyTableResult>
         long excluded = 0;
         foreach (var (panelId, info) in index.Panels)
         {
+            if (nogoProductIds is not null && nogoProductIds.Contains(info.ProductId))
+            {
+                continue;
+            }
             int effectiveStatus;
             if (!perPanel.TryGetValue(panelId, out var cards) || !cards.HasSkip)
             {

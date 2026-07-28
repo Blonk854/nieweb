@@ -44,6 +44,7 @@ public static partial class ReportEndpoints
     /// </param>
     /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c> to exclude skipped / empty boards.</param>
     /// <param name="skipStatuses">Optional comma-separated SkipClass names; keeps only boards whose class is in the set.</param>
+    /// <param name="excludeNogo">When <c>true</c>, drop every product whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
     /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
     /// <param name="logger">Endpoint logger.</param>
@@ -60,6 +61,7 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
@@ -67,7 +69,7 @@ public static partial class ReportEndpoints
     {
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, excludeNogo, sources);
         if (built.Error is not null)
         {
             return built.Error;
@@ -103,6 +105,7 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources)
     {
         var baseParse = TryBuildBaseRequest(sourceId, startUtc, endUtc, sources);
@@ -137,7 +140,8 @@ public static partial class ReportEndpoints
             ProductIds: ParseIntList(productIds),
             IncludeObsoleteBits: includeObsoleteBits ?? false,
             SkipExclusion: skipValue,
-            SkipStatuses: ParseSkipClassList(skipStatuses));
+            SkipStatuses: ParseSkipClassList(skipStatuses),
+            ExcludeNogo: excludeNogo ?? false);
 
         return (baseParse.Source, filter, null);
     }
@@ -316,6 +320,7 @@ public static partial class ReportEndpoints
     /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
     /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
     /// <param name="skipStatuses">Optional comma-separated SkipClass names; keeps only boards whose class is in the set.</param>
+    /// <param name="excludeNogo">When <c>true</c>, drop every product whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
     /// <param name="logger">Endpoint logger.</param>
@@ -333,6 +338,7 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
@@ -342,7 +348,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, excludeNogo, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);
@@ -449,6 +455,7 @@ public static partial class ReportEndpoints
     /// <param name="includeObsoleteBits">Include obsolete defect bits when grouping by defect.</param>
     /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
     /// <param name="skipStatuses">Optional comma-separated SkipClass names; keeps only boards whose class is in the set.</param>
+    /// <param name="excludeNogo">When <c>true</c>, drop every product whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
     /// <param name="logger">Endpoint logger.</param>
@@ -466,6 +473,7 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
@@ -475,7 +483,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, excludeNogo, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);

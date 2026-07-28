@@ -39,6 +39,7 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         ILogger<ReportsMarker> logger,
@@ -46,7 +47,7 @@ public static partial class ReportEndpoints
     {
         var built = TryBuildFpyRequest(
             sourceId, startUtc, endUtc, granularity, groupBy,
-            machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses, sources);
+            machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses, excludeNogo, sources);
         if (built.Error is not null)
         {
             return built.Error;
@@ -83,6 +84,7 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources)
     {
         var baseParse = TryBuildBaseRequest(sourceId, startUtc, endUtc, sources);
@@ -112,7 +114,8 @@ public static partial class ReportEndpoints
             ProductIds: ParseIntList(productIds),
             OnlyLastInspection: onlyLastInspection ?? true,
             SkipExclusion: skipValue,
-            SkipStatuses: ParseSkipClassList(skipStatuses));
+            SkipStatuses: ParseSkipClassList(skipStatuses),
+            ExcludeNogo: excludeNogo ?? false);
 
         return (baseParse.Source, filter, null);
     }
@@ -133,6 +136,7 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         CancellationToken cancellationToken)
@@ -142,7 +146,7 @@ public static partial class ReportEndpoints
         var result = await BuildFpyResultAsync(
             context, sourceId, startUtc, endUtc, granularity, groupBy,
             machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
-            sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+            excludeNogo, sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return;
@@ -170,6 +174,7 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         CancellationToken cancellationToken)
@@ -179,7 +184,7 @@ public static partial class ReportEndpoints
         var result = await BuildFpyResultAsync(
             context, sourceId, startUtc, endUtc, granularity, groupBy,
             machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
-            sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+            excludeNogo, sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return;
@@ -217,13 +222,14 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
         CancellationToken cancellationToken)
     {
         var built = TryBuildFpyRequest(
             sourceId, startUtc, endUtc, granularity, groupBy,
-            machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses, sources);
+            machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses, excludeNogo, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);

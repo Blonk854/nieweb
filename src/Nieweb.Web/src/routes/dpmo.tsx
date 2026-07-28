@@ -12,6 +12,7 @@ import {
     SegmentedControl,
     Select,
     Stack,
+    Switch,
     Text,
     Title,
 } from "@mantine/core";
@@ -74,6 +75,7 @@ type FormState = {
     includeObsoleteBits: boolean;
     skipExclusion: SkipExclusion;
     skipStatuses: SkipStatus[];
+    excludeNogo: boolean;
 };
 
 /**
@@ -301,6 +303,18 @@ export function DpmoRoute() {
                             }))
                         }
                         clearable
+                    />
+
+                    <Switch
+                        label={t("dpmo.filters.excludeNogo")}
+                        description={t("dpmo.filters.excludeNogoHint")}
+                        checked={form.excludeNogo}
+                        onChange={(event) =>
+                            setForm((prev) => ({
+                                ...prev,
+                                excludeNogo: event.currentTarget.checked,
+                            }))
+                        }
                     />
 
                     {form.groupBy === "Defect" && (
@@ -614,6 +628,7 @@ function emptyForm(): FormState {
         includeObsoleteBits: false,
         skipExclusion: "Raw",
         skipStatuses: [],
+        excludeNogo: false,
     };
 }
 
@@ -630,6 +645,7 @@ function searchToForm(s: DpmoSearch, timeZone: string): FormState {
         includeObsoleteBits: s.includeObsoleteBits ?? false,
         skipExclusion: s.skipExclusion ?? "Raw",
         skipStatuses: s.skipStatuses ?? [],
+        excludeNogo: s.excludeNogo ?? false,
     };
 }
 
@@ -646,5 +662,6 @@ function formToSearch(f: FormState, timeZone: string): DpmoSearch {
         includeObsoleteBits: f.includeObsoleteBits ? true : undefined,
         skipExclusion: f.skipExclusion === "Clean" ? "Clean" : undefined,
         skipStatuses: f.skipStatuses.length > 0 ? f.skipStatuses : undefined,
+        excludeNogo: f.excludeNogo ? true : undefined,
     };
 }

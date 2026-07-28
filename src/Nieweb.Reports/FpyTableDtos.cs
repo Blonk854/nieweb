@@ -79,6 +79,13 @@ public enum FpyGroupBy
 /// verdict to the selected classes. <c>null</c> / empty applies no
 /// status narrowing.
 /// </param>
+/// <param name="ExcludeNogo">
+/// When <c>true</c>, drops every product whose name contains "NOGO"
+/// (case-insensitive) from the FPY counts (both the inspected
+/// denominator and the good/faulty numerators). NOGO boards are
+/// known-defect calibration coupons run at changeover and normally must
+/// not skew production yield.
+/// </param>
 public sealed record FpyTableFilter(
     DateRange Window,
     FpyGranularity Granularity,
@@ -88,7 +95,8 @@ public sealed record FpyTableFilter(
     bool OnlyLastInspection = true,
     SkipExclusion SkipExclusion = SkipExclusion.Raw,
     SkipClassificationConfig? SkipConfig = null,
-    IReadOnlyCollection<SkipClass>? SkipStatuses = null);
+    IReadOnlyCollection<SkipClass>? SkipStatuses = null,
+    bool ExcludeNogo = false);
 
 /// <summary>
 /// FPY / status counts for a single scope (row-level or grand total).

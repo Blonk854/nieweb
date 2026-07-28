@@ -117,6 +117,12 @@ public sealed class DpmoTableReport : IReport<DpmoTableFilter, DpmoTableResult>
             (filter.SkipExclusion != SkipExclusion.Clean || cls == SkipClass.None)
             && (statusFilter is null || statusFilter.Contains(cls));
 
+        // NOGO exclusion: drop every product whose name contains "NOGO"
+        // (case-insensitive) from both passes, so changeover calibration
+        // coupons never skew the DPMO numerator or denominator.
+        var nogoProductIds = await NogoProducts.BuildAsync(
+            source, filter.ExcludeNogo, cancellationToken).ConfigureAwait(false);
+
         // ---- Pass 1: opportunity denominator, streamed from CARDS. ----
         // Opportunities are inspection *test counts*
         // (CARDS.Nb_Of_Tests_On_Comp / _On_Pads), NEVER a
@@ -142,6 +148,10 @@ public sealed class DpmoTableReport : IReport<DpmoTableFilter, DpmoTableResult>
         };
         await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
         {
+            if (nogoProductIds is not null && nogoProductIds.Contains(card.ProductId))
+            {
+                continue;
+            }
             if (skipIndex is not null && !KeepClass(skipIndex.Classify(card, config)))
             {
                 skippedCards!.Add((card.PanelId, card.CardIdOnPanel));
@@ -179,6 +189,12 @@ public sealed class DpmoTableReport : IReport<DpmoTableFilter, DpmoTableResult>
         };
         await foreach (var obj in source.StreamTestedObjectsAsync(objectQuery, cancellationToken).ConfigureAwait(false))
         {
+            // Drop NOGO-product defects (matches the card-pass exclusion).
+            if (nogoProductIds is not null && nogoProductIds.Contains(obj.ProductId))
+            {
+                continue;
+            }
+
             // Clean mode: drop defects that live on a skipped board so the
             // numerator matches the denominator (which already dropped it).
             if (skippedCards is not null && skippedCards.Contains((obj.PanelId, obj.CardIdOnPanel)))

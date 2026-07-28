@@ -438,6 +438,8 @@ export type TranslationBundle = {
             skipStatuses: string;
             skipStatusesHint: string;
             skipStatusesPlaceholder: string;
+            excludeNogo: string;
+            excludeNogoHint: string;
             includeObsoleteBits: string;
             includeObsoleteBitsHint: string;
             machines: string;
@@ -506,6 +508,8 @@ export type TranslationBundle = {
             skipStatuses: string;
             skipStatusesHint: string;
             skipStatusesPlaceholder: string;
+            excludeNogo: string;
+            excludeNogoHint: string;
             onlyLastInspection: string;
             onlyLastInspectionHint: string;
             machines: string;

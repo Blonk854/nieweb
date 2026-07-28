@@ -77,6 +77,54 @@ public sealed class DpmoTableSkipExclusionTests
         Assert.Equal(SkipExclusion.Clean, clean.SkipExclusion);
     }
 
+    [Fact]
+    public async Task ExcludeNogo_DropsNogoProductFromNumeratorAndDenominator()
+    {
+        // Product 500 ("Widget") and product 700 ("NOGO-CAL"). Each has one
+        // board with 100 component tests; product 500 carries 1 defect and
+        // product 700 carries 2. ExcludeNogo must drop product 700 from BOTH
+        // the opportunity denominator and the defect numerator.
+        var tos = new List<TestedObjectRow>
+        {
+            Obj(1, 1, ObjectMissing, objId: 1),
+            Obj(2, 1, ObjectMissing, objId: 2, productId: 700),
+            Obj(2, 1, ObjectMissing, objId: 3, productId: 700),
+        };
+
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(1, 1, nbTestsOnComp: 100),
+                Card(2, 1, nbTestsOnComp: 100, productId: 700),
+            ],
+            SeededTestedObjects = tos,
+            SeededProducts =
+            [
+                new Product(500, "Widget-A", null, null),
+                new Product(700, "nogo-cal", null, null), // case-insensitive match
+            ],
+        };
+
+        var filter = new DpmoTableFilter(
+            _oneDay, DpmoGroupBy.AoiMachine, DpmoNumerator.Aoi, DpmoOpportunity.Components);
+
+        var raw = await DpmoTableReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+        var noNogo = await DpmoTableReport.Instance.RunAsync(
+            source, filter with { ExcludeNogo = true },
+            TestContext.Current.CancellationToken);
+
+        // Raw: both products count → 200 tests, 3 defects.
+        Assert.Equal(200L, raw.Overall.OpportunityCount);
+        Assert.Equal(3L, raw.Overall.DefectBitCount);
+
+        // ExcludeNogo: product 700 drops out → 100 tests, 1 defect → 10 000 DPMO.
+        Assert.Equal(100L, noNogo.Overall.OpportunityCount);
+        Assert.Equal(1L, noNogo.Overall.DefectBitCount);
+        Assert.Equal(10_000d, noNogo.Overall.DpmoPpm);
+    }
+
     // ---- builders ---------------------------------------------------------
 
     private static PanelRow Panel(int id, bool reviewed) => new(
@@ -97,7 +145,7 @@ public sealed class DpmoTableSkipExclusionTests
         ProductId: 500,
         RecipeId: 1);
 
-    private static CardRow Card(int panelId, int cardId, int nbTestsOnComp) => new(
+    private static CardRow Card(int panelId, int cardId, int nbTestsOnComp, int productId = 500) => new(
         PanelId: panelId,
         CardIdOnPanel: cardId,
         CardStatus: 1,
@@ -106,11 +154,11 @@ public sealed class DpmoTableSkipExclusionTests
         NbOfTestedObject: nbTestsOnComp, // Number_Of_Component (also drives heuristic denom)
         NbOfErrorObject: 0,
         MachineId: 10,
-        ProductId: 500,
+        ProductId: productId,
         PanelNumericDate: Start + panelId,
         NbOfTestsOnComp: nbTestsOnComp);
 
-    private static TestedObjectRow Obj(int panel, int card, long errorTable, int objId, string? repairButton = null) => new(
+    private static TestedObjectRow Obj(int panel, int card, long errorTable, int objId, string? repairButton = null, int productId = 500) => new(
         PanelId: panel,
         CardIdOnPanel: card,
         ObjectId: objId,
@@ -119,7 +167,7 @@ public sealed class DpmoTableSkipExclusionTests
         ErrorTableAr: errorTable,
         Status: errorTable == 0 ? 0 : 1,
         MachineId: 10,
-        ProductId: 500,
+        ProductId: productId,
         PanelNumericDate: Start + panel,
         Topology: null,
         PartNumberName: null,

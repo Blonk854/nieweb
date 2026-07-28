@@ -152,9 +152,48 @@ public sealed class FpyTableSkipExclusionTests
         Assert.Equal(0L, clean.SkipExcludedRows);
     }
 
+    [Fact]
+    public async Task ExcludeNogo_DropsNogoProductPanels()
+    {
+        // Panel 1 = product 500 (good). Panel 2 = product 700 ("NOGO-CAL",
+        // faulty). ExcludeNogo drops the NOGO panel so FPY reflects only the
+        // real product.
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededPanels =
+            [
+                Panel(1, panelStatus: 1),
+                Panel(2, panelStatus: -2, productId: 700),
+            ],
+            SeededProducts =
+            [
+                new Product(500, "Widget-A", null, null),
+                new Product(700, "nogo-cal", null, null), // case-insensitive match
+            ],
+        };
+
+        var raw = await FpyTableReport.Instance.RunAsync(
+            source,
+            new FpyTableFilter(_oneDay, FpyGranularity.Panel, FpyGroupBy.AoiMachine),
+            TestContext.Current.CancellationToken);
+        var noNogo = await FpyTableReport.Instance.RunAsync(
+            source,
+            new FpyTableFilter(_oneDay, FpyGranularity.Panel, FpyGroupBy.AoiMachine, ExcludeNogo: true),
+            TestContext.Current.CancellationToken);
+
+        // Raw: 2 panels, 1 good → FPY 50%.
+        Assert.Equal(2L, raw.Overall.TotalRows);
+        Assert.Equal(50d, raw.Overall.FpyAoiPercent);
+
+        // ExcludeNogo: the NOGO panel drops → 1 panel, good → FPY 100%.
+        Assert.Equal(1L, noNogo.Overall.TotalRows);
+        Assert.Equal(1L, noNogo.Overall.GoodAoiCount);
+        Assert.Equal(100d, noNogo.Overall.FpyAoiPercent);
+    }
+
     // ---- builders ---------------------------------------------------------
 
-    private static PanelRow Panel(int id, int panelStatus, bool reviewed = true) => new(
+    private static PanelRow Panel(int id, int panelStatus, bool reviewed = true, int productId = 500) => new(
         PanelId: id,
         MachineId: 10,
         LaneNumber: 1,
@@ -169,7 +208,7 @@ public sealed class FpyTableSkipExclusionTests
         NbOfTestedObject: 100,
         NbOfErrorObject: 0,
         OperatorId: null,
-        ProductId: 500,
+        ProductId: productId,
         RecipeId: 1);
 
     private static CardRow Card(int panelId, int cardId, int cardStatus, int components = 100, long anomalyAr = 0) => new(

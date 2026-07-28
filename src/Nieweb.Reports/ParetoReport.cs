@@ -175,20 +175,8 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         // NOGO exclusion: drop every product whose name contains "NOGO"
         // (case-insensitive) from both passes. NOGO coupons are known-
         // defect boards run at changeover and normally must not skew KPIs.
-        HashSet<int>? nogoProductIds = null;
-        if (filter.ExcludeNogo)
-        {
-            var products = await source.ListProductsAsync(cancellationToken).ConfigureAwait(false);
-            nogoProductIds = new HashSet<int>();
-            foreach (var p in products)
-            {
-                if (p.ProductName is not null
-                    && p.ProductName.Contains("NOGO", StringComparison.OrdinalIgnoreCase))
-                {
-                    nogoProductIds.Add(p.ProductId);
-                }
-            }
-        }
+        var nogoProductIds = await NogoProducts.BuildAsync(
+            source, filter.ExcludeNogo, cancellationToken).ConfigureAwait(false);
 
         var cardQuery = new CardQuery
         {

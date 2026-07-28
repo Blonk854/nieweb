@@ -96,6 +96,7 @@ public static partial class ReportEndpoints
         bool? includeObsoleteBits,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         string? tz,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
@@ -106,7 +107,7 @@ public static partial class ReportEndpoints
 
         var built = TryBuildDpmoRequest(
             sourceId, startUtc, endUtc, groupBy, numerator, opportunity,
-            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, sources);
+            machineIds, productIds, includeObsoleteBits, skipExclusion, skipStatuses, excludeNogo, sources);
         if (built.Error is not null)
         {
             await built.Error.ExecuteAsync(context).ConfigureAwait(false);
@@ -151,6 +152,7 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? skipExclusion,
         string? skipStatuses,
+        bool? excludeNogo,
         string? tz,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
@@ -161,7 +163,7 @@ public static partial class ReportEndpoints
         var result = await BuildFpyResultAsync(
             context, sourceId, startUtc, endUtc, granularity, groupBy,
             machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
-            sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+            excludeNogo, sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return;

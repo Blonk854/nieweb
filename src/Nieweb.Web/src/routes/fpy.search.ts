@@ -73,6 +73,8 @@ export type FpySearch = {
      * Composes with `skipExclusion`. Empty / absent applies no narrowing.
      */
     skipStatuses?: SkipStatus[];
+    /** Drop products whose name contains "NOGO" (case-insensitive). */
+    excludeNogo?: boolean;
 };
 
 /**
@@ -104,6 +106,9 @@ export function toApiQuery(search: FpySearch): Record<string, string> {
     if (search.skipStatuses && search.skipStatuses.length > 0) {
         out.skipStatuses = search.skipStatuses.join(",");
     }
+    if (search.excludeNogo) {
+        out.excludeNogo = "true";
+    }
     return out;
 }
 
@@ -124,6 +129,7 @@ export function validateFpySearch(raw: Record<string, unknown>): FpySearch {
         onlyLastInspection: toBoolOrUndef(raw.onlyLastInspection),
         skipExclusion: toEnumOrUndef<SkipExclusion>(raw.skipExclusion, SKIP_EXCLUSIONS),
         skipStatuses: toEnumArray<SkipStatus>(raw.skipStatuses, SKIP_STATUS_VALUES),
+        excludeNogo: toBoolOrUndef(raw.excludeNogo),
     };
 }
 

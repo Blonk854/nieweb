@@ -120,6 +120,12 @@ public enum DpmoOpportunity
 /// <c>null</c> / empty applies no status narrowing. Requires the same
 /// per-board classification as <see cref="SkipExclusion.Clean"/>.
 /// </param>
+/// <param name="ExcludeNogo">
+/// When <c>true</c>, drops every product whose name contains "NOGO"
+/// (case-insensitive) from both the opportunity denominator and the
+/// defect numerator. NOGO boards are known-defect calibration coupons
+/// run at changeover and normally must not skew production KPIs.
+/// </param>
 public sealed record DpmoTableFilter(
     DateRange Window,
     DpmoGroupBy GroupBy,
@@ -130,7 +136,8 @@ public sealed record DpmoTableFilter(
     bool IncludeObsoleteBits = false,
     SkipExclusion SkipExclusion = SkipExclusion.Raw,
     SkipClassificationConfig? SkipConfig = null,
-    IReadOnlyCollection<SkipClass>? SkipStatuses = null);
+    IReadOnlyCollection<SkipClass>? SkipStatuses = null,
+    bool ExcludeNogo = false);
 
 /// <summary>
 /// DPMO counts for a single scope (row-level or grand total).

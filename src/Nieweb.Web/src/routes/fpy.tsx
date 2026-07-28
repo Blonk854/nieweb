@@ -12,6 +12,7 @@ import {
     SegmentedControl,
     Select,
     Stack,
+    Switch,
     Text,
     Title,
 } from "@mantine/core";
@@ -66,6 +67,7 @@ type FormState = {
     onlyLastInspection: boolean;
     skipExclusion: SkipExclusion;
     skipStatuses: SkipStatus[];
+    excludeNogo: boolean;
 };
 
 /**
@@ -316,6 +318,18 @@ export function FpyRoute() {
                             }))
                         }
                         clearable
+                    />
+
+                    <Switch
+                        label={t("fpy.filters.excludeNogo")}
+                        description={t("fpy.filters.excludeNogoHint")}
+                        checked={form.excludeNogo}
+                        onChange={(event) =>
+                            setForm((prev) => ({
+                                ...prev,
+                                excludeNogo: event.currentTarget.checked,
+                            }))
+                        }
                     />
 
                     <Checkbox
@@ -597,6 +611,7 @@ function emptyForm(): FormState {
         onlyLastInspection: true,
         skipExclusion: "Raw",
         skipStatuses: [],
+        excludeNogo: false,
     };
 }
 
@@ -612,6 +627,7 @@ function searchToForm(s: FpySearch, timeZone: string): FormState {
         onlyLastInspection: s.onlyLastInspection ?? true,
         skipExclusion: s.skipExclusion ?? "Raw",
         skipStatuses: s.skipStatuses ?? [],
+        excludeNogo: s.excludeNogo ?? false,
     };
 }
 
@@ -627,5 +643,6 @@ function formToSearch(f: FormState, timeZone: string): FpySearch {
         onlyLastInspection: f.onlyLastInspection ? undefined : false,
         skipExclusion: f.skipExclusion === "Clean" ? "Clean" : undefined,
         skipStatuses: f.skipStatuses.length > 0 ? f.skipStatuses : undefined,
+        excludeNogo: f.excludeNogo ? true : undefined,
     };
 }
