@@ -62,6 +62,18 @@ function paretoOptions(
 }
 
 /**
+ * Axes offered on a Pareto *tile*. Excludes the time-bucketing axes
+ * (`Day` / `Shift`) from {@link PARETO_AXES}: those need a site time
+ * zone / shift schedule that a saved tile cannot carry, and the export
+ * path would otherwise throw when it runs the tile (see
+ * `RunParetoForTileAsync`). They remain available on the stand-alone
+ * `/report/pareto` view which has the extra controls.
+ */
+const TILE_PARETO_AXES: readonly string[] = PARETO_AXES.filter(
+    (a) => a !== "Day" && a !== "Shift",
+);
+
+/**
  * Ordered field list per tile type. Tiles absent from this map (e.g.
  * `comment`, or future tiles without a form yet) fall back to the raw
  * "Advanced (JSON)" editor in {@link ./TileConfigForm}.
@@ -81,7 +93,7 @@ export const TILE_CONFIG_SCHEMAS: Partial<Record<TileType, readonly TileConfigFi
             key: "axis",
             labelKey: `${CONFIG_ROOT}.pareto.axis.label`,
             helpKey: `${CONFIG_ROOT}.pareto.axis.help`,
-            options: paretoOptions("axis", PARETO_AXES),
+            options: paretoOptions("axis", TILE_PARETO_AXES),
         },
         {
             kind: "select",

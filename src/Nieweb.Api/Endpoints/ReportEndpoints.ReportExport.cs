@@ -241,9 +241,15 @@ public static partial class ReportEndpoints
         // (see ParetoTileDefault). The report-level window and machine /
         // product narrowing still come from the shared export filters.
         var cfg = ParseParetoTileConfig(configJson);
+        // Time-bucketing axes (Day / Shift) need a site time zone / shift
+        // schedule that a saved tile cannot carry; the SPA no longer offers
+        // them for tiles, but guard here so an older persisted config falls
+        // back to the defect axis instead of throwing (ParetoReport requires
+        // Shifts for the Shift axis).
+        var axis = cfg.Axis is ParetoAxis.Shift or ParetoAxis.Day ? ParetoAxis.Defect : cfg.Axis;
         var filter = new ParetoFilter(
             Window: shared.Window,
-            Axis: cfg.Axis,
+            Axis: axis,
             Numerator: cfg.Numerator,
             Opportunity: cfg.Opportunity,
             Weight: cfg.Weight,
