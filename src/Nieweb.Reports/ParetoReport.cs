@@ -1,6 +1,8 @@
 using Nieweb.DataSources;
+using Nieweb.Filters;
 using Nieweb.Reports.Common;
 using Nieweb.Reports.Common.Defects;
+using Nieweb.Reports.Filters;
 
 namespace Nieweb.Reports;
 
@@ -193,6 +195,28 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         var partNumberSet = ToOrdinalSet(filter.PartNumbers);
         var jedecSet = ToOrdinalSet(filter.JedecNames);
 
+        // Generic Vieweb-style operator filter (applied in memory). Only
+        // resolve the product / machine name maps when the request
+        // actually references those fields — the string fields (topology /
+        // part number / package) and defect need no lookup.
+        var genericFilter = filter.Filters is { } fr && !fr.Clauses.IsDefaultOrEmpty ? fr : null;
+        IReadOnlyDictionary<int, string?>? filterMachineNames = null;
+        IReadOnlyDictionary<int, string?>? filterProductNames = null;
+        if (genericFilter is not null)
+        {
+            var referencedFields = genericFilter.Clauses.Select(c => c.Field).ToHashSet();
+            if (referencedFields.Contains(FilterField.AoiMachine))
+            {
+                filterMachineNames = (await source.ListMachinesAsync(cancellationToken).ConfigureAwait(false))
+                    .ToDictionary(m => m.MachineId, m => (string?)m.MachineName);
+            }
+            if (referencedFields.Contains(FilterField.Product))
+            {
+                filterProductNames = (await source.ListProductsAsync(cancellationToken).ConfigureAwait(false))
+                    .ToDictionary(p => p.ProductId, p => p.ProductName);
+            }
+        }
+
         var query = new TestedObjectQuery
         {
             Window = filter.Window,
@@ -214,6 +238,26 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             if (jedecSet is not null && (obj.JedecName is null || !jedecSet.Contains(obj.JedecName)))
             {
                 continue;
+            }
+
+            // Generic operator filter — narrows on reference designator /
+            // part number / package / product / AOI machine / defect using
+            // the numerator-consistent defect bitfield.
+            if (genericFilter is not null)
+            {
+                var numeratorField = filter.Numerator switch
+                {
+                    DpmoNumerator.Aoi => obj.ErrorTable,
+                    DpmoNumerator.Real => obj.ErrorTableAr,
+                    DpmoNumerator.Dummy => obj.ErrorTable & ~obj.ErrorTableAr,
+                    _ => 0L,
+                };
+                var rowValues = ReportFilterRows.ForTestedObject(
+                    obj, numeratorField, filter.IncludeObsoleteBits, filterMachineNames, filterProductNames);
+                if (!FilterEvaluator.Matches(genericFilter, rowValues))
+                {
+                    continue;
+                }
             }
 
             // The numerator honours the opportunity flavour so it stays

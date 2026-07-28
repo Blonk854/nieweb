@@ -1,4 +1,5 @@
 using Nieweb.DataSources;
+using Nieweb.Filters;
 
 namespace Nieweb.Reports;
 
@@ -16,11 +17,18 @@ namespace Nieweb.Reports;
 /// most recent inspection of each panel. Sources without
 /// <see cref="Capabilities.IsLastInspectionFilter"/> silently ignore this.
 /// </param>
+/// <param name="Filters">
+/// Optional Vieweb-style generic operator filter (panel bar code, panel
+/// status, product, AOI machine). Applied in memory via
+/// <see cref="FilterEvaluator"/> after the DB-level window / machine /
+/// product filters. <c>null</c> or empty matches every panel.
+/// </param>
 public sealed record PanelYieldFilter(
     DateRange Window,
     IReadOnlyCollection<int>? MachineIds = null,
     IReadOnlyCollection<int>? ProductIds = null,
-    bool OnlyLastInspection = true);
+    bool OnlyLastInspection = true,
+    FilterRequest? Filters = null);
 
 /// <summary>
 /// Result of running the <see cref="PanelYieldByLineReport"/>.

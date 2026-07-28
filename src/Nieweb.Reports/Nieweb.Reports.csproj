@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nieweb.DataSources\Nieweb.DataSources.csproj" />
+    <ProjectReference Include="..\Nieweb.Filters\Nieweb.Filters.csproj" />
     <ProjectReference Include="..\Nieweb.Reports.Common\Nieweb.Reports.Common.csproj" />
   </ItemGroup>
 

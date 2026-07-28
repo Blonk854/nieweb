@@ -1,4 +1,5 @@
 using Nieweb.DataSources;
+using Nieweb.Filters;
 using Nieweb.Reports.Common;
 
 namespace Nieweb.Reports;
@@ -180,6 +181,14 @@ public enum ParetoWeight
 /// <see cref="System.ArgumentException"/> when Shift is requested
 /// without a definition.
 /// </param>
+/// <param name="Filters">
+/// Optional Vieweb-style generic operator filter (reference designator,
+/// part number, package, product, AOI machine, defect). Applied in memory
+/// via <see cref="FilterEvaluator"/> after the DB-level window / machine /
+/// product filters, so every operator (Like / Not like / In / Not in /
+/// Between / &lt;= / &gt;=) narrows the streamed rows. <c>null</c> or empty
+/// matches every row.
+/// </param>
 public sealed record ParetoFilter(
     DateRange Window,
     ParetoAxis Axis,
@@ -197,7 +206,8 @@ public sealed record ParetoFilter(
     IReadOnlyCollection<string>? PartNumbers = null,
     IReadOnlyCollection<string>? JedecNames = null,
     TimeZoneInfo? SiteTimeZone = null,
-    ShiftDefinition? Shifts = null);
+    ShiftDefinition? Shifts = null,
+    FilterRequest? Filters = null);
 
 /// <summary>
 /// One row of a Pareto chart. <see cref="DefectCount"/> is the bar

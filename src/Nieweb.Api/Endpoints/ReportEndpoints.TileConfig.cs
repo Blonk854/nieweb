@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 
+using Nieweb.Filters;
 using Nieweb.Reports;
 
 namespace Nieweb.Api.Endpoints;
@@ -90,6 +92,68 @@ public static partial class ReportEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Parses a per-tile Vieweb-style generic operator filter from a
+    /// tile's <c>ConfigJson</c> <c>filters</c> array. Each element is
+    /// <c>{ field, operator, values: [] }</c> using the canonical
+    /// <see cref="FilterField"/> / <see cref="FilterOperator"/> enum
+    /// names (case-insensitive). The whole request is validated with
+    /// <see cref="FilterValidator"/>; a malformed or structurally
+    /// invalid filter yields <c>null</c> (no filter) so one bad clause
+    /// never blanks a report. Returns <c>null</c> when the tile carries
+    /// no <c>filters</c> array.
+    /// </summary>
+    internal static FilterRequest? ParseTileFilters(string? configJson)
+    {
+        var root = TryParseObject(configJson);
+        if (root is not { } obj
+            || !obj.TryGetProperty("filters", out var filtersEl)
+            || filtersEl.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var clauses = ImmutableArray.CreateBuilder<FilterClause>();
+        foreach (var el in filtersEl.EnumerateArray())
+        {
+            if (el.ValueKind != JsonValueKind.Object
+                || !el.TryGetProperty("field", out var fEl) || fEl.ValueKind != JsonValueKind.String
+                || !el.TryGetProperty("operator", out var oEl) || oEl.ValueKind != JsonValueKind.String
+                || !Enum.TryParse<FilterField>(fEl.GetString(), ignoreCase: true, out var field) || !Enum.IsDefined(field)
+                || !Enum.TryParse<FilterOperator>(oEl.GetString(), ignoreCase: true, out var op) || !Enum.IsDefined(op))
+            {
+                continue;
+            }
+
+            var values = ImmutableArray.CreateBuilder<string>();
+            if (el.TryGetProperty("values", out var vEl) && vEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var v in vEl.EnumerateArray())
+                {
+                    switch (v.ValueKind)
+                    {
+                        case JsonValueKind.String:
+                            values.Add(v.GetString()!);
+                            break;
+                        case JsonValueKind.Number:
+                            values.Add(v.GetRawText());
+                            break;
+                    }
+                }
+            }
+
+            clauses.Add(new FilterClause(field, op, values.ToImmutable()));
+        }
+
+        if (clauses.Count == 0)
+        {
+            return null;
+        }
+
+        var request = new FilterRequest(clauses.ToImmutable());
+        return FilterValidator.Validate(request).IsValid ? request : null;
     }
 
     private static JsonElement? TryParseObject(string? configJson)

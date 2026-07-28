@@ -1,4 +1,5 @@
 ﻿using Nieweb.DataSources;
+using Nieweb.Filters;
 using Nieweb.Reports.Common;
 using Nieweb.Reports.TestKit;
 using Nieweb.Reports.Tests.Fakes;
@@ -378,6 +379,112 @@ public sealed class ParetoReportTests
 
         // The applied-filter echo lets the UI render a breadcrumb.
         Assert.Equal([1], narrowed.AppliedFilters.DefectBits);
+    }
+
+    [Fact]
+    public async Task GenericFilter_PartNumberNotLike_ExcludesMatchingRows()
+    {
+        // The Old-school filter builder can express operators the fixed
+        // narrowing collections cannot — here "part number Not like 'PN-B'"
+        // keeps only PN-A rows.
+        var start = (int)_oneDay.StartEpochSeconds;
+        var objects = new List<TestedObjectRow>();
+        for (var i = 0; i < 5; i++)
+        {
+            objects.Add(Obj(10, start + 60 + i, 40_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, partNumberName: "PN-A"));
+        }
+        for (var i = 0; i < 3; i++)
+        {
+            objects.Add(Obj(10, start + 70 + i, 41_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, partNumberName: "PN-B"));
+        }
+
+        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+
+        var request = new FilterRequest(
+        [
+            new FilterClause(FilterField.PartNumber, FilterOperator.NotLike, ["PN-B"]),
+        ]);
+        var filter = new ParetoFilter(_oneDay, ParetoAxis.PartNumber) with { Filters = request };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("PN-A", result.Rows[0].GroupKey);
+        Assert.Equal(5L, result.Rows[0].DefectCount);
+    }
+
+    [Fact]
+    public async Task GenericFilter_ProductIn_ResolvesNamesAndNarrows()
+    {
+        // Product filter is expressed by display name; the report resolves
+        // Product_Id -> name from the reference list before matching.
+        var start = (int)_oneDay.StartEpochSeconds;
+        var objects = new List<TestedObjectRow>();
+        for (var i = 0; i < 4; i++)
+        {
+            objects.Add(Obj(10, start + 60 + i, 60_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, productId: 100));
+        }
+        for (var i = 0; i < 2; i++)
+        {
+            objects.Add(Obj(10, start + 70 + i, 61_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, productId: 200));
+        }
+
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededTestedObjects = objects,
+            SeededProducts =
+            [
+                new Product(100, "Product A", null, null),
+                new Product(200, "Product B", null, null),
+            ],
+        };
+
+        var request = new FilterRequest(
+        [
+            new FilterClause(FilterField.Product, FilterOperator.In, ["Product A"]),
+        ]);
+        var filter = new ParetoFilter(_oneDay, ParetoAxis.Product) with { Filters = request };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("Product A", result.Rows[0].GroupName);
+        Assert.Equal(4L, result.Rows[0].DefectCount);
+    }
+
+    [Fact]
+    public async Task GenericFilter_DefectIn_NarrowsToNamedDefect()
+    {
+        // Filtering Defect In {"Polarity error"} keeps only objects that
+        // carry that defect bit — proving the adapter decodes the
+        // numerator bitfield to defect display names.
+        var start = (int)_oneDay.StartEpochSeconds;
+        var objects = new List<TestedObjectRow>();
+        for (var i = 0; i < 5; i++)
+        {
+            objects.Add(Obj(10, start + 60 + i, 70_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, partNumberName: "PN-A"));
+        }
+        for (var i = 0; i < 3; i++)
+        {
+            objects.Add(Obj(10, start + 70 + i, 71_000 + i, ComponentType, BitPolarityError, BitPolarityError, partNumberName: "PN-A"));
+        }
+
+        var source = new FakeAoiSource(_postReflow) { SeededTestedObjects = objects };
+
+        var request = new FilterRequest(
+        [
+            new FilterClause(FilterField.Defect, FilterOperator.In, ["Polarity error"]),
+        ]);
+        var filter = new ParetoFilter(_oneDay, ParetoAxis.PartNumber) with { Filters = request };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("PN-A", result.Rows[0].GroupKey);
+        Assert.Equal(3L, result.Rows[0].DefectCount);
     }
 
     [Fact]

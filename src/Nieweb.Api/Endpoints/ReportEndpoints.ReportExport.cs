@@ -213,7 +213,11 @@ public static partial class ReportEndpoints
         // When the tile does not set it, inherit the report-level value
         // from the shared filter so behaviour is unchanged.
         var onlyLast = ParsePanelYieldOnlyLastInspection(configJson) ?? shared.OnlyLastInspection;
-        var filter = shared with { OnlyLastInspection = onlyLast };
+        var filter = shared with
+        {
+            OnlyLastInspection = onlyLast,
+            Filters = ParseTileFilters(configJson),
+        };
 
         LogRunning(logger, source.Descriptor.Id, filter.Window.StartUtc, filter.Window.EndUtcExclusive);
         return await PanelYieldByLineReport.Instance
@@ -254,7 +258,8 @@ public static partial class ReportEndpoints
             PartNumbers: null,
             JedecNames: null,
             SiteTimeZone: null,
-            Shifts: null);
+            Shifts: null,
+            Filters: ParseTileFilters(configJson));
 
         LogRunningPareto(
             logger, source.Descriptor.Id, filter.Axis, filter.Numerator,

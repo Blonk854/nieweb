@@ -1,4 +1,5 @@
 using Nieweb.DataSources;
+using Nieweb.Filters;
 using Nieweb.Reports.TestKit;
 using Nieweb.Reports.Tests.Fakes;
 using Xunit;
@@ -183,6 +184,80 @@ public sealed class PanelYieldByLineReportTests
     }
 
     /// <summary>Builds a minimal PanelRow with sensible defaults so tests can focus on the fields under test.</summary>
+    [Fact]
+    public async Task GenericFilter_PanelBarcodeLike_NarrowsToMatchingPanels()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededPanels =
+            [
+                Panel(id: 1, machineId: 10, date: start + 60, status: 1),    // BC-000001
+                Panel(id: 2, machineId: 10, date: start + 120, status: -1),  // BC-000002
+                Panel(id: 3, machineId: 10, date: start + 180, status: 1),   // BC-000003
+            ],
+            SeededMachines =
+            [
+                new Machine(MachineId: 10, MachineType: 1, MachineName: "SPI-A", MachineTypeName: "SPI"),
+            ],
+        };
+
+        // "panel bar code Like '000002'" -> only BC-000002 (a faulty panel).
+        var request = new FilterRequest(
+        [
+            new FilterClause(FilterField.PanelBarcode, FilterOperator.Like, ["000002"]),
+        ]);
+        var filter = new PanelYieldFilter(_oneDay) with { Filters = request };
+
+        var result = await PanelYieldByLineReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result.Overall.TotalPanels);
+        Assert.Equal(1, result.Overall.FaultyPanels);
+        Assert.Equal(0d, result.Overall.FpyPercent);
+    }
+
+    [Fact]
+    public async Task GenericFilter_ProductIn_ResolvesNamesAndNarrows()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededPanels =
+            [
+                PanelWithProduct(id: 1, machineId: 10, date: start + 60, status: 1, productId: 100),
+                PanelWithProduct(id: 2, machineId: 10, date: start + 120, status: 1, productId: 100),
+                PanelWithProduct(id: 3, machineId: 10, date: start + 180, status: -1, productId: 200),
+            ],
+            SeededMachines =
+            [
+                new Machine(MachineId: 10, MachineType: 1, MachineName: "SPI-A", MachineTypeName: "SPI"),
+            ],
+            SeededProducts =
+            [
+                new Product(100, "Widget", null, null),
+                new Product(200, "Gadget", null, null),
+            ],
+        };
+
+        // "product In {Widget}" -> only the two Widget panels (both good).
+        var request = new FilterRequest(
+        [
+            new FilterClause(FilterField.Product, FilterOperator.In, ["Widget"]),
+        ]);
+        var filter = new PanelYieldFilter(_oneDay) with { Filters = request };
+
+        var result = await PanelYieldByLineReport.Instance.RunAsync(
+            source, filter, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Overall.TotalPanels);
+        Assert.Equal(2, result.Overall.GoodPanels);
+        Assert.Equal(100d, result.Overall.FpyPercent);
+    }
+
+    private static PanelRow PanelWithProduct(int id, int machineId, int date, int status, int productId) =>
+        Panel(id, machineId, date, status) with { ProductId = productId };
+
     private static PanelRow Panel(int id, int machineId, int date, int status) =>
         new(
             PanelId: id,

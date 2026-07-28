@@ -1,4 +1,6 @@
 using Nieweb.DataSources;
+using Nieweb.Filters;
+using Nieweb.Reports.Filters;
 
 namespace Nieweb.Reports;
 
@@ -73,11 +75,41 @@ public sealed class PanelYieldByLineReport : IReport<PanelYieldFilter, PanelYiel
             OnlyLastInspection = filter.OnlyLastInspection,
         };
 
+        // Generic Vieweb-style operator filter (applied in memory over the
+        // streamed PANELS rows). Resolve product / machine name maps only
+        // when the request references those fields.
+        var genericFilter = filter.Filters is { } fr && !fr.Clauses.IsDefaultOrEmpty ? fr : null;
+        IReadOnlyDictionary<int, string?>? filterMachineNames = null;
+        IReadOnlyDictionary<int, string?>? filterProductNames = null;
+        if (genericFilter is not null)
+        {
+            var referencedFields = genericFilter.Clauses.Select(c => c.Field).ToHashSet();
+            if (referencedFields.Contains(FilterField.AoiMachine))
+            {
+                filterMachineNames = (await source.ListMachinesAsync(cancellationToken).ConfigureAwait(false))
+                    .ToDictionary(m => m.MachineId, m => (string?)m.MachineName);
+            }
+            if (referencedFields.Contains(FilterField.Product))
+            {
+                filterProductNames = (await source.ListProductsAsync(cancellationToken).ConfigureAwait(false))
+                    .ToDictionary(p => p.ProductId, p => p.ProductName);
+            }
+        }
+
         var overall = new Accumulator();
         var perMachine = new Dictionary<int, Accumulator>();
 
         await foreach (var panel in source.StreamPanelsAsync(query, cancellationToken).ConfigureAwait(false))
         {
+            if (genericFilter is not null)
+            {
+                var rowValues = ReportFilterRows.ForPanel(panel, filterMachineNames, filterProductNames);
+                if (!FilterEvaluator.Matches(genericFilter, rowValues))
+                {
+                    continue;
+                }
+            }
+
             overall.Add(panel.PanelStatus);
 
             if (!perMachine.TryGetValue(panel.MachineId, out var bucket))
