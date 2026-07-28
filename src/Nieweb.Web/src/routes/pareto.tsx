@@ -286,32 +286,47 @@ export function ParetoRoute() {
                             required
                             allowDeselect={false}
                         />
+                        <MultiSelect
+                            label={t("pareto.filters.machines")}
+                            placeholder={t("pareto.filters.machinesPlaceholder")}
+                            data={(machinesQuery.data ?? []).map((m) => ({
+                                value: String(m.id),
+                                label: `${m.name} (${m.typeName})`,
+                            }))}
+                            value={(form.machineIds ?? []).map(String)}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    machineIds: vals.map(Number).filter(Number.isFinite),
+                                }))
+                            }
+                            disabled={!effectiveSourceId || machinesQuery.isPending}
+                            searchable
+                            clearable
+                        />
+                        <MultiSelect
+                            label={t("pareto.filters.products")}
+                            placeholder={t("pareto.filters.productsPlaceholder")}
+                            data={(productsQuery.data ?? []).map((p) => ({
+                                value: String(p.id),
+                                label: p.revision
+                                    ? `${p.name || `#${p.id}`} — ${p.revision}`
+                                    : p.name || `#${p.id}`,
+                            }))}
+                            value={(form.productIds ?? []).map(String)}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    productIds: vals.map(Number).filter(Number.isFinite),
+                                }))
+                            }
+                            disabled={!effectiveSourceId || productsQuery.isPending}
+                            searchable
+                            clearable
+                        />
                     </Group>
 
-                    <Group grow>
-                        <DateTimePicker
-                            label={t("pareto.filters.from")}
-                            value={form.from}
-                            onChange={(value) =>
-                                setForm((prev) => ({ ...prev, from: value }))
-                            }
-                            valueFormat="YYYY-MM-DD HH:mm"
-                            clearable
-                            required
-                        />
-                        <DateTimePicker
-                            label={t("pareto.filters.to")}
-                            value={form.to}
-                            onChange={(value) =>
-                                setForm((prev) => ({ ...prev, to: value }))
-                            }
-                            valueFormat="YYYY-MM-DD HH:mm"
-                            clearable
-                            required
-                        />
-                    </Group>
-
-                    <Group grow>
+                    <Group grow align="flex-start">
                         <Select
                             label={t("pareto.filters.numerator")}
                             data={PARETO_NUMERATORS.map((n) => ({
@@ -345,6 +360,7 @@ export function ParetoRoute() {
                         <Select
                             label={t("pareto.filters.weight")}
                             description={t("pareto.filters.weightHint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
                             data={PARETO_WEIGHTS.map((w) => ({
                                 value: w,
                                 label: t(`pareto.weight.${w}`),
@@ -361,6 +377,7 @@ export function ParetoRoute() {
                         <NumberInput
                             label={t("pareto.filters.topN")}
                             description={t("pareto.filters.topNHint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
                             min={1}
                             max={100}
                             value={form.topN ?? ""}
@@ -374,6 +391,7 @@ export function ParetoRoute() {
                         <NumberInput
                             label={t("pareto.filters.vitalFewThreshold")}
                             description={t("pareto.filters.vitalFewThresholdHint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
                             min={0}
                             max={100}
                             step={1}
@@ -387,46 +405,6 @@ export function ParetoRoute() {
                             }
                         />
                     </Group>
-
-                    <MultiSelect
-                        label={t("pareto.filters.machines")}
-                        placeholder={t("pareto.filters.machinesPlaceholder")}
-                        data={(machinesQuery.data ?? []).map((m) => ({
-                            value: String(m.id),
-                            label: `${m.name} (${m.typeName})`,
-                        }))}
-                        value={(form.machineIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                machineIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || machinesQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
-                    <MultiSelect
-                        label={t("pareto.filters.products")}
-                        placeholder={t("pareto.filters.productsPlaceholder")}
-                        data={(productsQuery.data ?? []).map((p) => ({
-                            value: String(p.id),
-                            label: p.revision
-                                ? `${p.name || `#${p.id}`} — ${p.revision}`
-                                : p.name || `#${p.id}`,
-                        }))}
-                        value={(form.productIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                productIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || productsQuery.isPending}
-                        searchable
-                        clearable
-                    />
 
                     <Group align="flex-start" gap="lg">
                         <Stack gap={4}>
@@ -453,6 +431,7 @@ export function ParetoRoute() {
                         <MultiSelect
                             label={t("pareto.filters.skipStatuses")}
                             description={t("pareto.filters.skipStatusesHint")}
+                            inputWrapperOrder={["label", "input", "description", "error"]}
                             placeholder={t("pareto.filters.skipStatusesPlaceholder")}
                             data={SKIP_STATUS_VALUES.map((c) => ({
                                 value: c,
@@ -470,17 +449,42 @@ export function ParetoRoute() {
                         />
                     </Group>
 
-                    <Switch
-                        label={t("pareto.filters.excludeNogo")}
-                        description={t("pareto.filters.excludeNogoHint")}
-                        checked={form.excludeNogo}
-                        onChange={(e) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                excludeNogo: e.currentTarget.checked,
-                            }))
-                        }
-                    />
+                    <Group justify="space-between" align="flex-end">
+                        <Switch
+                            label={t("pareto.filters.excludeNogo")}
+                            checked={form.excludeNogo}
+                            onChange={(e) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    excludeNogo: e.currentTarget.checked,
+                                }))
+                            }
+                        />
+                        <Group gap="sm" align="flex-end">
+                            <DateTimePicker
+                                label={t("pareto.filters.from")}
+                                value={form.from}
+                                onChange={(value) =>
+                                    setForm((prev) => ({ ...prev, from: value }))
+                                }
+                                valueFormat="YYYY-MM-DD HH:mm"
+                                clearable
+                                required
+                                w={190}
+                            />
+                            <DateTimePicker
+                                label={t("pareto.filters.to")}
+                                value={form.to}
+                                onChange={(value) =>
+                                    setForm((prev) => ({ ...prev, to: value }))
+                                }
+                                valueFormat="YYYY-MM-DD HH:mm"
+                                clearable
+                                required
+                                w={190}
+                            />
+                        </Group>
+                    </Group>
 
                     {(() => {
                         const chips: {
@@ -555,12 +559,6 @@ export function ParetoRoute() {
                             </Group>
                         );
                     })()}
-
-                    {!canSubmit && (
-                        <Text c="dimmed" size="sm">
-                            {t("pareto.filters.missingRequired")}
-                        </Text>
-                    )}
 
                     <Group justify="space-between" className="no-print">
                         <Group>
