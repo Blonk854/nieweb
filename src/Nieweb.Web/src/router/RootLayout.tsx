@@ -179,6 +179,15 @@ function SideNav() {
                     active={active === "/reports" || active.startsWith("/reports/")}
                 />
             )}
+            {canAuthor && (
+                <NavLink
+                    component={Link}
+                    to="/old-school/reports"
+                    label={t("nav.oldSchool")}
+                    leftSection={<IconChartBar size={18} />}
+                    active={active.startsWith("/old-school")}
+                />
+            )}
             {isAdmin && (
                 <NavLink
                     component={Link}

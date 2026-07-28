@@ -29,6 +29,11 @@ import { AdminAuditRoute } from "../routes/admin-audit";
 import { AdminReportsRoute } from "../routes/admin-reports";
 import { AdminReportEditorRoute, MyReportEditorRoute } from "../routes/admin-report-editor";
 import { MyReportsRoute } from "../routes/my-reports";
+import { OldSchoolReportsRoute } from "../routes/old-school-reports";
+import { OldSchoolLayoutRoute } from "../routes/old-school-layout";
+import { OldSchoolNewEntityRoute } from "../routes/old-school-new-entity";
+import { OldSchoolEntityRoute } from "../routes/old-school-entity";
+import { OldSchoolViewRoute } from "../routes/old-school-view";
 import { AdminBoardSvgsRoute } from "../routes/admin-board-svgs";
 import { AdminParametersRoute } from "../routes/admin-parameters";
 import { AdminSkipClassificationRoute } from "../routes/admin-skip-classification";
@@ -275,6 +280,40 @@ const myReportEditorRoute = createRoute({
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
+// Old-school (Vieweb-style) report designer. Author + Admin only; the
+// role check lives inside each component. Routes are nested paths under
+// /old-school/reports so the breadcrumb reads Reports list > ... .
+const oldSchoolReportsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/old-school/reports",
+    component: OldSchoolReportsRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+const oldSchoolLayoutRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/old-school/reports/$id",
+    component: OldSchoolLayoutRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+const oldSchoolNewEntityRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/old-school/reports/$id/new-entity",
+    component: OldSchoolNewEntityRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+const oldSchoolEntityRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/old-school/reports/$id/entity/$entityId",
+    component: OldSchoolEntityRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+const oldSchoolViewRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/old-school/reports/$id/view",
+    component: OldSchoolViewRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
 const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
@@ -292,6 +331,11 @@ const routeTree = rootRoute.addChildren([
     adminReportEditorRoute,
     myReportsRoute,
     myReportEditorRoute,
+    oldSchoolReportsRoute,
+    oldSchoolLayoutRoute,
+    oldSchoolNewEntityRoute,
+    oldSchoolEntityRoute,
+    oldSchoolViewRoute,
     adminBoardSvgsRoute,
     adminParametersRoute,
     adminSkipClassificationRoute,
