@@ -42,6 +42,9 @@ public static partial class SourceEndpoints
         group.MapGet("/{id}/products", ListProductsAsync)
             .WithName("SourcesListProducts");
 
+        group.MapGet("/{id}/active-filters", ListActiveFiltersAsync)
+            .WithName("SourcesListActiveFilters");
+
         return routes;
     }
 
@@ -153,6 +156,19 @@ public static partial class SourceEndpoints
     /// <summary>One item in <c>GET /api/sources/{id}/products</c>.</summary>
     public sealed record ProductOption(int Id, string Name, string? Revision);
 
+    /// <summary>
+    /// A distinct (Machine_Id, Product_Id) pair that produced a panel inside
+    /// the requested window (one item of the <c>active-filters</c> response).
+    /// </summary>
+    public sealed record ActiveFilterPair(int MachineId, int ProductId);
+
+    /// <summary>
+    /// Response for <c>GET /api/sources/{id}/active-filters</c>. The UI derives
+    /// the cascaded machine / product dropdown contents from this pair set so
+    /// it only offers combinations that actually ran in the window.
+    /// </summary>
+    public sealed record ActiveFiltersResponse(IReadOnlyList<ActiveFilterPair> Pairs);
+
     private static IAoiSource? FindSource(IEnumerable<IAoiSource> sources, string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -224,6 +240,89 @@ public static partial class SourceEndpoints
             .ThenBy(p => p.Id)
             .ToArray();
         return Results.Ok(options);
+    }
+
+    /// <summary>
+    /// <c>GET /api/sources/{id}/active-filters?startUtc=&amp;endUtc=</c>.
+    /// Returns the distinct (machine, product) pairs that produced a panel in
+    /// the window, so the UI can cascade its machine / product dropdowns.
+    /// A single windowed <c>SELECT DISTINCT</c> — same read-only safety class
+    /// as the freshness probe.
+    /// </summary>
+    private static async Task<IResult> ListActiveFiltersAsync(
+        string id,
+        string? startUtc,
+        string? endUtc,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        var source = FindSource(sources, id);
+        if (source is null)
+        {
+            return SourceNotFound(id);
+        }
+        if (!TryParseWindow(startUtc, endUtc, out var window, out var error))
+        {
+            return error;
+        }
+        var keys = await source.ListActivePanelKeysAsync(window, cancellationToken).ConfigureAwait(false);
+        var pairs = keys
+            .Select(k => new ActiveFilterPair(k.MachineId, k.ProductId))
+            .ToArray();
+        return Results.Ok(new ActiveFiltersResponse(pairs));
+    }
+
+    /// <summary>
+    /// Parses the <c>startUtc</c> / <c>endUtc</c> query pair into a
+    /// <see cref="DateRange"/>, or returns <c>false</c> with a 400 problem in
+    /// <paramref name="error"/>.
+    /// </summary>
+    private static bool TryParseWindow(
+        string? startUtc,
+        string? endUtc,
+        out DateRange window,
+        out IResult error)
+    {
+        window = default;
+        error = Results.Problem(
+            title: "Invalid window.",
+            detail: "startUtc and endUtc must be ISO-8601 instants with endUtc after startUtc.",
+            statusCode: StatusCodes.Status400BadRequest);
+
+        if (!TryParseUtc(startUtc, out var start) || !TryParseUtc(endUtc, out var end) || end <= start)
+        {
+            return false;
+        }
+        try
+        {
+            window = new DateRange(start, end);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        error = null!;
+        return true;
+    }
+
+    private static bool TryParseUtc(string? raw, out DateTimeOffset value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+        if (DateTimeOffset.TryParse(
+                raw,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal
+                    | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                out var parsed))
+        {
+            value = parsed.ToUniversalTime();
+            return true;
+        }
+        return false;
     }
 
     /// <summary>

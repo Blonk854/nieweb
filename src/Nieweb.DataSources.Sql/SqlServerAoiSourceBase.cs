@@ -483,6 +483,41 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             : null;
     }
 
+    /// <inheritdoc />
+    public virtual async Task<IReadOnlyList<ActivePanelKey>> ListActivePanelKeysAsync(
+        DateRange window,
+        CancellationToken ct)
+    {
+        // One windowed DISTINCT over the two indexed panel columns feeds the
+        // cascading-filter dropdowns, so the UI only offers machine/product
+        // combinations that actually ran in the selected window. No
+        // IS_LAST_INSPECTION filter: a re-inspected panel still "ran".
+        var startEpoch = checked((int)window.StartEpochSeconds);
+        var endEpoch = checked((int)window.EndEpochSecondsExclusive);
+
+        const string Sql = """
+            SELECT DISTINCT Machine_Id, Product_Id
+            FROM dbo.PANELS WITH (NOLOCK)
+            WHERE Panel_Numeric_Date >= @startEpoch
+              AND Panel_Numeric_Date <  @endEpoch;
+            """;
+
+        var result = new List<ActivePanelKey>();
+        await foreach (var key in ExecuteQueryAsync(
+            Sql,
+            bind =>
+            {
+                bind.Add(new SqlParameter("@startEpoch", SqlDbType.Int) { Value = startEpoch });
+                bind.Add(new SqlParameter("@endEpoch", SqlDbType.Int) { Value = endEpoch });
+            },
+            static r => new ActivePanelKey(r.GetInt32(0), r.GetInt32(1)),
+            ct).ConfigureAwait(false))
+        {
+            result.Add(key);
+        }
+        return result;
+    }
+
     // ---- Traceability drill-down (TC1) ------------------------------------
     // Single-panel / single-subpanel key lookups. No time window because a
     // specific Panel_Id (or a specific Panel_Bar_Code) is already narrow

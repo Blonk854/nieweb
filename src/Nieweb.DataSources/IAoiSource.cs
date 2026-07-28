@@ -65,6 +65,39 @@ public interface IAoiSource
     Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct);
 
     /// <summary>
+    /// Returns the distinct <c>(Machine_Id, Product_Id)</c> pairs that
+    /// produced at least one <c>PANELS</c> row inside
+    /// <paramref name="window"/>. Powers the cascading filter dropdowns:
+    /// the UI derives "machines that ran in the window" and "products that
+    /// ran in the window on the selected machine(s)" from this single set,
+    /// so it only ever offers combinations that actually ran.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation derives the set by streaming
+    /// <see cref="StreamPanelsAsync"/> (fine for in-memory fakes). SQL
+    /// adapters override it with a single windowed
+    /// <c>SELECT DISTINCT Machine_Id, Product_Id</c> so the production DB
+    /// does one cheap indexed scan instead of returning every panel row.
+    /// </remarks>
+    async Task<IReadOnlyList<ActivePanelKey>> ListActivePanelKeysAsync(
+        DateRange window,
+        CancellationToken ct)
+    {
+        var seen = new HashSet<ActivePanelKey>();
+        var result = new List<ActivePanelKey>();
+        var query = new PanelQuery { Window = window, OnlyLastInspection = false };
+        await foreach (var panel in StreamPanelsAsync(query, ct).ConfigureAwait(false))
+        {
+            var key = new ActivePanelKey(panel.MachineId, panel.ProductId);
+            if (seen.Add(key))
+            {
+                result.Add(key);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Returns the wall-clock UTC timestamp of the most recent PANELS row, or
     /// <c>null</c> if the table is empty. Useful for UI freshness indicators
     /// and for sizing default query windows relative to the source's own data.

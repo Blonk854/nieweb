@@ -229,6 +229,13 @@ public sealed record Machine(int MachineId, int MachineType, string MachineName,
 public sealed record Product(int ProductId, string? ProductName, string? Revision, string? Description);
 
 /// <summary>
+/// A distinct <c>(Machine_Id, Product_Id)</c> pair that produced at least
+/// one <c>PANELS</c> row inside a query window. Powers the cascading
+/// filter dropdowns: window → machines, and window + machine → products.
+/// </summary>
+public readonly record struct ActivePanelKey(int MachineId, int ProductId);
+
+/// <summary>
 /// A review-station operator, keyed by the Superviseur <c>OPERATOR.Operator_Id</c>
 /// integer. <see cref="OperatorName"/> is the free-text name shown in the AOI
 /// review UI and on printed sanction labels. Populated on both live DBs

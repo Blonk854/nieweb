@@ -59,3 +59,30 @@ export function fetchProducts(sourceId: string): Promise<ProductOption[]> {
         `/api/sources/${encodeURIComponent(sourceId)}/products`,
     );
 }
+
+/** One (machine, product) pair from `/api/sources/{id}/active-filters`. */
+export type ActiveFilterPair = {
+    machineId: number;
+    productId: number;
+};
+
+/** `/api/sources/{id}/active-filters` response. */
+export type ActiveFilters = {
+    pairs: ActiveFilterPair[];
+};
+
+/**
+ * Distinct (machine, product) pairs that produced a panel inside
+ * `[startUtc, endUtc)`. Used to cascade the machine / product filter
+ * dropdowns so they only offer combinations that actually ran.
+ */
+export function fetchActiveFilters(
+    sourceId: string,
+    startUtc: string,
+    endUtc: string,
+): Promise<ActiveFilters> {
+    const qs = new URLSearchParams({ startUtc, endUtc }).toString();
+    return apiFetch<ActiveFilters>(
+        `/api/sources/${encodeURIComponent(sourceId)}/active-filters?${qs}`,
+    );
+}

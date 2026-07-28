@@ -1,4 +1,4 @@
-import { useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import {
     Alert,
     Anchor,
@@ -29,6 +29,7 @@ import {
 } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 import {
+    fetchActiveFilters,
     fetchMachines,
     fetchProducts,
     fetchSources,
@@ -119,6 +120,63 @@ export function ParetoRoute() {
         queryFn: () => fetchProducts(effectiveSourceId!),
         enabled: Boolean(effectiveSourceId),
     });
+
+    // Cascading filters: as the user picks a From/To window, fetch the
+    // distinct (machine, product) pairs that actually ran in it. The
+    // Machines dropdown then lists only machines active in the window, and
+    // the Products dropdown only products that ran on the selected
+    // machine(s). Debounced so editing the date pickers doesn't hammer the
+    // production DB — one query per settled window, then all narrowing is
+    // client-side.
+    const pendingWindow = useMemo(() => {
+        if (!effectiveSourceId || !form.from || !form.to) return null;
+        const startUtc = wallClockToInstantIso(form.from, timeZone) ?? undefined;
+        const endUtc = wallClockToInstantIso(form.to, timeZone) ?? undefined;
+        if (!startUtc || !endUtc || startUtc >= endUtc) return null;
+        return { sourceId: effectiveSourceId, startUtc, endUtc };
+    }, [effectiveSourceId, form.from, form.to, timeZone]);
+
+    const [debouncedWindow, setDebouncedWindow] = useState(pendingWindow);
+    useEffect(() => {
+        const handle = setTimeout(() => setDebouncedWindow(pendingWindow), 400);
+        return () => clearTimeout(handle);
+    }, [pendingWindow]);
+
+    const activeFiltersQuery = useQuery({
+        queryKey: [
+            "active-filters",
+            debouncedWindow?.sourceId,
+            debouncedWindow?.startUtc,
+            debouncedWindow?.endUtc,
+        ],
+        queryFn: () =>
+            fetchActiveFilters(
+                debouncedWindow!.sourceId,
+                debouncedWindow!.startUtc,
+                debouncedWindow!.endUtc,
+            ),
+        enabled: Boolean(debouncedWindow),
+        staleTime: 60_000,
+    });
+
+    // Distinct machines that ran in the window. `null` = no window settled
+    // yet, so the dropdown falls back to the full catalogue.
+    const activeMachineIds = useMemo(() => {
+        const pairs = activeFiltersQuery.data?.pairs;
+        return pairs ? new Set(pairs.map((p) => p.machineId)) : null;
+    }, [activeFiltersQuery.data]);
+
+    // Products that ran in the window, narrowed to the selected machine(s).
+    // Recomputes client-side when the machine selection changes — no fetch.
+    const activeProductIds = useMemo(() => {
+        const pairs = activeFiltersQuery.data?.pairs;
+        if (!pairs) return null;
+        const relevant =
+            form.machineIds.length > 0
+                ? pairs.filter((p) => form.machineIds.includes(p.machineId))
+                : pairs;
+        return new Set(relevant.map((p) => p.productId));
+    }, [activeFiltersQuery.data, form.machineIds]);
 
     const reportEnabled = Boolean(
         search.sourceId && search.startUtc && search.endUtc && search.axis,
@@ -289,10 +347,17 @@ export function ParetoRoute() {
                         <MultiSelect
                             label={t("pareto.filters.machines")}
                             placeholder={t("pareto.filters.machinesPlaceholder")}
-                            data={(machinesQuery.data ?? []).map((m) => ({
-                                value: String(m.id),
-                                label: `${m.name} (${m.typeName})`,
-                            }))}
+                            data={(machinesQuery.data ?? [])
+                                .filter(
+                                    (m) =>
+                                        !activeMachineIds ||
+                                        activeMachineIds.has(m.id) ||
+                                        form.machineIds.includes(m.id),
+                                )
+                                .map((m) => ({
+                                    value: String(m.id),
+                                    label: `${m.name} (${m.typeName})`,
+                                }))}
                             value={(form.machineIds ?? []).map(String)}
                             onChange={(vals) =>
                                 setForm((prev) => ({
@@ -307,12 +372,19 @@ export function ParetoRoute() {
                         <MultiSelect
                             label={t("pareto.filters.products")}
                             placeholder={t("pareto.filters.productsPlaceholder")}
-                            data={(productsQuery.data ?? []).map((p) => ({
-                                value: String(p.id),
-                                label: p.revision
-                                    ? `${p.name || `#${p.id}`} — ${p.revision}`
-                                    : p.name || `#${p.id}`,
-                            }))}
+                            data={(productsQuery.data ?? [])
+                                .filter(
+                                    (p) =>
+                                        !activeProductIds ||
+                                        activeProductIds.has(p.id) ||
+                                        form.productIds.includes(p.id),
+                                )
+                                .map((p) => ({
+                                    value: String(p.id),
+                                    label: p.revision
+                                        ? `${p.name || `#${p.id}`} — ${p.revision}`
+                                        : p.name || `#${p.id}`,
+                                }))}
                             value={(form.productIds ?? []).map(String)}
                             onChange={(vals) =>
                                 setForm((prev) => ({

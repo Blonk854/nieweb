@@ -290,4 +290,99 @@ public sealed class SourceEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal("Widget-B", options[2].Name);
         Assert.Equal("R1", options[1].Revision);
     }
+
+    [Fact]
+    public async Task ListActiveFilters_ReturnsDistinctPairsWithinWindow()
+    {
+        var start = (int)new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+        var source = new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None))
+        {
+            SeededPanels =
+            [
+                Panel(1, machineId: 10, productId: 100, date: start + 60),
+                Panel(2, machineId: 10, productId: 100, date: start + 120), // duplicate pair collapses
+                Panel(3, machineId: 10, productId: 200, date: start + 180),
+                Panel(4, machineId: 11, productId: 100, date: start + 240),
+                Panel(5, machineId: 11, productId: 300, date: start - 3600), // before window -> excluded
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-active-filters@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri(
+            "/api/sources/postreflow/active-filters?startUtc=2026-01-01T00:00:00Z&endUtc=2026-01-02T00:00:00Z",
+            UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<SourceEndpoints.ActiveFiltersResponse>(_responseJson);
+        Assert.NotNull(payload);
+        var pairs = payload!.Pairs.Select(p => (p.MachineId, p.ProductId)).ToHashSet();
+        Assert.Equal(3, pairs.Count);
+        Assert.Contains((10, 100), pairs);
+        Assert.Contains((10, 200), pairs);
+        Assert.Contains((11, 100), pairs);
+        Assert.DoesNotContain((11, 300), pairs); // fell outside the window
+    }
+
+    [Fact]
+    public async Task ListActiveFilters_WithEndBeforeStart_Returns400()
+    {
+        var source = new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.None));
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(source)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-active-filters-400@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri(
+            "/api/sources/postreflow/active-filters?startUtc=2026-01-02T00:00:00Z&endUtc=2026-01-01T00:00:00Z",
+            UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListActiveFilters_WithUnknownSource_Returns404()
+    {
+        using var client = _factory.CreateClient();
+        var token = await IssueTokenAsync(client, "sources-active-filters-404@nieweb.test");
+
+        using var authed = _factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await authed.GetAsync(new Uri(
+            "/api/sources/nope/active-filters?startUtc=2026-01-01T00:00:00Z&endUtc=2026-01-02T00:00:00Z",
+            UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private static PanelRow Panel(int id, int machineId, int productId, int date) =>
+        new(
+            PanelId: id,
+            MachineId: machineId,
+            LaneNumber: 1,
+            PanelBarCode: $"BC-{id:D6}",
+            PanelNumericDate: date,
+            NbOfValidCards: 1,
+            TestTime: 1.0,
+            PanelStatus: 1,
+            AnomalyBr: 0,
+            AnomalyAr: 0,
+            HasBeenReviewed: false,
+            NbOfTestedObject: 1,
+            NbOfErrorObject: 0,
+            OperatorId: null,
+            ProductId: productId,
+            RecipeId: 1);
 }
