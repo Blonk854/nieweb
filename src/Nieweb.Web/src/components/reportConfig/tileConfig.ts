@@ -27,6 +27,10 @@ import {
     type ParetoOpportunity,
     type ParetoWeight,
 } from "../../routes/pareto.search";
+import {
+    parseFilterRequest,
+    type FilterClause,
+} from "../../api/filters";
 
 // -------------------- panelYield --------------------
 
@@ -37,10 +41,17 @@ export type PanelYieldTileConfig = {
      * Ignored by pre-reflow sources (no `IS_LAST_INSPECTION` column).
      */
     onlyLastInspection: boolean;
+    /**
+     * Old-school per-entity generic operator filters (panel bar code,
+     * panel status, product, AOI machine). Empty by default. Persisted
+     * verbatim and honoured by the server export path.
+     */
+    filters: FilterClause[];
 };
 
 export const PANEL_YIELD_TILE_DEFAULT: PanelYieldTileConfig = {
     onlyLastInspection: true,
+    filters: [],
 };
 
 // -------------------- pareto --------------------
@@ -60,6 +71,13 @@ export type ParetoTileConfig = {
     topN?: number;
     /** Cumulative-% threshold that highlights the "vital few". */
     vitalFewThreshold: number;
+    /**
+     * Old-school per-entity generic operator filters (reference
+     * designator, part number, package, product, AOI machine, defect).
+     * Empty by default. Persisted verbatim and honoured by the server
+     * export path.
+     */
+    filters: FilterClause[];
 };
 
 export const PARETO_TILE_DEFAULT: ParetoTileConfig = {
@@ -69,6 +87,7 @@ export const PARETO_TILE_DEFAULT: ParetoTileConfig = {
     weight: "Count",
     topN: 10,
     vitalFewThreshold: 80,
+    filters: [],
 };
 
 // -------------------- comment --------------------
@@ -152,6 +171,7 @@ export function parsePanelYieldTileConfig(
             obj.onlyLastInspection,
             PANEL_YIELD_TILE_DEFAULT.onlyLastInspection,
         ),
+        filters: parseFilterRequest(obj.filters),
     };
 }
 
@@ -183,6 +203,7 @@ export function parseParetoTileConfig(
             obj.vitalFewThreshold,
             PARETO_TILE_DEFAULT.vitalFewThreshold,
         ),
+        filters: parseFilterRequest(obj.filters),
     };
 }
 
@@ -205,7 +226,10 @@ export function parseCommentTileConfig(
  * driven by the type) and drop `undefined` fields.
  */
 export function serializePanelYieldTileConfig(config: PanelYieldTileConfig): string {
-    return JSON.stringify({ onlyLastInspection: config.onlyLastInspection });
+    return JSON.stringify({
+        onlyLastInspection: config.onlyLastInspection,
+        ...(config.filters.length > 0 ? { filters: config.filters } : {}),
+    });
 }
 
 export function serializeParetoTileConfig(config: ParetoTileConfig): string {
@@ -219,6 +243,7 @@ export function serializeParetoTileConfig(config: ParetoTileConfig): string {
         // the default", whereas `null` means the author cleared the cap.
         topN: typeof config.topN === "number" && config.topN > 0 ? config.topN : null,
         vitalFewThreshold: config.vitalFewThreshold,
+        ...(config.filters.length > 0 ? { filters: config.filters } : {}),
     });
 }
 

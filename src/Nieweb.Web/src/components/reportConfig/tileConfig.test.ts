@@ -43,6 +43,7 @@ describe("parseParetoTileConfig", () => {
             weight: "Dpmo",
             topN: 5,
             vitalFewThreshold: 90,
+            filters: [],
         });
     });
 
@@ -102,6 +103,18 @@ describe("round-trip serialise <-> parse", () => {
             weight: "Ppm" as const,
             topN: 15,
             vitalFewThreshold: 75,
+            filters: [],
+        };
+        expect(parseParetoTileConfig(serializeParetoTileConfig(cfg))).toEqual(cfg);
+    });
+
+    it("pareto with per-entity filters round-trips", () => {
+        const cfg = {
+            ...PARETO_TILE_DEFAULT,
+            filters: [
+                { field: "PartNumber" as const, operator: "NotLike" as const, values: ["PN-B"] },
+                { field: "Package" as const, operator: "In" as const, values: ["BGA256", "QFN44"] },
+            ],
         };
         expect(parseParetoTileConfig(serializeParetoTileConfig(cfg))).toEqual(cfg);
     });
@@ -113,7 +126,7 @@ describe("round-trip serialise <-> parse", () => {
     });
 
     it("panelYield", () => {
-        const cfg = { onlyLastInspection: false };
+        const cfg = { onlyLastInspection: false, filters: [] };
         expect(parsePanelYieldTileConfig(serializePanelYieldTileConfig(cfg))).toEqual(cfg);
     });
 

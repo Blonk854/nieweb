@@ -53,7 +53,7 @@ function toRecord(tileType: string, value: string): ConfigRecord {
 }
 
 /** Re-encode an edited record back to a normalised `configJson` string. */
-function fromRecord(tileType: string, rec: ConfigRecord): string {
+function fromRecord(tileType: string, rec: ConfigRecord, originalValue: string): string {
     if (tileType === "pareto") {
         return serializeParetoTileConfig({
             axis: rec.axis as ParetoAxis,
@@ -65,11 +65,15 @@ function fromRecord(tileType: string, rec: ConfigRecord): string {
                 typeof rec.vitalFewThreshold === "number"
                     ? rec.vitalFewThreshold
                     : PARETO_TILE_DEFAULT.vitalFewThreshold,
+            // Preserve Old-school per-entity filters the modern form
+            // does not edit, so editing analytic knobs never wipes them.
+            filters: parseParetoTileConfig(originalValue).filters,
         });
     }
     if (tileType === "panelYield") {
         return serializePanelYieldTileConfig({
             onlyLastInspection: Boolean(rec.onlyLastInspection),
+            filters: parsePanelYieldTileConfig(originalValue).filters,
         });
     }
     return JSON.stringify(rec);
@@ -89,7 +93,7 @@ export function TileConfigForm(props: {
 
     const record = toRecord(tileType, value);
     const update = (key: string, next: unknown) => {
-        onChange(fromRecord(tileType, { ...record, [key]: next }));
+        onChange(fromRecord(tileType, { ...record, [key]: next }, value));
     };
 
     return (
