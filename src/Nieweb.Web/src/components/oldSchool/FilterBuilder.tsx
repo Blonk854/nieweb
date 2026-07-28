@@ -149,9 +149,19 @@ export function FilterBuilder(props: {
                             <TextInput
                                 aria-label={t("oldSchool.entity.valueList")}
                                 description={t("oldSchool.entity.valueListHelp")}
-                                value={clause.values.join(", ")}
+                                // Round-trips identically to what the user
+                                // types (split/join on the same delimiter),
+                                // so commas can actually be entered; the
+                                // values are trimmed / de-duped on blur.
+                                value={clause.values.join(",")}
                                 w={260}
                                 onChange={(e) =>
+                                    updateAt(i, {
+                                        ...clause,
+                                        values: e.currentTarget.value.split(","),
+                                    })
+                                }
+                                onBlur={(e) =>
                                     updateAt(i, {
                                         ...clause,
                                         values: e.currentTarget.value
