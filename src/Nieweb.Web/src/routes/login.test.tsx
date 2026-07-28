@@ -148,7 +148,7 @@ describe("LoginRoute", () => {
         expect(
             await screen.findByRole("heading", { name: /sign in to nieweb/i }),
         ).toBeInTheDocument();
-        expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/you@example\.com/)).toBeInTheDocument();
         expect(
             screen.getByPlaceholderText("Enter your password"),
         ).toBeInTheDocument();
@@ -190,7 +190,7 @@ describe("LoginRoute", () => {
         renderLogin();
         const user = userEvent.setup();
         await user.type(
-            await screen.findByPlaceholderText("you@example.com"),
+            await screen.findByPlaceholderText(/you@example\.com/),
             "admin@nieweb.local",
         );
         // PasswordInput renders both the input and a "Show password" toggle;
@@ -239,7 +239,7 @@ describe("LoginRoute", () => {
         renderLogin();
         const user = userEvent.setup();
         await user.type(
-            await screen.findByPlaceholderText("you@example.com"),
+            await screen.findByPlaceholderText(/you@example\.com/),
             "admin@nieweb.local",
         );
         await user.type(
@@ -305,7 +305,7 @@ describe("LoginRoute", () => {
         );
         const user = userEvent.setup();
         await user.type(
-            await screen.findByPlaceholderText("you@example.com"),
+            await screen.findByPlaceholderText(/you@example\.com/),
             "reader@nieweb.local",
         );
         await user.type(
@@ -359,7 +359,7 @@ describe("LoginRoute", () => {
         renderLogin("/login?redirect=%2Freport%2Fpanel-yield");
         const user = userEvent.setup();
         await user.type(
-            await screen.findByPlaceholderText("you@example.com"),
+            await screen.findByPlaceholderText(/you@example\.com/),
             "rotator@nieweb.local",
         );
         await user.type(
