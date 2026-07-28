@@ -293,6 +293,10 @@ export type TranslationBundle = {
             Dpmo: string;
             Ppm: string;
         };
+        skipExclusion: {
+            Raw: string;
+            Clean: string;
+        };
         filters: {
             heading: string;
             source: string;
@@ -312,6 +316,13 @@ export type TranslationBundle = {
             machinesPlaceholder: string;
             products: string;
             productsPlaceholder: string;
+            skipExclusion: string;
+            skipExclusionHint: string;
+            skipStatuses: string;
+            skipStatusesHint: string;
+            skipStatusesPlaceholder: string;
+            excludeNogo: string;
+            excludeNogoHint: string;
             defectBitsChipsLabel: string;
             defectBitChip: string;
             removeDefectBit: string;

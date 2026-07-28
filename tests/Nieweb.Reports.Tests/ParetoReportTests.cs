@@ -488,6 +488,45 @@ public sealed class ParetoReportTests
     }
 
     [Fact]
+    public async Task ExcludeNogo_DropsProductsWhoseNameContainsNogo()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var objects = new List<TestedObjectRow>();
+        for (var i = 0; i < 5; i++)
+        {
+            objects.Add(Obj(10, start + 60 + i, 80_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, productId: 100));
+        }
+        for (var i = 0; i < 3; i++)
+        {
+            objects.Add(Obj(10, start + 70 + i, 81_000 + i, ComponentType, BitObjectMissing, BitObjectMissing, productId: 200));
+        }
+
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededTestedObjects = objects,
+            SeededProducts =
+            [
+                new Product(100, "Widget-A", null, null),
+                new Product(200, "nogo-cal", null, null), // case-insensitive match
+            ],
+        };
+
+        var baseFilter = new ParetoFilter(_oneDay, ParetoAxis.Product);
+        var withNogo = await ParetoReport.Instance.RunAsync(
+            source, baseFilter, TestContext.Current.CancellationToken);
+        var noNogo = await ParetoReport.Instance.RunAsync(
+            source, baseFilter with { ExcludeNogo = true }, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, withNogo.Rows.Count);
+        Assert.Equal(8L, withNogo.Overall.DefectBitCount);
+
+        Assert.Single(noNogo.Rows);
+        Assert.Equal("Widget-A", noNogo.Rows[0].GroupName);
+        Assert.Equal(5L, noNogo.Rows[0].DefectCount);
+        Assert.Equal(5L, noNogo.Overall.DefectBitCount);
+    }
+
+    [Fact]
     public async Task Numerator_Dummy_CountsFalseCallsOnly()
     {
         // Two components. A: Error_Table = missing+polarity, AR = missing (polarity cleared by review = 1 dummy).

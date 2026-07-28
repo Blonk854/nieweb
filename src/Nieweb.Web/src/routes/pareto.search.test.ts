@@ -89,6 +89,15 @@ describe("validateParetoSearch", () => {
         expect(s.partNumbers).toEqual(["PN-A", "PN-B"]);
         expect(s.jedecNames).toEqual(["SOT23"]);
     });
+
+    it("parses skip exclusion and statuses", () => {
+        const s = validateParetoSearch({
+            skipExclusion: "clean",
+            skipStatuses: "ManualSkip,HeuristicMissing",
+        });
+        expect(s.skipExclusion).toBe("Clean");
+        expect(s.skipStatuses).toEqual(["ManualSkip", "HeuristicMissing"]);
+    });
 });
 
 describe("toApiQuery", () => {
@@ -122,6 +131,12 @@ describe("toApiQuery", () => {
             defectBits: "3,4",
             topologies: "R1,R2",
         });
+    });
+
+    it("emits skip params only when set", () => {
+        expect(toApiQuery({ skipExclusion: "Raw" }).skipExclusion).toBeUndefined();
+        expect(toApiQuery({ skipExclusion: "Clean" }).skipExclusion).toBe("Clean");
+        expect(toApiQuery({ skipStatuses: ["ManualSkip"] }).skipStatuses).toBe("ManualSkip");
     });
 
     it("emits topN and vitalFewThreshold as strings", () => {

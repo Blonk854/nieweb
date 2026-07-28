@@ -56,5 +56,7 @@
       "isVitalFew": true
     }
   ],
-  "othersBucket": null
+  "othersBucket": null,
+  "skipExclusion": "Raw",
+  "skipExcludedCards": 0
 }

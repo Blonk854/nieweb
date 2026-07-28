@@ -9,8 +9,10 @@ import {
     Loader,
     MultiSelect,
     NumberInput,
+    SegmentedControl,
     Select,
     Stack,
+    Switch,
     Text,
     Title,
 } from "@mantine/core";
@@ -43,6 +45,8 @@ import {
     PARETO_NUMERATORS,
     PARETO_OPPORTUNITIES,
     PARETO_WEIGHTS,
+    SKIP_EXCLUSIONS,
+    SKIP_STATUS_VALUES,
     pickDefaultSourceId,
     withDefectBit,
     withoutDefectBit,
@@ -51,9 +55,12 @@ import {
     type ParetoOpportunity,
     type ParetoWeight,
     type ParetoSearch,
+    type SkipExclusion,
+    type SkipStatus,
 } from "./pareto.search";
 import { DataTable, type Column } from "../components/DataTable";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
+import { downloadWithAuth } from "../api/download";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
 import {
     instantIsoToWallClock,
@@ -131,6 +138,19 @@ export function ParetoRoute() {
     const pdfFallbackFilename = `pareto-${search.sourceId ?? "source"}.pdf`;
 
     const canSubmit = Boolean(effectiveSourceId && form.from && form.to && form.axis);
+
+    // Exports must carry the bearer token, so a plain <a href> 401s.
+    // Fetch the file with auth and trigger a blob download instead.
+    async function downloadExport(format: "csv" | "xlsx" | "pdf") {
+        if (!reportEnabled) return;
+        const stem = `pareto-${search.sourceId ?? "source"}-${search.startUtc?.slice(0, 10) ?? ""}`;
+        try {
+            await downloadWithAuth(paretoExportUrl(search, format), `${stem}.${format}`);
+        } catch {
+            // downloadWithAuth clears the session on 401; other errors are
+            // transient. The report card already surfaces API failures.
+        }
+    }
 
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -388,6 +408,60 @@ export function ParetoRoute() {
                         clearable
                     />
 
+                    <Group align="flex-start" gap="lg">
+                        <Stack gap={4}>
+                            <Text size="sm" fw={500}>
+                                {t("pareto.filters.skipExclusion")}
+                            </Text>
+                            <SegmentedControl
+                                data={SKIP_EXCLUSIONS.map((s) => ({
+                                    value: s,
+                                    label: t(`pareto.skipExclusion.${s}`),
+                                }))}
+                                value={form.skipExclusion}
+                                onChange={(value) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        skipExclusion: value as SkipExclusion,
+                                    }))
+                                }
+                            />
+                            <Text size="xs" c="dimmed" maw={320}>
+                                {t("pareto.filters.skipExclusionHint")}
+                            </Text>
+                        </Stack>
+                        <MultiSelect
+                            label={t("pareto.filters.skipStatuses")}
+                            description={t("pareto.filters.skipStatusesHint")}
+                            placeholder={t("pareto.filters.skipStatusesPlaceholder")}
+                            data={SKIP_STATUS_VALUES.map((c) => ({
+                                value: c,
+                                label: t(`skipSummary.classLabel.${c}`),
+                            }))}
+                            value={form.skipStatuses}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    skipStatuses: vals as SkipStatus[],
+                                }))
+                            }
+                            clearable
+                            style={{ minWidth: 260 }}
+                        />
+                    </Group>
+
+                    <Switch
+                        label={t("pareto.filters.excludeNogo")}
+                        description={t("pareto.filters.excludeNogoHint")}
+                        checked={form.excludeNogo}
+                        onChange={(e) =>
+                            setForm((prev) => ({
+                                ...prev,
+                                excludeNogo: e.currentTarget.checked,
+                            }))
+                        }
+                    />
+
                     {(search.defectBits?.length ?? 0) > 0 && (
                         <Group gap="xs" align="center">
                             <Text size="sm" fw={500}>
@@ -442,9 +516,12 @@ export function ParetoRoute() {
                         </Group>
                         <Group>
                             <Anchor
-                                href={reportEnabled ? paretoExportUrl(search, "csv") : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => void downloadExport("csv")}
                                 aria-disabled={!reportEnabled}
                                 data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
                             >
                                 <Group gap={4}>
                                     <IconDownload size={16} />
@@ -454,9 +531,12 @@ export function ParetoRoute() {
                                 </Group>
                             </Anchor>
                             <Anchor
-                                href={reportEnabled ? paretoExportUrl(search, "xlsx") : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => void downloadExport("xlsx")}
                                 aria-disabled={!reportEnabled}
                                 data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
                             >
                                 <Group gap={4}>
                                     <IconDownload size={16} />
@@ -466,9 +546,12 @@ export function ParetoRoute() {
                                 </Group>
                             </Anchor>
                             <Anchor
-                                href={reportEnabled ? paretoExportUrl(search, "pdf") : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => void downloadExport("pdf")}
                                 aria-disabled={!reportEnabled}
                                 data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
                             >
                                 <Group gap={4}>
                                     <IconDownload size={16} />
@@ -537,6 +620,9 @@ type FormState = {
     machineIds: number[];
     productIds: number[];
     defectBits: number[];
+    skipExclusion: SkipExclusion;
+    skipStatuses: SkipStatus[];
+    excludeNogo: boolean;
 };
 
 function emptyForm(): FormState {
@@ -553,6 +639,9 @@ function emptyForm(): FormState {
         machineIds: [],
         productIds: [],
         defectBits: [],
+        skipExclusion: "Raw",
+        skipStatuses: [],
+        excludeNogo: false,
     };
 }
 
@@ -570,6 +659,9 @@ function searchToForm(s: ParetoSearch, timeZone: string): FormState {
         machineIds: s.machineIds ?? [],
         productIds: s.productIds ?? [],
         defectBits: s.defectBits ?? [],
+        skipExclusion: s.skipExclusion ?? "Raw",
+        skipStatuses: s.skipStatuses ?? [],
+        excludeNogo: s.excludeNogo ?? false,
     };
 }
 
@@ -591,6 +683,9 @@ function formToSearch(f: FormState, timeZone: string): ParetoSearch {
         machineIds: f.machineIds.length > 0 ? f.machineIds : undefined,
         productIds: f.productIds.length > 0 ? f.productIds : undefined,
         defectBits: f.defectBits.length > 0 ? f.defectBits : undefined,
+        skipExclusion: f.skipExclusion === "Clean" ? "Clean" : undefined,
+        skipStatuses: f.skipStatuses.length > 0 ? f.skipStatuses : undefined,
+        excludeNogo: f.excludeNogo ? true : undefined,
     };
 }
 

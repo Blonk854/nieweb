@@ -298,6 +298,10 @@ export const fr: TranslationBundle = {
             Dpmo: "DPMO (taux)",
             Ppm: "PPM (taux)",
         },
+        skipExclusion: {
+            Raw: "Brut",
+            Clean: "Propre",
+        },
         filters: {
             heading: "Filtres",
             source: "Source",
@@ -317,6 +321,14 @@ export const fr: TranslationBundle = {
             machinesPlaceholder: "Toutes les machines",
             products: "Produits",
             productsPlaceholder: "Tous les produits",
+            skipExclusion: "Gestion des sauts",
+            skipExclusionHint:
+                "Propre exclut les sous-panneaux sautés / vides (X-OUT manuel, signalé machine, heuristique manquant) du comptage des défauts.",
+            skipStatuses: "Filtre par statut de saut",
+            skipStatusesHint: "Ne conserver que les sous-panneaux des classes de saut sélectionnées (se combine avec la gestion des sauts).",
+            skipStatusesPlaceholder: "Toutes les classes",
+            excludeNogo: "Exclure les programmes NOGO",
+            excludeNogoHint: "Retirer tout produit dont le nom contient « NOGO » (étalons de changement de série).",
             defectBitsChipsLabel: "Bits de défaut",
             defectBitChip: "bit {{bit}}",
             removeDefectBit: "Retirer le bit de défaut {{bit}}",

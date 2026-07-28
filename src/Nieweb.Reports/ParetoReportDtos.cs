@@ -1,6 +1,7 @@
 using Nieweb.DataSources;
 using Nieweb.Filters;
 using Nieweb.Reports.Common;
+using Nieweb.Reports.Common.Skips;
 
 namespace Nieweb.Reports;
 
@@ -189,6 +190,27 @@ public enum ParetoWeight
 /// Between / &lt;= / &gt;=) narrows the streamed rows. <c>null</c> or empty
 /// matches every row.
 /// </param>
+/// <param name="SkipExclusion">
+/// Whether to exclude "skipped" boards (manual X-OUT, machine-flagged,
+/// heuristic-missing) from the Pareto. <see cref="Nieweb.Reports.SkipExclusion.Raw"/>
+/// counts every board; <see cref="Nieweb.Reports.SkipExclusion.Clean"/> drops
+/// defects on skipped boards. Matches the DPMO / FPY toggle.
+/// </param>
+/// <param name="SkipConfig">
+/// Skip-classification thresholds (defaults to
+/// <see cref="SkipClassificationConfig.Default"/> when <c>null</c>).
+/// </param>
+/// <param name="SkipStatuses">
+/// Optional narrowing to specific <see cref="SkipClass"/> values (e.g.
+/// "only ManualSkip + HeuristicMissing"). Combines with
+/// <paramref name="SkipExclusion"/> as a logical AND.
+/// </param>
+/// <param name="ExcludeNogo">
+/// When <c>true</c>, drops every product whose name contains "NOGO"
+/// (case-insensitive) from both the opportunity denominator and the
+/// defect numerator. NOGO boards are known-defect calibration coupons
+/// run at changeover and normally must not skew production KPIs.
+/// </param>
 public sealed record ParetoFilter(
     DateRange Window,
     ParetoAxis Axis,
@@ -207,7 +229,11 @@ public sealed record ParetoFilter(
     IReadOnlyCollection<string>? JedecNames = null,
     TimeZoneInfo? SiteTimeZone = null,
     ShiftDefinition? Shifts = null,
-    FilterRequest? Filters = null);
+    FilterRequest? Filters = null,
+    SkipExclusion SkipExclusion = SkipExclusion.Raw,
+    SkipClassificationConfig? SkipConfig = null,
+    IReadOnlyCollection<SkipClass>? SkipStatuses = null,
+    bool ExcludeNogo = false);
 
 /// <summary>
 /// One row of a Pareto chart. <see cref="DefectCount"/> is the bar
@@ -303,6 +329,12 @@ public sealed record ParetoRow(
 /// 100.0. <see cref="ParetoRow.IsVitalFew"/> is always <c>false</c>
 /// on the Others row.
 /// </param>
+/// <param name="SkipExclusion">Echoed skip-exclusion mode (Raw / Clean).</param>
+/// <param name="SkipExcludedCards">
+/// Count of sub-panels dropped by skip filtering (Clean mode and/or a
+/// <see cref="ParetoFilter.SkipStatuses"/> narrowing). Zero when no skip
+/// filtering was requested.
+/// </param>
 public sealed record ParetoResult(
     SourceDescriptor Source,
     DateRange Window,
@@ -313,7 +345,9 @@ public sealed record ParetoResult(
     ParetoAppliedFilters AppliedFilters,
     DpmoKpi Overall,
     IReadOnlyList<ParetoRow> Rows,
-    ParetoRow? OthersBucket);
+    ParetoRow? OthersBucket,
+    SkipExclusion SkipExclusion = SkipExclusion.Raw,
+    long SkipExcludedCards = 0);
 
 /// <summary>
 /// Echo of every narrowing filter <see cref="ParetoReport"/> honoured

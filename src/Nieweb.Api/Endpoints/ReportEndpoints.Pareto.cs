@@ -74,6 +74,9 @@ public static partial class ReportEndpoints
     /// times in <c>HH:MM</c> (24h) form (e.g.
     /// <c>08:00,16:00,00:00</c>). Ignored for other axes.
     /// </param>
+    /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c> (drop skipped boards).</param>
+    /// <param name="skipStatuses">Optional CSV of skip classes to keep (ManualSkip, MachineFlagged, HeuristicMissing, None).</param>
+    /// <param name="excludeNogo">When <c>true</c>, drop products whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
@@ -97,6 +100,9 @@ public static partial class ReportEndpoints
         string? jedecNames,
         string? siteTimeZone,
         string? shifts,
+        string? skipExclusion,
+        string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -107,6 +113,8 @@ public static partial class ReportEndpoints
             machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
             siteTimeZone, shifts,
+            skipExclusion, skipStatuses,
+            excludeNogo,
             sources);
         if (built.Error is not null)
         {
@@ -166,6 +174,9 @@ public static partial class ReportEndpoints
         string? jedecNames,
         string? siteTimeZone,
         string? shifts,
+        string? skipExclusion,
+        string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources)
     {
         var baseParse = TryBuildBaseRequest(sourceId, startUtc, endUtc, sources);
@@ -233,6 +244,11 @@ public static partial class ReportEndpoints
                 "axis=shift requires a shifts=HH:MM,... query parameter listing shift start times."));
         }
 
+        if (!TryParseEnumAlias<SkipExclusion>(skipExclusion, required: false, out var skipValue, out error, defaultValue: SkipExclusion.Raw))
+        {
+            return (null, null, ProblemFor("skipExclusion", error!));
+        }
+
         var filter = new ParetoFilter(
             Window: baseParse.Window,
             Axis: axisValue,
@@ -250,7 +266,11 @@ public static partial class ReportEndpoints
             PartNumbers: ParseStringList(partNumbers),
             JedecNames: ParseStringList(jedecNames),
             SiteTimeZone: siteTz,
-            Shifts: shiftDef);
+            Shifts: shiftDef,
+            Filters: null,
+            SkipExclusion: skipValue,
+            SkipStatuses: ParseSkipClassList(skipStatuses),
+            ExcludeNogo: excludeNogo ?? false);
 
         return (baseParse.Source, filter, null);
     }
@@ -369,6 +389,9 @@ public static partial class ReportEndpoints
     /// <param name="jedecNames">CSV string list.</param>
     /// <param name="siteTimeZone">IANA or Windows time-zone id for Day/Shift bucketing (default UTC).</param>
     /// <param name="shifts">CSV of HH:MM shift start times (required when axis=shift).</param>
+    /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
+    /// <param name="skipStatuses">Optional CSV of skip classes to keep.</param>
+    /// <param name="excludeNogo">Drop NOGO-named products when <c>true</c>.</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
@@ -393,6 +416,9 @@ public static partial class ReportEndpoints
         string? jedecNames,
         string? siteTimeZone,
         string? shifts,
+        string? skipExclusion,
+        string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -405,6 +431,8 @@ public static partial class ReportEndpoints
             machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
             siteTimeZone, shifts,
+            skipExclusion, skipStatuses,
+            excludeNogo,
             sources);
         if (built.Error is not null)
         {
@@ -550,6 +578,9 @@ public static partial class ReportEndpoints
     /// <param name="jedecNames">CSV string list.</param>
     /// <param name="siteTimeZone">IANA or Windows time-zone id for Day/Shift bucketing (default UTC).</param>
     /// <param name="shifts">CSV of HH:MM shift start times (required when axis=shift).</param>
+    /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
+    /// <param name="skipStatuses">Optional CSV of skip classes to keep.</param>
+    /// <param name="excludeNogo">Drop NOGO-named products when <c>true</c>.</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
@@ -574,6 +605,9 @@ public static partial class ReportEndpoints
         string? jedecNames,
         string? siteTimeZone,
         string? shifts,
+        string? skipExclusion,
+        string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -586,6 +620,8 @@ public static partial class ReportEndpoints
             machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
             siteTimeZone, shifts,
+            skipExclusion, skipStatuses,
+            excludeNogo,
             sources);
         if (built.Error is not null)
         {

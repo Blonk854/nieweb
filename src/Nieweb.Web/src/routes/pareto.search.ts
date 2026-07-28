@@ -1,4 +1,15 @@
 import type { SourceInfo } from "../api/sources";
+import {
+    SKIP_EXCLUSIONS,
+    SKIP_STATUS_VALUES,
+    type SkipExclusion,
+    type SkipStatus,
+} from "./dpmo.search";
+
+// Re-export the skip enums so the Pareto route imports them from one
+// place (they are defined once in dpmo.search and shared with FPY/DPMO).
+export { SKIP_EXCLUSIONS, SKIP_STATUS_VALUES };
+export type { SkipExclusion, SkipStatus };
 
 /**
  * Category axis a Pareto chart groups on. String literals match the
@@ -100,6 +111,12 @@ export type ParetoSearch = {
     partNumbers?: string[];
     /** JEDEC / package narrowing filter. */
     jedecNames?: string[];
+    /** Skip-exclusion mode: `Raw` (default) or `Clean` (drop skipped boards). */
+    skipExclusion?: SkipExclusion;
+    /** Narrow to specific skip classes (e.g. only ManualSkip). */
+    skipStatuses?: SkipStatus[];
+    /** Drop products whose name contains "NOGO" (case-insensitive). */
+    excludeNogo?: boolean;
 };
 
 /**
@@ -144,6 +161,15 @@ export function toApiQuery(search: ParetoSearch): Record<string, string> {
     if (search.jedecNames && search.jedecNames.length > 0) {
         out.jedecNames = search.jedecNames.join(",");
     }
+    if (search.skipExclusion === "Clean") {
+        out.skipExclusion = "Clean";
+    }
+    if (search.skipStatuses && search.skipStatuses.length > 0) {
+        out.skipStatuses = search.skipStatuses.join(",");
+    }
+    if (search.excludeNogo) {
+        out.excludeNogo = "true";
+    }
     return out;
 }
 
@@ -174,6 +200,9 @@ export function validateParetoSearch(raw: Record<string, unknown>): ParetoSearch
         topologies: toStringArray(raw.topologies),
         partNumbers: toStringArray(raw.partNumbers),
         jedecNames: toStringArray(raw.jedecNames),
+        skipExclusion: toEnumOrUndef<SkipExclusion>(raw.skipExclusion, SKIP_EXCLUSIONS),
+        skipStatuses: toEnumArray<SkipStatus>(raw.skipStatuses, SKIP_STATUS_VALUES),
+        excludeNogo: toBoolOrUndef(raw.excludeNogo),
     };
 }
 
@@ -218,6 +247,15 @@ function toStringOrUndef(v: unknown): string | undefined {
     return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function toBoolOrUndef(v: unknown): boolean | undefined {
+    if (typeof v === "boolean") return v ? true : undefined;
+    if (typeof v === "string") {
+        const t = v.trim().toLowerCase();
+        if (t === "true" || t === "1") return true;
+    }
+    return undefined;
+}
+
 function toEnumOrUndef<T extends string>(
     v: unknown,
     allowed: readonly T[],
@@ -229,6 +267,18 @@ function toEnumOrUndef<T extends string>(
     if (normalised.length === 0) return undefined;
     const match = allowed.find((a) => a.toLowerCase() === normalised.toLowerCase());
     return match;
+}
+
+function toEnumArray<T extends string>(
+    v: unknown,
+    allowed: readonly T[],
+): T[] | undefined {
+    const strs = toStringArray(v);
+    if (!strs) return undefined;
+    const matched = strs
+        .map((s) => allowed.find((a) => a.toLowerCase() === s.toLowerCase()))
+        .filter((x): x is T => x !== undefined);
+    return matched.length > 0 ? matched : undefined;
 }
 
 function toPositiveIntOrUndef(v: unknown): number | undefined {

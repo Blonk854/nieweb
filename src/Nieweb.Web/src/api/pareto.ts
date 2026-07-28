@@ -61,6 +61,8 @@ export type ParetoResult = {
     overall: DpmoKpi;
     rows: ParetoRow[];
     othersBucket: ParetoRow | null;
+    skipExclusion: "Raw" | "Clean";
+    skipExcludedCards: number;
 };
 
 /**

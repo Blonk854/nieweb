@@ -301,6 +301,10 @@ export const en: TranslationBundle = {
             Dpmo: "DPMO (rate)",
             Ppm: "PPM (rate)",
         },
+        skipExclusion: {
+            Raw: "Raw",
+            Clean: "Clean",
+        },
         filters: {
             heading: "Filters",
             source: "Source",
@@ -320,6 +324,14 @@ export const en: TranslationBundle = {
             machinesPlaceholder: "All machines",
             products: "Products",
             productsPlaceholder: "All products",
+            skipExclusion: "Skip handling",
+            skipExclusionHint:
+                "Clean excludes skipped / empty subpanels (manual X-OUT, machine-flagged, heuristic-missing) from the defect counts.",
+            skipStatuses: "Skip status filter",
+            skipStatusesHint: "Keep only subpanels of the selected skip classes (composes with skip handling).",
+            skipStatusesPlaceholder: "All classes",
+            excludeNogo: "Exclude NOGO programs",
+            excludeNogoHint: "Drop every product whose name contains \"NOGO\" (changeover calibration coupons).",
             defectBitsChipsLabel: "Defect bits",
             defectBitChip: "bit {{bit}}",
             removeDefectBit: "Remove defect bit {{bit}}",

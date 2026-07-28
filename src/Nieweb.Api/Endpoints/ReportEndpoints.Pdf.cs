@@ -198,6 +198,9 @@ public static partial class ReportEndpoints
         string? jedecNames,
         string? siteTimeZone,
         string? shifts,
+        string? skipExclusion,
+        string? skipStatuses,
+        bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
@@ -210,6 +213,8 @@ public static partial class ReportEndpoints
             machineIds, productIds,
             defectBits, topologies, partNumbers, jedecNames,
             siteTimeZone, shifts,
+            skipExclusion, skipStatuses,
+            excludeNogo,
             sources);
         if (built.Error is not null)
         {

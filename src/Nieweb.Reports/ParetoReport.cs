@@ -2,6 +2,7 @@ using Nieweb.DataSources;
 using Nieweb.Filters;
 using Nieweb.Reports.Common;
 using Nieweb.Reports.Common.Defects;
+using Nieweb.Reports.Common.Skips;
 using Nieweb.Reports.Filters;
 
 namespace Nieweb.Reports;
@@ -150,6 +151,45 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             ? new Dictionary<string, long>(StringComparer.Ordinal)
             : null;
 
+        // Skip filtering (mirrors DpmoTableReport). Clean mode drops
+        // skipped boards; a status filter narrows to specific skip
+        // classes. Both must hold for a board to be kept. Raw + no status
+        // filter leaves skipIndex null (unchanged fast path).
+        var skipConfig = filter.SkipConfig ?? SkipClassificationConfig.Default;
+        var skipStatusFilter = filter.SkipStatuses is { Count: > 0 }
+            ? new HashSet<SkipClass>(filter.SkipStatuses)
+            : null;
+        var needsSkipIndex = filter.SkipExclusion == SkipExclusion.Clean || skipStatusFilter is not null;
+        var skipIndex = needsSkipIndex
+            ? await SkipInputsIndex.BuildAsync(
+                source, filter.Window, filter.MachineIds, filter.ProductIds,
+                onlyLastInspection: true, skipConfig, cancellationToken).ConfigureAwait(false)
+            : null;
+        var skippedCards = skipIndex is null ? null : new HashSet<(long PanelId, int CardId)>();
+        long skipExcludedCards = 0;
+
+        bool KeepClass(SkipClass cls) =>
+            (filter.SkipExclusion != SkipExclusion.Clean || cls == SkipClass.None)
+            && (skipStatusFilter is null || skipStatusFilter.Contains(cls));
+
+        // NOGO exclusion: drop every product whose name contains "NOGO"
+        // (case-insensitive) from both passes. NOGO coupons are known-
+        // defect boards run at changeover and normally must not skew KPIs.
+        HashSet<int>? nogoProductIds = null;
+        if (filter.ExcludeNogo)
+        {
+            var products = await source.ListProductsAsync(cancellationToken).ConfigureAwait(false);
+            nogoProductIds = new HashSet<int>();
+            foreach (var p in products)
+            {
+                if (p.ProductName is not null
+                    && p.ProductName.Contains("NOGO", StringComparison.OrdinalIgnoreCase))
+                {
+                    nogoProductIds.Add(p.ProductId);
+                }
+            }
+        }
+
         var cardQuery = new CardQuery
         {
             Window = filter.Window,
@@ -158,6 +198,17 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         };
         await foreach (var card in source.StreamCardsAsync(cardQuery, cancellationToken).ConfigureAwait(false))
         {
+            if (nogoProductIds is not null && nogoProductIds.Contains(card.ProductId))
+            {
+                continue;
+            }
+            if (skipIndex is not null && !KeepClass(skipIndex.Classify(card, skipConfig)))
+            {
+                skippedCards!.Add((card.PanelId, card.CardIdOnPanel));
+                skipExcludedCards++;
+                continue;
+            }
+
             var opp = OpportunityFor(card, filter.Opportunity);
             opportunitiesOverall += opp;
             if (opportunitiesByMachine is not null)
@@ -226,6 +277,19 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
 
         await foreach (var obj in source.StreamTestedObjectsAsync(query, cancellationToken).ConfigureAwait(false))
         {
+            // Drop NOGO-product defects (matches the card-pass exclusion).
+            if (nogoProductIds is not null && nogoProductIds.Contains(obj.ProductId))
+            {
+                continue;
+            }
+
+            // Drop defects that live on a skipped board (Clean mode or a
+            // status filter that excluded the board in Pass 1).
+            if (skippedCards is not null && skippedCards.Contains((obj.PanelId, obj.CardIdOnPanel)))
+            {
+                continue;
+            }
+
             // Row-level narrowing filters — cheap short-circuits.
             if (topologySet is not null && (obj.Topology is null || !topologySet.Contains(obj.Topology)))
             {
@@ -362,7 +426,9 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             AppliedFilters: EchoAppliedFilters(filter),
             Overall: overallKpi,
             Rows: visibleRows,
-            OthersBucket: othersBucket);
+            OthersBucket: othersBucket,
+            SkipExclusion: filter.SkipExclusion,
+            SkipExcludedCards: skipExcludedCards);
     }
 
     private static (IReadOnlyList<ParetoRow> Rows, ParetoRow? Others) BuildRows(

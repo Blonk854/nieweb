@@ -31,5 +31,7 @@
     "dpmoPpm": 0
   },
   "rows": [],
-  "othersBucket": null
+  "othersBucket": null,
+  "skipExclusion": "Raw",
+  "skipExcludedCards": 0
 }
