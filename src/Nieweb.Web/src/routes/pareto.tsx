@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import {
     Alert,
     Anchor,
@@ -199,6 +199,25 @@ export function ParetoRoute() {
 
     const canSubmit = Boolean(effectiveSourceId && form.from && form.to && form.axis);
 
+    // When the user runs a report, glide the chart into the centre of the
+    // viewport so they see it render (and the vital-few threshold slide in)
+    // without scrolling up past the filter form. Guarded by scrollPendingRef
+    // so drill-down refetches (which also update reportQuery.data) don't
+    // yank the view around.
+    const chartScrollRef = useRef<HTMLDivElement>(null);
+    const scrollPendingRef = useRef(false);
+    useEffect(() => {
+        if (!scrollPendingRef.current || !reportQuery.data) return;
+        scrollPendingRef.current = false;
+        const id = requestAnimationFrame(() => {
+            chartScrollRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
+        });
+        return () => cancelAnimationFrame(id);
+    }, [reportQuery.data]);
+
     // Exports must carry the bearer token, so a plain <a href> 401s.
     // Fetch the file with auth and trigger a blob download instead.
     async function downloadExport(format: "csv" | "xlsx" | "pdf") {
@@ -215,6 +234,7 @@ export function ParetoRoute() {
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!canSubmit) return;
+        scrollPendingRef.current = true;
         const next: ParetoSearch = formToSearch({
             ...form,
             sourceId: effectiveSourceId,
@@ -724,6 +744,7 @@ export function ParetoRoute() {
                 axis={search.axis ?? "Defect"}
                 vitalFewThresholdPercent={search.vitalFewThreshold ?? 80}
                 onBarClick={handleBarClick}
+                chartRef={chartScrollRef}
             />
 
             <PdfPreviewModal
@@ -859,6 +880,7 @@ function ResultsCard(props: {
     axis: ParetoAxis;
     vitalFewThresholdPercent: number;
     onBarClick: (row: ParetoRow) => void;
+    chartRef: React.RefObject<HTMLDivElement | null>;
 }) {
     const { t } = useTranslation();
     const {
@@ -933,17 +955,19 @@ function ResultsCard(props: {
                         <Text c="dimmed">{t("pareto.results.noRows")}</Text>
                     ) : (
                         <>
-                            <Suspense fallback={<Loader size="sm" />}>
-                                <ParetoChart
-                                    rows={data.rows}
-                                    othersBucket={data.othersBucket}
-                                    axis={axis}
-                                    vitalFewThresholdPercent={vitalFewThresholdPercent}
-                                    onBarClick={
-                                        DRILLABLE_AXES.has(axis) ? onBarClick : undefined
-                                    }
-                                />
-                            </Suspense>
+                            <div ref={props.chartRef}>
+                                <Suspense fallback={<Loader size="sm" />}>
+                                    <ParetoChart
+                                        rows={data.rows}
+                                        othersBucket={data.othersBucket}
+                                        axis={axis}
+                                        vitalFewThresholdPercent={vitalFewThresholdPercent}
+                                        onBarClick={
+                                            DRILLABLE_AXES.has(axis) ? onBarClick : undefined
+                                        }
+                                    />
+                                </Suspense>
+                            </div>
                             <ParetoTable rows={data.rows} othersBucket={data.othersBucket} />
                         </>
                     )}
