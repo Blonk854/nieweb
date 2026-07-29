@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Anchor,
@@ -138,9 +138,24 @@ export function DpmoRoute() {
 
     const canSubmit = Boolean(effectiveSourceId && form.from && form.to && form.groupBy);
 
+    // Mirror the Pareto behaviour: on an explicit Run, glide the results
+    // into view once the report data lands. Guarded by scrollPendingRef so
+    // only a deliberate Run scrolls the page.
+    const resultsRef = useRef<HTMLDivElement>(null);
+    const scrollPendingRef = useRef(false);
+    useEffect(() => {
+        if (!scrollPendingRef.current || !reportQuery.data) return;
+        scrollPendingRef.current = false;
+        const id = requestAnimationFrame(() => {
+            resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        return () => cancelAnimationFrame(id);
+    }, [reportQuery.data]);
+
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!canSubmit) return;
+        scrollPendingRef.current = true;
         const next = formToSearch({ ...form, sourceId: effectiveSourceId }, timeZone);
         void navigate({ to: "/report/dpmo", search: next, replace: false });
     }
@@ -446,14 +461,16 @@ export function DpmoRoute() {
                 </Stack>
             </Card>
 
-            <ResultsCard
-                enabled={reportEnabled}
-                isPending={reportQuery.isPending}
-                isFetching={reportQuery.isFetching}
-                data={reportQuery.data}
-                error={reportQuery.error}
-                source={activeSource}
-            />
+            <div ref={resultsRef} style={{ scrollMarginTop: 80 }}>
+                <ResultsCard
+                    enabled={reportEnabled}
+                    isPending={reportQuery.isPending}
+                    isFetching={reportQuery.isFetching}
+                    data={reportQuery.data}
+                    error={reportQuery.error}
+                    source={activeSource}
+                />
+            </div>
 
             <PdfPreviewModal
                 opened={pdfPreviewOpen}
