@@ -57,7 +57,7 @@ export function ParetoChart(props: ParetoChartProps) {
     } = props;
     const { t } = useTranslation();
 
-    const option = useMemo<EChartsOption>(() => {
+    const geometry = useMemo(() => {
         const allRows: { row: ParetoRow; isOthers: boolean }[] = rows.map((row) => ({
             row,
             isOthers: false,
@@ -65,20 +65,26 @@ export function ParetoChart(props: ParetoChartProps) {
         if (othersBucket) {
             allRows.push({ row: othersBucket, isOthers: true });
         }
-
         const categories = allRows.map(({ row }) => categoryLabel(row, axis));
         // Long / numerous category names (e.g. product program names on the
-        // Product axis) must be rotated, and the axis *title* has to sit
-        // below them or it collides with the labels. Size both the label
-        // band and the axis-name gap from the longest label.
+        // Product axis) get rotated. We grow the *canvas height* by this
+        // label band (see `chartHeight`) rather than shrinking the plot via
+        // `grid.bottom`: over-reserving the bottom (manual grid.bottom +
+        // `containLabel` + a large axis-name gap) drove the grid height
+        // negative on long labels and collapsed the bars/line to a sliver.
         const maxLabelLen = categories.reduce((m, c) => Math.max(m, c.length), 0);
         const rotateLabels = categories.length > 6 || maxLabelLen > 8;
         const rotateDeg = rotateLabels ? 40 : 0;
         const labelBand = rotateLabels
-            ? Math.min(130, Math.round(maxLabelLen * 6.5 * Math.sin((rotateDeg * Math.PI) / 180)))
-            : 16;
-        const xNameGap = labelBand + 26;
-        const gridBottom = labelBand + 48;
+            ? Math.min(120, Math.round(maxLabelLen * 6 * Math.sin((rotateDeg * Math.PI) / 180)))
+            : 14;
+        return { allRows, categories, rotateLabels, rotateDeg, labelBand };
+    }, [rows, othersBucket, axis]);
+
+    const chartHeight = height + (geometry.rotateLabels ? geometry.labelBand : 0);
+
+    const option = useMemo<EChartsOption>(() => {
+        const { allRows, categories, rotateDeg } = geometry;
         const barValues: BarDatum[] = allRows.map(({ row, isOthers }) => ({
             value: row.defectCount,
             itemStyle: {
@@ -101,7 +107,7 @@ export function ParetoChart(props: ParetoChartProps) {
 
         return {
             aria: { enabled: true },
-            grid: { left: 60, right: 60, top: 40, bottom: gridBottom, containLabel: true },
+            grid: { left: 60, right: 60, top: 40, bottom: 16, containLabel: true },
             legend: {
                 data: [
                     t("pareto.chart.seriesDefects"),
@@ -135,9 +141,6 @@ export function ParetoChart(props: ParetoChartProps) {
                 type: "category",
                 data: categories,
                 axisLabel: { rotate: rotateDeg, interval: 0 },
-                name: t(`pareto.chart.axis.${axis}`),
-                nameLocation: "middle",
-                nameGap: xNameGap,
             },
             yAxis: [
                 {
@@ -196,7 +199,7 @@ export function ParetoChart(props: ParetoChartProps) {
                 },
             ],
         };
-    }, [rows, othersBucket, axis, vitalFewThresholdPercent, onBarClick, t]);
+    }, [geometry, vitalFewThresholdPercent, onBarClick, t]);
 
     // ECharts' onEvents.click delivers a `{ dataIndex, data, componentType, seriesType }`
     // shape - we act only when the user clicked a bar and it isn't the
@@ -238,7 +241,7 @@ export function ParetoChart(props: ParetoChartProps) {
         >
             <ReactECharts
                 option={option}
-                style={{ height, width: "100%" }}
+                style={{ height: chartHeight, width: "100%" }}
                 notMerge
                 lazyUpdate
                 onEvents={onEvents}
