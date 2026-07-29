@@ -165,6 +165,22 @@ export function FpyRoute() {
 
                 <Stack gap="md">
                     <Group grow align="flex-end">
+                        <DateTimePicker
+                            label={t("fpy.filters.from")}
+                            value={form.from}
+                            onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
+                            valueFormat="YYYY-MM-DD HH:mm"
+                            clearable
+                            required
+                        />
+                        <DateTimePicker
+                            label={t("fpy.filters.to")}
+                            value={form.to}
+                            onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
+                            valueFormat="YYYY-MM-DD HH:mm"
+                            clearable
+                            required
+                        />
                         <Select
                             label={t("fpy.filters.source")}
                             placeholder={t("fpy.filters.sourcePlaceholder")}
@@ -201,6 +217,9 @@ export function FpyRoute() {
                             required
                             allowDeselect={false}
                         />
+                    </Group>
+
+                    <Group grow align="flex-end">
                         <MultiSelect
                             label={t("fpy.filters.machines")}
                             placeholder={t("fpy.filters.machinesPlaceholder")}
@@ -299,26 +318,6 @@ export function FpyRoute() {
                                 clearable
                                 style={{ minWidth: 260 }}
                             />
-                            <Group gap="sm" align="flex-end">
-                                <DateTimePicker
-                                    label={t("fpy.filters.from")}
-                                    value={form.from}
-                                    onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
-                                    valueFormat="YYYY-MM-DD HH:mm"
-                                    clearable
-                                    required
-                                    w={190}
-                                />
-                                <DateTimePicker
-                                    label={t("fpy.filters.to")}
-                                    value={form.to}
-                                    onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
-                                    valueFormat="YYYY-MM-DD HH:mm"
-                                    clearable
-                                    required
-                                    w={190}
-                                />
-                            </Group>
                         </Stack>
                     </Group>
 
@@ -506,11 +505,7 @@ function ResultsCard(props: {
     );
 
     if (!enabled) {
-        return (
-            <Card withBorder padding="lg" radius="md">
-                <Text c="dimmed">{t("fpy.filters.emptyPrompt")}</Text>
-            </Card>
-        );
+        return null;
     }
 
     return (

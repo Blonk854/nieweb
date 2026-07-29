@@ -306,6 +306,26 @@ export function ParetoRoute() {
 
                 <Stack gap="md">
                     <Group grow align="flex-end">
+                        <DateTimePicker
+                            label={t("pareto.filters.from")}
+                            value={form.from}
+                            onChange={(value) =>
+                                setForm((prev) => ({ ...prev, from: value }))
+                            }
+                            valueFormat="YYYY-MM-DD HH:mm"
+                            clearable
+                            required
+                        />
+                        <DateTimePicker
+                            label={t("pareto.filters.to")}
+                            value={form.to}
+                            onChange={(value) =>
+                                setForm((prev) => ({ ...prev, to: value }))
+                            }
+                            valueFormat="YYYY-MM-DD HH:mm"
+                            clearable
+                            required
+                        />
                         <Select
                             label={t("pareto.filters.source")}
                             placeholder={t("pareto.filters.sourcePlaceholder")}
@@ -344,6 +364,9 @@ export function ParetoRoute() {
                             required
                             allowDeselect={false}
                         />
+                    </Group>
+
+                    <Group grow align="flex-end">
                         <MultiSelect
                             label={t("pareto.filters.machines")}
                             placeholder={t("pareto.filters.machinesPlaceholder")}
@@ -520,30 +543,6 @@ export function ParetoRoute() {
                                 clearable
                                 style={{ minWidth: 260 }}
                             />
-                            <Group gap="sm" align="flex-end">
-                                <DateTimePicker
-                                    label={t("pareto.filters.from")}
-                                    value={form.from}
-                                    onChange={(value) =>
-                                        setForm((prev) => ({ ...prev, from: value }))
-                                    }
-                                    valueFormat="YYYY-MM-DD HH:mm"
-                                    clearable
-                                    required
-                                    w={190}
-                                />
-                                <DateTimePicker
-                                    label={t("pareto.filters.to")}
-                                    value={form.to}
-                                    onChange={(value) =>
-                                        setForm((prev) => ({ ...prev, to: value }))
-                                    }
-                                    valueFormat="YYYY-MM-DD HH:mm"
-                                    clearable
-                                    required
-                                    w={190}
-                                />
-                            </Group>
                         </Stack>
                     </Group>
 

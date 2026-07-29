@@ -175,6 +175,22 @@ export function DpmoRoute() {
 
                 <Stack gap="md">
                     <Group grow align="flex-end">
+                        <DateTimePicker
+                            label={t("dpmo.filters.from")}
+                            value={form.from}
+                            onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
+                            valueFormat="YYYY-MM-DD HH:mm"
+                            clearable
+                            required
+                        />
+                        <DateTimePicker
+                            label={t("dpmo.filters.to")}
+                            value={form.to}
+                            onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
+                            valueFormat="YYYY-MM-DD HH:mm"
+                            clearable
+                            required
+                        />
                         <Select
                             label={t("dpmo.filters.source")}
                             placeholder={t("dpmo.filters.sourcePlaceholder")}
@@ -211,6 +227,9 @@ export function DpmoRoute() {
                             required
                             allowDeselect={false}
                         />
+                    </Group>
+
+                    <Group grow align="flex-end">
                         <MultiSelect
                             label={t("dpmo.filters.machines")}
                             placeholder={t("dpmo.filters.machinesPlaceholder")}
@@ -324,26 +343,6 @@ export function DpmoRoute() {
                                 clearable
                                 style={{ minWidth: 260 }}
                             />
-                            <Group gap="sm" align="flex-end">
-                                <DateTimePicker
-                                    label={t("dpmo.filters.from")}
-                                    value={form.from}
-                                    onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
-                                    valueFormat="YYYY-MM-DD HH:mm"
-                                    clearable
-                                    required
-                                    w={190}
-                                />
-                                <DateTimePicker
-                                    label={t("dpmo.filters.to")}
-                                    value={form.to}
-                                    onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
-                                    valueFormat="YYYY-MM-DD HH:mm"
-                                    clearable
-                                    required
-                                    w={190}
-                                />
-                            </Group>
                         </Stack>
                     </Group>
 
@@ -525,11 +524,7 @@ function ResultsCard(props: {
     );
 
     if (!enabled) {
-        return (
-            <Card withBorder padding="lg" radius="md">
-                <Text c="dimmed">{t("dpmo.filters.emptyPrompt")}</Text>
-            </Card>
-        );
+        return null;
     }
 
     return (
