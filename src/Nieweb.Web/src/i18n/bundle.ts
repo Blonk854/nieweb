@@ -379,6 +379,12 @@ export type TranslationBundle = {
                 Shift: string;
             };
         };
+        drillMap: {
+            link: string;
+            intro: string;
+            endLabel: string;
+            notDrillable: string;
+        };
     };
     skipSummary: {
         title: string;

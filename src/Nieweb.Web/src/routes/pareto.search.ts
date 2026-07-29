@@ -298,42 +298,86 @@ export function withoutStringFilter(
 }
 
 /**
- * Drill into a clicked Pareto bar. On the Defect axis we append the
- * clicked bit and stay on the axis (a defect filter narrows the
- * contributing objects without collapsing the bar set). On a category
- * axis (Product / AOI machine / reference designator / part number /
- * JEDEC) we add the clicked bucket to the matching narrowing filter
- * *and* advance the axis to Defect — the classic "show me the defect
- * breakdown inside this bucket" root-cause drill. Day / Shift bars are
- * not drillable via narrowing filters, so they return the search
- * unchanged. Returns the same reference when nothing would change so
- * the caller can skip navigation.
+ * Guided drill-down progression (Option A — a single global next-axis
+ * map). Clicking a bar narrows by the clicked bucket and advances the
+ * axis one step along this chain:
+ *
+ *   Product / AOI machine / JEDEC → Defect → Part number → Reference designator
+ *
+ * Reference designator is the terminal step — it has no entry here, so
+ * its bars are not drillable (the caller also drops it from the
+ * clickable set). Day / Shift bars carry no narrowing filter and are
+ * likewise absent, so they are not drillable.
+ */
+export const PARETO_DRILL_NEXT_AXIS: Partial<Record<ParetoAxis, ParetoAxis>> = {
+    Product: "Defect",
+    AoiMachine: "Defect",
+    Jedec: "Defect",
+    Defect: "PartNumber",
+    PartNumber: "ReferenceDesignator",
+    // ReferenceDesignator: terminal (no next axis).
+    // Day / Shift: not drillable (no next axis).
+};
+
+/**
+ * Object-level axes have no card-derived opportunity denominator, so the
+ * per-group DPMO is 0 and a rate weight (Dpmo / Ppm) would rank the bars
+ * by key instead of magnitude — no longer a Pareto. When a drill lands
+ * on one of these we force the volume scale so the chart stays sorted by
+ * defect count.
+ */
+export const PARETO_OBJECT_LEVEL_AXES: ReadonlySet<ParetoAxis> = new Set<ParetoAxis>([
+    "ReferenceDesignator",
+    "PartNumber",
+    "Jedec",
+]);
+
+/**
+ * Drill into a clicked Pareto bar. Adds the clicked bucket to the
+ * matching narrowing filter and advances the axis per
+ * {@link PARETO_DRILL_NEXT_AXIS}. When the next axis is object-level the
+ * scale is forced to Count (see {@link PARETO_OBJECT_LEVEL_AXES}).
+ * Terminal (Reference designator) and non-drillable (Day / Shift) bars
+ * return the same reference so the caller can skip navigation.
  */
 export function paretoDrillInto(search: ParetoSearch, groupKey: string): ParetoSearch {
-    switch (search.axis ?? "Defect") {
+    const axis = search.axis ?? "Defect";
+    const nextAxis = PARETO_DRILL_NEXT_AXIS[axis];
+    if (nextAxis === undefined) {
+        // Terminal (reference designator) or non-drillable (day / shift).
+        return search;
+    }
+    let narrowed: ParetoSearch;
+    switch (axis) {
         case "Defect": {
             const bit = Number(groupKey);
-            return withDefectBit(search, bit);
+            narrowed = withDefectBit(search, bit);
+            break;
         }
         case "Product": {
             const id = Number(groupKey);
             if (!Number.isInteger(id)) return search;
-            return { ...withNumericFilter(search, "productIds", id), axis: "Defect" };
+            narrowed = withNumericFilter(search, "productIds", id);
+            break;
         }
         case "AoiMachine": {
             const id = Number(groupKey);
             if (!Number.isInteger(id)) return search;
-            return { ...withNumericFilter(search, "machineIds", id), axis: "Defect" };
+            narrowed = withNumericFilter(search, "machineIds", id);
+            break;
         }
-        case "ReferenceDesignator":
-            return { ...withStringFilter(search, "topologies", groupKey), axis: "Defect" };
         case "PartNumber":
-            return { ...withStringFilter(search, "partNumbers", groupKey), axis: "Defect" };
+            narrowed = withStringFilter(search, "partNumbers", groupKey);
+            break;
         case "Jedec":
-            return { ...withStringFilter(search, "jedecNames", groupKey), axis: "Defect" };
+            narrowed = withStringFilter(search, "jedecNames", groupKey);
+            break;
         default:
             return search;
     }
+    return PARETO_OBJECT_LEVEL_AXES.has(nextAxis)
+        ? { ...narrowed, axis: nextAxis, weight: "Count" }
+        : { ...narrowed, axis: nextAxis };
 }
 
 function toStringOrUndef(v: unknown): string | undefined {

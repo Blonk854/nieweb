@@ -5,6 +5,7 @@ import {
     Badge,
     Button,
     Card,
+    Collapse,
     Group,
     Loader,
     MultiSelect,
@@ -270,6 +271,7 @@ export function ParetoRoute() {
         setForm((prev) => ({
             ...prev,
             axis: next.axis ?? "Defect",
+            weight: next.weight ?? prev.weight,
             defectBits: next.defectBits ?? [],
             productIds: next.productIds ?? [],
             machineIds: next.machineIds ?? [],
@@ -865,10 +867,54 @@ const DRILLABLE_AXES: ReadonlySet<ParetoAxis> = new Set<ParetoAxis>([
     "Defect",
     "Product",
     "AoiMachine",
-    "ReferenceDesignator",
     "PartNumber",
     "Jedec",
+    // ReferenceDesignator is the terminal drill step — its bars are not
+    // clickable (nothing finer to drill into).
 ]);
+
+/**
+ * Tiny collapsible legend for the click-to-drill axis progression (see
+ * PARETO_DRILL_NEXT_AXIS). Rendered as a compact expandable link above
+ * the chart so it explains drilling without eating vertical space.
+ */
+function DrillDownMap() {
+    const { t } = useTranslation();
+    const [open, setOpen] = useState(false);
+    const entryAxes: ParetoAxis[] = ["Product", "AoiMachine", "Jedec"];
+    return (
+        <div className="no-print">
+            <Anchor
+                component="button"
+                type="button"
+                size="xs"
+                onClick={() => setOpen((v) => !v)}
+            >
+                {open ? "▾ " : "▸ "}
+                {t("pareto.drillMap.link")}
+            </Anchor>
+            <Collapse expanded={open}>
+                <Stack gap={4} pt={6} pl="sm">
+                    <Text size="xs" c="dimmed">
+                        {t("pareto.drillMap.intro")}
+                    </Text>
+                    <Text size="xs">
+                        {entryAxes.map((a) => t(`pareto.axis.${a}`)).join(" · ")}
+                        {"  →  "}
+                        {t("pareto.axis.Defect")}
+                        {"  →  "}
+                        {t("pareto.axis.PartNumber")}
+                        {"  →  "}
+                        {t("pareto.axis.ReferenceDesignator")} ({t("pareto.drillMap.endLabel")})
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        {t("pareto.drillMap.notDrillable")}
+                    </Text>
+                </Stack>
+            </Collapse>
+        </div>
+    );
+}
 
 function ResultsCard(props: {
     enabled: boolean;
@@ -955,6 +1001,7 @@ function ResultsCard(props: {
                         <Text c="dimmed">{t("pareto.results.noRows")}</Text>
                     ) : (
                         <>
+                            <DrillDownMap />
                             <div ref={props.chartRef}>
                                 <Suspense fallback={<Loader size="sm" />}>
                                     <ParetoChart

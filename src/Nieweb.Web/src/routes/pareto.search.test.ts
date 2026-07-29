@@ -230,10 +230,12 @@ describe("withDefectBit / withoutDefectBit", () => {
 });
 
 describe("paretoDrillInto", () => {
-    it("appends the clicked bit and stays on the Defect axis", () => {
+    it("appends the clicked bit, advances to Part number, and forces the Count scale", () => {
         const next = paretoDrillInto({ axis: "Defect", defectBits: [1] }, "3");
-        expect(next.axis).toBe("Defect");
+        expect(next.axis).toBe("PartNumber");
         expect(next.defectBits).toEqual([1, 3]);
+        // Part number is object-level (no DPMO denominator) → force volume scale.
+        expect(next.weight).toBe("Count");
     });
 
     it("adds the product id and advances to the Defect axis", () => {
@@ -251,15 +253,18 @@ describe("paretoDrillInto", () => {
         expect(next.machineIds).toEqual([1, 7]);
     });
 
-    it("adds string buckets for reference designator / part number / JEDEC", () => {
-        expect(paretoDrillInto({ axis: "ReferenceDesignator" }, "R12")).toMatchObject({
-            axis: "Defect",
-            topologies: ["R12"],
-        });
-        expect(paretoDrillInto({ axis: "PartNumber" }, "PN-A")).toMatchObject({
-            axis: "Defect",
+    it("advances part number to reference designator (Count scale) and leaves reference designator terminal", () => {
+        // Part number advances to reference designator and forces Count.
+        const pn = paretoDrillInto({ axis: "PartNumber" }, "PN-A");
+        expect(pn).toMatchObject({
+            axis: "ReferenceDesignator",
             partNumbers: ["PN-A"],
+            weight: "Count",
         });
+        // Reference designator is terminal — clicks are a no-op.
+        const rd: ParetoSearch = { axis: "ReferenceDesignator" };
+        expect(paretoDrillInto(rd, "R12")).toBe(rd);
+        // JEDEC advances to Defect (Defect keeps whatever scale was set).
         expect(paretoDrillInto({ axis: "Jedec" }, "0402")).toMatchObject({
             axis: "Defect",
             jedecNames: ["0402"],
@@ -285,6 +290,22 @@ describe("paretoDrillInto", () => {
     it("ignores a non-numeric id on numeric axes", () => {
         const search: ParetoSearch = { axis: "Product" };
         expect(paretoDrillInto(search, "not-a-number")).toBe(search);
+    });
+
+    it("walks the full Product → Defect → Part number → Reference designator chain", () => {
+        let s: ParetoSearch = { axis: "Product" };
+        s = paretoDrillInto(s, "42");
+        expect(s.axis).toBe("Defect");
+        expect(s.productIds).toEqual([42]);
+        s = paretoDrillInto(s, "3");
+        expect(s.axis).toBe("PartNumber");
+        expect(s.defectBits).toEqual([3]);
+        expect(s.weight).toBe("Count");
+        s = paretoDrillInto(s, "PN-A");
+        expect(s.axis).toBe("ReferenceDesignator");
+        expect(s.partNumbers).toEqual(["PN-A"]);
+        // Terminal — a further click changes nothing.
+        expect(paretoDrillInto(s, "R7")).toBe(s);
     });
 });
 
