@@ -386,6 +386,13 @@ export const fr: TranslationBundle = {
                 Shift: "Équipe",
             },
         },
+        drillMap: {
+            link: "Carte d'exploration",
+            intro:
+                "Cliquez sur une barre pour explorer — chaque clic filtre sur l'élément cliqué et avance l'axe d'un cran :",
+            endLabel: "fin",
+            notDrillable: "Les barres Jour et Équipe ne sont pas explorables.",
+        },
     },
     skipSummary: {
         title: "Résumé des sauts",

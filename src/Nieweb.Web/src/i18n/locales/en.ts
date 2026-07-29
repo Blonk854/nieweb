@@ -388,6 +388,13 @@ export const en: TranslationBundle = {
                 Shift: "Shift",
             },
         },
+        drillMap: {
+            link: "Drill-down map",
+            intro:
+                "Click a bar to drill in — each click filters by what you clicked and advances the axis one step:",
+            endLabel: "end",
+            notDrillable: "Day and Shift bars aren't drillable.",
+        },
     },
     skipSummary: {
         title: "Skip Summary",
