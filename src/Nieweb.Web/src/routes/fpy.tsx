@@ -326,23 +326,19 @@ export function FpyRoute() {
                             label={t("fpy.filters.excludeNogo")}
                             description={t("fpy.filters.excludeNogoHint")}
                             checked={form.excludeNogo}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    excludeNogo: event.currentTarget.checked,
-                                }))
-                            }
+                            onChange={(event) => {
+                                const checked = event.currentTarget.checked;
+                                setForm((prev) => ({ ...prev, excludeNogo: checked }));
+                            }}
                         />
                         <Checkbox
                             label={t("fpy.filters.onlyLastInspection")}
                             description={t("fpy.filters.onlyLastInspectionHint")}
                             checked={form.onlyLastInspection}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    onlyLastInspection: event.currentTarget.checked,
-                                }))
-                            }
+                            onChange={(event) => {
+                                const checked = event.currentTarget.checked;
+                                setForm((prev) => ({ ...prev, onlyLastInspection: checked }));
+                            }}
                         />
                     </Group>
 

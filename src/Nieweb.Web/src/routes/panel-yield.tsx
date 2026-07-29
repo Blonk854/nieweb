@@ -214,12 +214,10 @@ export function PanelYieldRoute() {
                                 "panelYield.filters.onlyLastInspectionHint",
                             )}
                             checked={form.onlyLastInspection ?? true}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    onlyLastInspection: event.currentTarget.checked,
-                                }))
-                            }
+                            onChange={(event) => {
+                                const checked = event.currentTarget.checked;
+                                setForm((prev) => ({ ...prev, onlyLastInspection: checked }));
+                            }}
                         />
                     </Group>
 

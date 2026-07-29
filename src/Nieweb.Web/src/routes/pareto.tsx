@@ -549,12 +549,10 @@ export function ParetoRoute() {
                     <Switch
                         label={t("pareto.filters.excludeNogo")}
                         checked={form.excludeNogo}
-                        onChange={(e) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                excludeNogo: e.currentTarget.checked,
-                            }))
-                        }
+                        onChange={(e) => {
+                            const checked = e.currentTarget.checked;
+                            setForm((prev) => ({ ...prev, excludeNogo: checked }));
+                        }}
                     />
 
                     {(() => {

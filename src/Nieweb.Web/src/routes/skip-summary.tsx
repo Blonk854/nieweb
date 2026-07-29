@@ -213,12 +213,10 @@ export function SkipSummaryRoute() {
                         label={t("skipSummary.filters.onlyLastInspection")}
                         description={t("skipSummary.filters.onlyLastInspectionHint")}
                         checked={form.onlyLastInspection}
-                        onChange={(event) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                onlyLastInspection: event.currentTarget.checked,
-                            }))
-                        }
+                        onChange={(event) => {
+                            const checked = event.currentTarget.checked;
+                            setForm((prev) => ({ ...prev, onlyLastInspection: checked }));
+                        }}
                     />
 
                     {!canSubmit && (

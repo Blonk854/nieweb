@@ -351,24 +351,20 @@ export function DpmoRoute() {
                             label={t("dpmo.filters.excludeNogo")}
                             description={t("dpmo.filters.excludeNogoHint")}
                             checked={form.excludeNogo}
-                            onChange={(event) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    excludeNogo: event.currentTarget.checked,
-                                }))
-                            }
+                            onChange={(event) => {
+                                const checked = event.currentTarget.checked;
+                                setForm((prev) => ({ ...prev, excludeNogo: checked }));
+                            }}
                         />
                         {form.groupBy === "Defect" && (
                             <Checkbox
                                 label={t("dpmo.filters.includeObsoleteBits")}
                                 description={t("dpmo.filters.includeObsoleteBitsHint")}
                                 checked={form.includeObsoleteBits}
-                                onChange={(event) =>
-                                    setForm((prev) => ({
-                                        ...prev,
-                                        includeObsoleteBits: event.currentTarget.checked,
-                                    }))
-                                }
+                                onChange={(event) => {
+                                    const checked = event.currentTarget.checked;
+                                    setForm((prev) => ({ ...prev, includeObsoleteBits: checked }));
+                                }}
                             />
                         )}
                     </Group>
