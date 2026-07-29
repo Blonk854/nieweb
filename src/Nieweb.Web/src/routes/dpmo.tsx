@@ -211,28 +211,45 @@ export function DpmoRoute() {
                             required
                             allowDeselect={false}
                         />
+                        <MultiSelect
+                            label={t("dpmo.filters.machines")}
+                            placeholder={t("dpmo.filters.machinesPlaceholder")}
+                            data={(machinesQuery.data ?? []).map((m) => ({
+                                value: String(m.id),
+                                label: `${m.name} (${m.typeName})`,
+                            }))}
+                            value={(form.machineIds ?? []).map(String)}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    machineIds: vals.map(Number).filter(Number.isFinite),
+                                }))
+                            }
+                            disabled={!effectiveSourceId || machinesQuery.isPending}
+                            searchable
+                            clearable
+                        />
+                        <MultiSelect
+                            label={t("dpmo.filters.products")}
+                            placeholder={t("dpmo.filters.productsPlaceholder")}
+                            data={(productsQuery.data ?? []).map((p) => ({
+                                value: String(p.id),
+                                label: p.revision ? `${p.name || `#${p.id}`} — ${p.revision}` : p.name || `#${p.id}`,
+                            }))}
+                            value={(form.productIds ?? []).map(String)}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    productIds: vals.map(Number).filter(Number.isFinite),
+                                }))
+                            }
+                            disabled={!effectiveSourceId || productsQuery.isPending}
+                            searchable
+                            clearable
+                        />
                     </Group>
 
-                    <Group grow>
-                        <DateTimePicker
-                            label={t("dpmo.filters.from")}
-                            value={form.from}
-                            onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
-                            valueFormat="YYYY-MM-DD HH:mm"
-                            clearable
-                            required
-                        />
-                        <DateTimePicker
-                            label={t("dpmo.filters.to")}
-                            value={form.to}
-                            onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
-                            valueFormat="YYYY-MM-DD HH:mm"
-                            clearable
-                            required
-                        />
-                    </Group>
-
-                    <Group grow>
+                    <Group grow align="flex-start">
                         <Select
                             label={t("dpmo.filters.numerator")}
                             data={DPMO_NUMERATORS.map((n) => ({
@@ -265,115 +282,97 @@ export function DpmoRoute() {
                         />
                     </Group>
 
-                    <Stack gap={4}>
-                        <Text size="sm" fw={500}>
-                            {t("dpmo.filters.skipExclusion")}
-                        </Text>
-                        <SegmentedControl
-                            data={SKIP_EXCLUSIONS.map((s) => ({
-                                value: s,
-                                label: t(`dpmo.skipExclusion.${s}`),
-                            }))}
-                            value={form.skipExclusion}
-                            onChange={(value) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    skipExclusion: value as SkipExclusion,
-                                }))
-                            }
-                        />
-                        <Text size="xs" c="dimmed">
-                            {t("dpmo.filters.skipExclusionHint")}
-                        </Text>
-                    </Stack>
+                    <Group align="flex-start" gap="lg">
+                        <Stack gap={4}>
+                            <Text size="sm" fw={500}>
+                                {t("dpmo.filters.skipExclusion")}
+                            </Text>
+                            <SegmentedControl
+                                data={SKIP_EXCLUSIONS.map((s) => ({
+                                    value: s,
+                                    label: t(`dpmo.skipExclusion.${s}`),
+                                }))}
+                                value={form.skipExclusion}
+                                onChange={(value) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        skipExclusion: value as SkipExclusion,
+                                    }))
+                                }
+                            />
+                            <Text size="xs" c="dimmed" maw={320}>
+                                {t("dpmo.filters.skipExclusionHint")}
+                            </Text>
+                        </Stack>
+                        <Stack gap="sm">
+                            <MultiSelect
+                                label={t("dpmo.filters.skipStatuses")}
+                                description={t("dpmo.filters.skipStatusesHint")}
+                                inputWrapperOrder={["label", "input", "description", "error"]}
+                                placeholder={t("dpmo.filters.skipStatusesPlaceholder")}
+                                data={SKIP_STATUS_VALUES.map((c) => ({
+                                    value: c,
+                                    label: t(`skipSummary.classLabel.${c}`),
+                                }))}
+                                value={form.skipStatuses}
+                                onChange={(vals) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        skipStatuses: vals as SkipStatus[],
+                                    }))
+                                }
+                                clearable
+                                style={{ minWidth: 260 }}
+                            />
+                            <Group gap="sm" align="flex-end">
+                                <DateTimePicker
+                                    label={t("dpmo.filters.from")}
+                                    value={form.from}
+                                    onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
+                                    valueFormat="YYYY-MM-DD HH:mm"
+                                    clearable
+                                    required
+                                    w={190}
+                                />
+                                <DateTimePicker
+                                    label={t("dpmo.filters.to")}
+                                    value={form.to}
+                                    onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
+                                    valueFormat="YYYY-MM-DD HH:mm"
+                                    clearable
+                                    required
+                                    w={190}
+                                />
+                            </Group>
+                        </Stack>
+                    </Group>
 
-                    <MultiSelect
-                        label={t("dpmo.filters.skipStatuses")}
-                        description={t("dpmo.filters.skipStatusesHint")}
-                        placeholder={t("dpmo.filters.skipStatusesPlaceholder")}
-                        data={SKIP_STATUS_VALUES.map((c) => ({
-                            value: c,
-                            label: t(`skipSummary.classLabel.${c}`),
-                        }))}
-                        value={form.skipStatuses}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                skipStatuses: vals as SkipStatus[],
-                            }))
-                        }
-                        clearable
-                    />
-
-                    <Switch
-                        label={t("dpmo.filters.excludeNogo")}
-                        description={t("dpmo.filters.excludeNogoHint")}
-                        checked={form.excludeNogo}
-                        onChange={(event) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                excludeNogo: event.currentTarget.checked,
-                            }))
-                        }
-                    />
-
-                    {form.groupBy === "Defect" && (
-                        <Checkbox
-                            label={t("dpmo.filters.includeObsoleteBits")}
-                            description={t("dpmo.filters.includeObsoleteBitsHint")}
-                            checked={form.includeObsoleteBits}
+                    <Group gap="xl" align="flex-start">
+                        <Switch
+                            label={t("dpmo.filters.excludeNogo")}
+                            description={t("dpmo.filters.excludeNogoHint")}
+                            checked={form.excludeNogo}
                             onChange={(event) =>
                                 setForm((prev) => ({
                                     ...prev,
-                                    includeObsoleteBits: event.currentTarget.checked,
+                                    excludeNogo: event.currentTarget.checked,
                                 }))
                             }
                         />
-                    )}
-
-                    <MultiSelect
-                        label={t("dpmo.filters.machines")}
-                        placeholder={t("dpmo.filters.machinesPlaceholder")}
-                        data={(machinesQuery.data ?? []).map((m) => ({
-                            value: String(m.id),
-                            label: `${m.name} (${m.typeName})`,
-                        }))}
-                        value={(form.machineIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                machineIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || machinesQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
-                    <MultiSelect
-                        label={t("dpmo.filters.products")}
-                        placeholder={t("dpmo.filters.productsPlaceholder")}
-                        data={(productsQuery.data ?? []).map((p) => ({
-                            value: String(p.id),
-                            label: p.revision ? `${p.name || `#${p.id}`} — ${p.revision}` : p.name || `#${p.id}`,
-                        }))}
-                        value={(form.productIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                productIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || productsQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
-                    {!canSubmit && (
-                        <Text c="dimmed" size="sm">
-                            {t("dpmo.filters.missingRequired")}
-                        </Text>
-                    )}
+                        {form.groupBy === "Defect" && (
+                            <Checkbox
+                                label={t("dpmo.filters.includeObsoleteBits")}
+                                description={t("dpmo.filters.includeObsoleteBitsHint")}
+                                checked={form.includeObsoleteBits}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        includeObsoleteBits: event.currentTarget.checked,
+                                    }))
+                                }
+                            />
+                        )}
+                    </Group>
 
                     <Group justify="space-between" className="no-print">
                         <Group>

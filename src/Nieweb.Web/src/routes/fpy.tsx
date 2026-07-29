@@ -201,28 +201,45 @@ export function FpyRoute() {
                             required
                             allowDeselect={false}
                         />
+                        <MultiSelect
+                            label={t("fpy.filters.machines")}
+                            placeholder={t("fpy.filters.machinesPlaceholder")}
+                            data={(machinesQuery.data ?? []).map((m) => ({
+                                value: String(m.id),
+                                label: `${m.name} (${m.typeName})`,
+                            }))}
+                            value={(form.machineIds ?? []).map(String)}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    machineIds: vals.map(Number).filter(Number.isFinite),
+                                }))
+                            }
+                            disabled={!effectiveSourceId || machinesQuery.isPending}
+                            searchable
+                            clearable
+                        />
+                        <MultiSelect
+                            label={t("fpy.filters.products")}
+                            placeholder={t("fpy.filters.productsPlaceholder")}
+                            data={(productsQuery.data ?? []).map((p) => ({
+                                value: String(p.id),
+                                label: p.revision ? `${p.name || `#${p.id}`} — ${p.revision}` : p.name || `#${p.id}`,
+                            }))}
+                            value={(form.productIds ?? []).map(String)}
+                            onChange={(vals) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    productIds: vals.map(Number).filter(Number.isFinite),
+                                }))
+                            }
+                            disabled={!effectiveSourceId || productsQuery.isPending}
+                            searchable
+                            clearable
+                        />
                     </Group>
 
-                    <Group grow>
-                        <DateTimePicker
-                            label={t("fpy.filters.from")}
-                            value={form.from}
-                            onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
-                            valueFormat="YYYY-MM-DD HH:mm"
-                            clearable
-                            required
-                        />
-                        <DateTimePicker
-                            label={t("fpy.filters.to")}
-                            value={form.to}
-                            onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
-                            valueFormat="YYYY-MM-DD HH:mm"
-                            clearable
-                            required
-                        />
-                    </Group>
-
-                    <Group grow align="flex-start">
+                    <Group align="flex-start" gap="lg">
                         <Stack gap={4}>
                             <Text size="sm" fw={500}>
                                 {t("fpy.filters.granularity")}
@@ -258,97 +275,77 @@ export function FpyRoute() {
                                     }))
                                 }
                             />
-                            <Text size="xs" c="dimmed">
+                            <Text size="xs" c="dimmed" maw={320}>
                                 {t("fpy.filters.skipExclusionHint")}
                             </Text>
                         </Stack>
+                        <Stack gap="sm">
+                            <MultiSelect
+                                label={t("fpy.filters.skipStatuses")}
+                                description={t("fpy.filters.skipStatusesHint")}
+                                inputWrapperOrder={["label", "input", "description", "error"]}
+                                placeholder={t("fpy.filters.skipStatusesPlaceholder")}
+                                data={SKIP_STATUS_VALUES.map((c) => ({
+                                    value: c,
+                                    label: t(`skipSummary.classLabel.${c}`),
+                                }))}
+                                value={form.skipStatuses}
+                                onChange={(vals) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        skipStatuses: vals as SkipStatus[],
+                                    }))
+                                }
+                                clearable
+                                style={{ minWidth: 260 }}
+                            />
+                            <Group gap="sm" align="flex-end">
+                                <DateTimePicker
+                                    label={t("fpy.filters.from")}
+                                    value={form.from}
+                                    onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
+                                    valueFormat="YYYY-MM-DD HH:mm"
+                                    clearable
+                                    required
+                                    w={190}
+                                />
+                                <DateTimePicker
+                                    label={t("fpy.filters.to")}
+                                    value={form.to}
+                                    onChange={(value) => setForm((prev) => ({ ...prev, to: value }))}
+                                    valueFormat="YYYY-MM-DD HH:mm"
+                                    clearable
+                                    required
+                                    w={190}
+                                />
+                            </Group>
+                        </Stack>
                     </Group>
 
-                    <MultiSelect
-                        label={t("fpy.filters.machines")}
-                        placeholder={t("fpy.filters.machinesPlaceholder")}
-                        data={(machinesQuery.data ?? []).map((m) => ({
-                            value: String(m.id),
-                            label: `${m.name} (${m.typeName})`,
-                        }))}
-                        value={(form.machineIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                machineIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || machinesQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
-                    <MultiSelect
-                        label={t("fpy.filters.products")}
-                        placeholder={t("fpy.filters.productsPlaceholder")}
-                        data={(productsQuery.data ?? []).map((p) => ({
-                            value: String(p.id),
-                            label: p.revision ? `${p.name || `#${p.id}`} — ${p.revision}` : p.name || `#${p.id}`,
-                        }))}
-                        value={(form.productIds ?? []).map(String)}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                productIds: vals.map(Number).filter(Number.isFinite),
-                            }))
-                        }
-                        disabled={!effectiveSourceId || productsQuery.isPending}
-                        searchable
-                        clearable
-                    />
-
-                    <MultiSelect
-                        label={t("fpy.filters.skipStatuses")}
-                        description={t("fpy.filters.skipStatusesHint")}
-                        placeholder={t("fpy.filters.skipStatusesPlaceholder")}
-                        data={SKIP_STATUS_VALUES.map((c) => ({
-                            value: c,
-                            label: t(`skipSummary.classLabel.${c}`),
-                        }))}
-                        value={form.skipStatuses}
-                        onChange={(vals) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                skipStatuses: vals as SkipStatus[],
-                            }))
-                        }
-                        clearable
-                    />
-
-                    <Switch
-                        label={t("fpy.filters.excludeNogo")}
-                        description={t("fpy.filters.excludeNogoHint")}
-                        checked={form.excludeNogo}
-                        onChange={(event) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                excludeNogo: event.currentTarget.checked,
-                            }))
-                        }
-                    />
-
-                    <Checkbox
-                        label={t("fpy.filters.onlyLastInspection")}
-                        description={t("fpy.filters.onlyLastInspectionHint")}
-                        checked={form.onlyLastInspection}
-                        onChange={(event) =>
-                            setForm((prev) => ({
-                                ...prev,
-                                onlyLastInspection: event.currentTarget.checked,
-                            }))
-                        }
-                    />
-
-                    {!canSubmit && (
-                        <Text c="dimmed" size="sm">
-                            {t("fpy.filters.missingRequired")}
-                        </Text>
-                    )}
+                    <Group gap="xl" align="flex-start">
+                        <Switch
+                            label={t("fpy.filters.excludeNogo")}
+                            description={t("fpy.filters.excludeNogoHint")}
+                            checked={form.excludeNogo}
+                            onChange={(event) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    excludeNogo: event.currentTarget.checked,
+                                }))
+                            }
+                        />
+                        <Checkbox
+                            label={t("fpy.filters.onlyLastInspection")}
+                            description={t("fpy.filters.onlyLastInspectionHint")}
+                            checked={form.onlyLastInspection}
+                            onChange={(event) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    onlyLastInspection: event.currentTarget.checked,
+                                }))
+                            }
+                        />
+                    </Group>
 
                     <Group justify="space-between" className="no-print">
                         <Group>
