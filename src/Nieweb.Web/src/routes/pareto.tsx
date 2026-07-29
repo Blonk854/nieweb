@@ -266,6 +266,10 @@ export function ParetoRoute() {
         if (!row.groupKey) return;
         const next = paretoDrillInto(search, row.groupKey);
         if (next === search) return;
+        // Re-center the chart on every drill (not just the initial Run) so
+        // the freshly narrowed bars — and the threshold slide-in — glide
+        // back into view.
+        scrollPendingRef.current = true;
         // Keep local form state in sync so the axis selector and filter
         // chips update immediately (the URL is the source of truth).
         setForm((prev) => ({
