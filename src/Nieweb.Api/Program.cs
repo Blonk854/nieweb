@@ -210,6 +210,19 @@ try
     // Report composition (RC1). Backs /api/admin/report-groups and
     // /api/admin/reports; consumed by the RC2 SPA editor.
     builder.Services.AddScoped<Nieweb.Api.Reports.IReports, Nieweb.Api.Reports.EfReports>();
+
+    // Short-TTL report result cache. The on-screen report always runs
+    // fresh and stores its output here; the CSV / XLSX / PDF export
+    // endpoints read from it, so viewing a report and then exporting it
+    // three ways costs one AOI query instead of four. Options bound to
+    // Nieweb:Reports:ResultCache.
+    builder.Services
+        .AddOptions<Nieweb.Api.Reports.ReportResultCacheOptions>()
+        .Bind(builder.Configuration.GetSection(Nieweb.Api.Reports.ReportResultCacheOptions.SectionName))
+        .ValidateDataAnnotations();
+    builder.Services.AddSingleton<
+        Nieweb.Api.Reports.IReportResultCache,
+        Nieweb.Api.Reports.MemoryReportResultCache>();
     // Report lock password hasher (RC3). Reuses the same Argon2id
     // implementation as the user password hasher via a per-entity
     // generic instantiation.

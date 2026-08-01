@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
 using ClosedXML.Excel;
+using Nieweb.Api.Reports;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 using Nieweb.Reports.Common.Skips;
@@ -119,6 +120,7 @@ public static partial class ReportEndpoints
     /// on sources that support <see cref="Capabilities.IsLastInspectionFilter"/>.
     /// </param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
+    /// <param name="resultCache">Short-TTL cache the exports read from; this handler only populates it.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task<IResult> RunPanelYieldAsync(
@@ -129,6 +131,7 @@ public static partial class ReportEndpoints
         string? productIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -141,9 +144,12 @@ public static partial class ReportEndpoints
         }
 
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
+        // The on-screen report always runs fresh; it only *populates* the
+        // cache so the export endpoints below can reuse this pass.
         var result = await PanelYieldByLineReport.Instance
             .RunAsync(built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
+        resultCache.Store(PanelYieldByLineReport.Instance, built.Source, built.Filter, result);
         return Results.Ok(result);
     }
 
@@ -170,6 +176,7 @@ public static partial class ReportEndpoints
         string? productIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -185,8 +192,8 @@ public static partial class ReportEndpoints
         }
 
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
-        var result = await PanelYieldByLineReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+        var result = await resultCache
+            .GetOrRunAsync(PanelYieldByLineReport.Instance, built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
 
         var filename = string.Create(CultureInfo.InvariantCulture,
@@ -282,6 +289,7 @@ public static partial class ReportEndpoints
         string? productIds,
         bool? onlyLastInspection,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -297,8 +305,8 @@ public static partial class ReportEndpoints
         }
 
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
-        var result = await PanelYieldByLineReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+        var result = await resultCache
+            .GetOrRunAsync(PanelYieldByLineReport.Instance, built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
 
         var filename = string.Create(CultureInfo.InvariantCulture,

@@ -56,6 +56,7 @@ public static partial class ReportEndpoints
         string? tz,
         IEnumerable<IAoiSource> sources,
         IReports reports,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -80,7 +81,7 @@ public static partial class ReportEndpoints
 
         var sections = await RunTileSectionsAsync(
             detail, built.Source!, built.Filter!, machineIds, productIds,
-            logger, cancellationToken).ConfigureAwait(false);
+            resultCache, logger, cancellationToken).ConfigureAwait(false);
 
         var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
         using var buffer = new MemoryStream(32 * 1024);
@@ -112,6 +113,7 @@ public static partial class ReportEndpoints
         string? tz,
         IEnumerable<IAoiSource> sources,
         IReports reports,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -136,7 +138,7 @@ public static partial class ReportEndpoints
 
         var sections = await RunTileSectionsAsync(
             detail, built.Source!, built.Filter!, machineIds, productIds,
-            logger, cancellationToken).ConfigureAwait(false);
+            resultCache, logger, cancellationToken).ConfigureAwait(false);
 
         var header = new ReportPdfRenderer.ReportHeader(
             ReportTitle: detail.Report.Title,
@@ -177,6 +179,7 @@ public static partial class ReportEndpoints
         PanelYieldFilter filter,
         string? machineIds,
         string? productIds,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -189,8 +192,8 @@ public static partial class ReportEndpoints
 
             object? result = tile.TileType switch
             {
-                "panelYield" => await RunPanelYieldForTileAsync(source, filter, tile.ConfigJson, logger, cancellationToken).ConfigureAwait(false),
-                "pareto"     => await RunParetoForTileAsync(source, filter, machineIds, productIds, tile.ConfigJson, logger, cancellationToken).ConfigureAwait(false),
+                "panelYield" => await RunPanelYieldForTileAsync(source, filter, tile.ConfigJson, resultCache, logger, cancellationToken).ConfigureAwait(false),
+                "pareto"     => await RunParetoForTileAsync(source, filter, machineIds, productIds, tile.ConfigJson, resultCache, logger, cancellationToken).ConfigureAwait(false),
                 "comment"    => ExtractCommentResult(tile.ConfigJson),
                 _            => null,
             };
@@ -206,6 +209,7 @@ public static partial class ReportEndpoints
         IAoiSource source,
         PanelYieldFilter shared,
         string? configJson,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -220,8 +224,8 @@ public static partial class ReportEndpoints
         };
 
         LogRunning(logger, source.Descriptor.Id, filter.Window.StartUtc, filter.Window.EndUtcExclusive);
-        return await PanelYieldByLineReport.Instance
-            .RunAsync(source, filter, cancellationToken)
+        return await resultCache
+            .GetOrRunAsync(PanelYieldByLineReport.Instance, source, filter, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -231,6 +235,7 @@ public static partial class ReportEndpoints
         string? machineIds,
         string? productIds,
         string? configJson,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -270,8 +275,8 @@ public static partial class ReportEndpoints
         LogRunningPareto(
             logger, source.Descriptor.Id, filter.Axis, filter.Numerator,
             filter.Window.StartUtc, filter.Window.EndUtcExclusive);
-        return await ParetoReport.Instance
-            .RunAsync(source, filter, cancellationToken)
+        return await resultCache
+            .GetOrRunAsync(ParetoReport.Instance, source, filter, cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -569,6 +574,7 @@ public static partial class ReportEndpoints
         string? tz,
         IEnumerable<IAoiSource> sources,
         IReports reports,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -593,7 +599,7 @@ public static partial class ReportEndpoints
 
         var sections = await RunTileSectionsAsync(
             detail, built.Source!, built.Filter!, machineIds, productIds,
-            logger, cancellationToken).ConfigureAwait(false);
+            resultCache, logger, cancellationToken).ConfigureAwait(false);
 
         var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
 

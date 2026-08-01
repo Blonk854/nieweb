@@ -4,6 +4,7 @@ using System.Text;
 
 using ClosedXML.Excel;
 
+using Nieweb.Api.Reports;
 using Nieweb.Api.SkipClassification;
 using Nieweb.DataSources;
 using Nieweb.Reports;
@@ -42,6 +43,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -67,9 +69,11 @@ public static partial class ReportEndpoints
             filter.Window.StartUtc,
             filter.Window.EndUtcExclusive);
 
+        // Fresh on screen; stored so the exports can reuse this pass.
         var result = await FpyTableReport.Instance
             .RunAsync(built.Source, filter, cancellationToken)
             .ConfigureAwait(false);
+        resultCache.Store(FpyTableReport.Instance, built.Source, filter, result);
         return Results.Ok(result);
     }
 
@@ -139,6 +143,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -146,7 +151,7 @@ public static partial class ReportEndpoints
         var result = await BuildFpyResultAsync(
             context, sourceId, startUtc, endUtc, granularity, groupBy,
             machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
-            excludeNogo, sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+            excludeNogo, sources, skipConfigProvider, resultCache, cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return;
@@ -177,6 +182,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -184,7 +190,7 @@ public static partial class ReportEndpoints
         var result = await BuildFpyResultAsync(
             context, sourceId, startUtc, endUtc, granularity, groupBy,
             machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
-            excludeNogo, sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+            excludeNogo, sources, skipConfigProvider, resultCache, cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return;
@@ -225,6 +231,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         CancellationToken cancellationToken)
     {
         var built = TryBuildFpyRequest(
@@ -240,8 +247,8 @@ public static partial class ReportEndpoints
         {
             SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
         };
-        return await FpyTableReport.Instance
-            .RunAsync(built.Source!, filter, cancellationToken)
+        return await resultCache
+            .GetOrRunAsync(FpyTableReport.Instance, built.Source!, filter, cancellationToken)
             .ConfigureAwait(false);
     }
 

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
 using ClosedXML.Excel;
+using Nieweb.Api.Reports;
 using Nieweb.Api.SkipClassification;
 using Nieweb.DataSources;
 using Nieweb.Reports;
@@ -47,6 +48,7 @@ public static partial class ReportEndpoints
     /// <param name="excludeNogo">When <c>true</c>, drop every product whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
     /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
+    /// <param name="resultCache">Short-TTL cache the exports read from; this handler only populates it.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task<IResult> RunDpmoTableAsync(
@@ -64,6 +66,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -87,9 +90,12 @@ public static partial class ReportEndpoints
         {
             SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
         };
+        // Fresh on screen; stored so the CSV / XLSX / PDF exports below
+        // can reuse this pass instead of hitting the AOI DB again.
         var result = await DpmoTableReport.Instance
             .RunAsync(built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
+        resultCache.Store(DpmoTableReport.Instance, built.Source, effectiveFilter, result);
         return Results.Ok(result);
     }
 
@@ -369,6 +375,7 @@ public static partial class ReportEndpoints
     /// <param name="excludeNogo">When <c>true</c>, drop every product whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
+    /// <param name="resultCache">Reuses the on-screen report's pass when it is still live.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task ExportDpmoTableCsvAsync(
@@ -387,6 +394,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -413,8 +421,8 @@ public static partial class ReportEndpoints
         {
             SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
         };
-        var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, effectiveFilter, cancellationToken)
+        var result = await resultCache
+            .GetOrRunAsync(DpmoTableReport.Instance, built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
 
         var filename = string.Create(CultureInfo.InvariantCulture,
@@ -504,6 +512,7 @@ public static partial class ReportEndpoints
     /// <param name="excludeNogo">When <c>true</c>, drop every product whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources.</param>
     /// <param name="skipConfigProvider">Resolves the admin-tuned skip thresholds.</param>
+    /// <param name="resultCache">Reuses the on-screen report's pass when it is still live.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task ExportDpmoTableXlsxAsync(
@@ -522,6 +531,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -548,8 +558,8 @@ public static partial class ReportEndpoints
         {
             SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
         };
-        var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, effectiveFilter, cancellationToken)
+        var result = await resultCache
+            .GetOrRunAsync(DpmoTableReport.Instance, built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
 
         var filename = string.Create(CultureInfo.InvariantCulture,

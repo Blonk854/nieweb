@@ -297,6 +297,28 @@ item in §7.6. Nothing else in §7.4 – §7.11 has code yet.
   en / fr i18n keys. **#18915 regression** covered by dedicated
   300-column CSV + XLSX round-trip tests. All 149 API tests +
   152 vitest tests green.
+- `TR4` ✅ done — **Exports no longer re-run the query.** Every
+  export handler used to call the report from scratch, so viewing a
+  report and then exporting it to CSV, XLSX and PDF cost *four*
+  independent full passes over the AOI database — a real cost given
+  the Superviseur DBs sit on the SMT line's critical path.
+  `IReportResultCache` (`MemoryReportResultCache`) now sits in front
+  of `IReport.RunAsync`, keyed on
+  `(report id, source id, SHA-256 of the canonicalized filter)`.
+  The contract is deliberately asymmetric: the **on-screen report
+  always runs fresh** and only *populates* the cache, while the
+  export endpoints read from it. So clicking "Run" can never return
+  stale numbers, and an export is guaranteed to match the figures
+  the user was just looking at. Absolute 5-minute expiry (never
+  sliding) with a 32-entry LRU bound; options under
+  `Nieweb:Reports:ResultCache` (`Enabled` / `TtlSeconds` /
+  `MaxEntries`). Wired into Panel Yield, FPY table, FPY Trend, DPMO,
+  Pareto and the composed report-canvas export, across CSV, XLSX and
+  PDF. Key generation is best-effort — an unserializable filter
+  disables caching for that call instead of failing the request.
+  Results are not user-scoped (identical for every authenticated
+  user given the same source + filter), so the key carries no user
+  identity.
 
 ### 7.3 Chart reports (M)
 

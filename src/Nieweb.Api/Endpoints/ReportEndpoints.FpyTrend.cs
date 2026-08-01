@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 
 using ClosedXML.Excel;
 
+using Nieweb.Api.Reports;
 using Nieweb.Api.SkipClassification;
 using Nieweb.DataSources;
 using Nieweb.Reports;
@@ -53,13 +54,15 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
         var (response, _, error) = await BuildFpyTrendAsync(
             startUtc, endUtc, bucket, siteTimeZone, granularity, skipExclusion, skipStatuses,
             lines, productIds, sourceIds, onlyLastInspection, excludeNogo,
-            sources, skipConfigProvider, logger, cancellationToken).ConfigureAwait(false);
+            sources, skipConfigProvider, resultCache, useCache: false,
+            logger, cancellationToken).ConfigureAwait(false);
         return error ?? Results.Ok(response);
     }
 
@@ -67,6 +70,11 @@ public static partial class ReportEndpoints
     /// Parses + validates the query, then runs <see cref="FpyTrendByLineReport"/>
     /// against every selected source. Returns the assembled response (and the
     /// parsed window, for export filenames), or a 4xx <see cref="IResult"/>.
+    /// <para>
+    /// <c>useCache</c> is <c>false</c> for the on-screen report (always runs
+    /// fresh, and stores its per-source results) and <c>true</c> for the CSV /
+    /// XLSX / PDF exports, which reuse that stored pass when it is still live.
+    /// </para>
     /// </summary>
     private static async Task<(FpyTrendReportResponse? Response, DateRange Window, IResult? Error)> BuildFpyTrendAsync(
         string? startUtc,
@@ -83,6 +91,8 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
+        bool useCache,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -194,8 +204,16 @@ public static partial class ReportEndpoints
             LogRunningFpyTrend(logger, source.Descriptor.Id, bucketValue, granularityValue, window.StartUtc, window.EndUtcExclusive);
             try
             {
-                return await FpyTrendByLineReport.Instance
+                if (useCache)
+                {
+                    return await resultCache
+                        .GetOrRunAsync(FpyTrendByLineReport.Instance, source, filter, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                var perSource = await FpyTrendByLineReport.Instance
                     .RunAsync(source, filter, cancellationToken).ConfigureAwait(false);
+                resultCache.Store(FpyTrendByLineReport.Instance, source, filter, perSource);
+                return perSource;
             }
             catch (OperationCanceledException)
             {
@@ -262,6 +280,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -270,7 +289,8 @@ public static partial class ReportEndpoints
         var (response, window, error) = await BuildFpyTrendAsync(
             startUtc, endUtc, bucket, siteTimeZone, granularity, skipExclusion, skipStatuses,
             lines, productIds, sourceIds, onlyLastInspection, excludeNogo,
-            sources, skipConfigProvider, logger, cancellationToken).ConfigureAwait(false);
+            sources, skipConfigProvider, resultCache, useCache: true,
+            logger, cancellationToken).ConfigureAwait(false);
         if (error is not null)
         {
             await error.ExecuteAsync(context).ConfigureAwait(false);
@@ -301,6 +321,7 @@ public static partial class ReportEndpoints
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -309,7 +330,8 @@ public static partial class ReportEndpoints
         var (response, window, error) = await BuildFpyTrendAsync(
             startUtc, endUtc, bucket, siteTimeZone, granularity, skipExclusion, skipStatuses,
             lines, productIds, sourceIds, onlyLastInspection, excludeNogo,
-            sources, skipConfigProvider, logger, cancellationToken).ConfigureAwait(false);
+            sources, skipConfigProvider, resultCache, useCache: true,
+            logger, cancellationToken).ConfigureAwait(false);
         if (error is not null)
         {
             await error.ExecuteAsync(context).ConfigureAwait(false);

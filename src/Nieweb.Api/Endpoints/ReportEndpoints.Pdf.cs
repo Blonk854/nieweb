@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using Nieweb.Api.Reports;
 using Nieweb.Api.SkipClassification;
 using Nieweb.DataSources;
 using Nieweb.Pdf;
@@ -64,6 +65,7 @@ public static partial class ReportEndpoints
         string? flavor,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -72,7 +74,8 @@ public static partial class ReportEndpoints
         var (response, window, error) = await BuildFpyTrendAsync(
             startUtc, endUtc, bucket, siteTimeZone, granularity, skipExclusion, skipStatuses,
             lines, productIds, sourceIds, onlyLastInspection, excludeNogo,
-            sources, skipConfigProvider, logger, cancellationToken).ConfigureAwait(false);
+            sources, skipConfigProvider, resultCache, useCache: true,
+            logger, cancellationToken).ConfigureAwait(false);
         if (error is not null)
         {
             await error.ExecuteAsync(context).ConfigureAwait(false);
@@ -108,6 +111,7 @@ public static partial class ReportEndpoints
         bool? onlyLastInspection,
         string? tz,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -124,8 +128,8 @@ public static partial class ReportEndpoints
 
         var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
         LogRunning(logger, built.Source!.Descriptor.Id, built.Filter!.Window.StartUtc, built.Filter.Window.EndUtcExclusive);
-        var result = await PanelYieldByLineReport.Instance
-            .RunAsync(built.Source, built.Filter, cancellationToken)
+        var result = await resultCache
+            .GetOrRunAsync(PanelYieldByLineReport.Instance, built.Source, built.Filter, cancellationToken)
             .ConfigureAwait(false);
 
         await WritePdfAsync(
@@ -154,6 +158,7 @@ public static partial class ReportEndpoints
         string? tz,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -180,8 +185,8 @@ public static partial class ReportEndpoints
         {
             SkipConfig = await skipConfigProvider.GetAsync(cancellationToken).ConfigureAwait(false),
         };
-        var result = await DpmoTableReport.Instance
-            .RunAsync(built.Source, effectiveFilter, cancellationToken)
+        var result = await resultCache
+            .GetOrRunAsync(DpmoTableReport.Instance, built.Source, effectiveFilter, cancellationToken)
             .ConfigureAwait(false);
 
         var dpmoTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(tz);
@@ -210,6 +215,7 @@ public static partial class ReportEndpoints
         string? tz,
         IEnumerable<IAoiSource> sources,
         ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -217,7 +223,7 @@ public static partial class ReportEndpoints
         var result = await BuildFpyResultAsync(
             context, sourceId, startUtc, endUtc, granularity, groupBy,
             machineIds, productIds, onlyLastInspection, skipExclusion, skipStatuses,
-            excludeNogo, sources, skipConfigProvider, cancellationToken).ConfigureAwait(false);
+            excludeNogo, sources, skipConfigProvider, resultCache, cancellationToken).ConfigureAwait(false);
         if (result is null)
         {
             return;
@@ -258,6 +264,7 @@ public static partial class ReportEndpoints
         string? skipStatuses,
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -289,8 +296,8 @@ public static partial class ReportEndpoints
         ParetoResult result;
         try
         {
-            result = await ParetoReport.Instance
-                .RunAsync(built.Source, built.Filter, cancellationToken)
+            result = await resultCache
+                .GetOrRunAsync(ParetoReport.Instance, built.Source, built.Filter, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (ArgumentOutOfRangeException ex)

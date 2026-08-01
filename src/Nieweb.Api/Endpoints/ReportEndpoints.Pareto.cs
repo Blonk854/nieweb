@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO.Pipelines;
 using System.Text;
 using ClosedXML.Excel;
+using Nieweb.Api.Reports;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 using Nieweb.Reports.Common;
@@ -78,6 +79,7 @@ public static partial class ReportEndpoints
     /// <param name="skipStatuses">Optional CSV of skip classes to keep (ManualSkip, MachineFlagged, HeuristicMissing, None).</param>
     /// <param name="excludeNogo">When <c>true</c>, drop products whose name contains "NOGO" (case-insensitive).</param>
     /// <param name="sources">All registered AOI sources (DI-injected).</param>
+    /// <param name="resultCache">Short-TTL cache the exports read from; this handler only populates it.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task<IResult> RunParetoAsync(
@@ -104,6 +106,7 @@ public static partial class ReportEndpoints
         string? skipStatuses,
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -131,9 +134,11 @@ public static partial class ReportEndpoints
 
         try
         {
+            // Fresh on screen; stored so the exports can reuse this pass.
             var result = await ParetoReport.Instance
                 .RunAsync(built.Source, built.Filter, cancellationToken)
                 .ConfigureAwait(false);
+            resultCache.Store(ParetoReport.Instance, built.Source, built.Filter, result);
             return Results.Ok(result);
         }
         catch (ArgumentOutOfRangeException ex)
@@ -393,6 +398,7 @@ public static partial class ReportEndpoints
     /// <param name="skipStatuses">Optional CSV of skip classes to keep.</param>
     /// <param name="excludeNogo">Drop NOGO-named products when <c>true</c>.</param>
     /// <param name="sources">All registered AOI sources.</param>
+    /// <param name="resultCache">Reuses the on-screen report's pass when it is still live.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task ExportParetoCsvAsync(
@@ -420,6 +426,7 @@ public static partial class ReportEndpoints
         string? skipStatuses,
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -451,8 +458,8 @@ public static partial class ReportEndpoints
         ParetoResult result;
         try
         {
-            result = await ParetoReport.Instance
-                .RunAsync(built.Source, built.Filter, cancellationToken)
+            result = await resultCache
+                .GetOrRunAsync(ParetoReport.Instance, built.Source, built.Filter, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (ArgumentOutOfRangeException ex)
@@ -582,6 +589,7 @@ public static partial class ReportEndpoints
     /// <param name="skipStatuses">Optional CSV of skip classes to keep.</param>
     /// <param name="excludeNogo">Drop NOGO-named products when <c>true</c>.</param>
     /// <param name="sources">All registered AOI sources.</param>
+    /// <param name="resultCache">Reuses the on-screen report's pass when it is still live.</param>
     /// <param name="logger">Endpoint logger.</param>
     /// <param name="cancellationToken">Request abort signal.</param>
     private static async Task ExportParetoXlsxAsync(
@@ -609,6 +617,7 @@ public static partial class ReportEndpoints
         string? skipStatuses,
         bool? excludeNogo,
         IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
@@ -640,8 +649,8 @@ public static partial class ReportEndpoints
         ParetoResult result;
         try
         {
-            result = await ParetoReport.Instance
-                .RunAsync(built.Source, built.Filter, cancellationToken)
+            result = await resultCache
+                .GetOrRunAsync(ParetoReport.Instance, built.Source, built.Filter, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (ArgumentOutOfRangeException ex)
