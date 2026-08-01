@@ -248,19 +248,16 @@ time — sequence matters more than clock estimates.
 `🟡 partial <sha>` — some sub-items delivered, follow-ups called out;
 `⬜ open` — not started.
 
-**Progress snapshot (2026-07-21).** Report infra (§7.1) is fully
-landed. Table reports (§7.2) are landed on the server + export
-layers; the frontend and the #18915 regression are the remaining
-gap. Chart reports (§7.3): Pareto (`CR1`), Deviation (`CR2`) and
-Trend (`CR3`) are all shipped end-to-end on the server + endpoint
-layers — the shared time-decomposition selector (`F12`) and the
-per-chart frontend tiles are the remaining gap. Report composition
-(§7.6): `RC1` is landed — entities, migrations, `IReports`
-service and admin CRUD are all in place, and `ReportEntity`
-collapses Vieweb's six report-entity subclasses into a
-`(TileType, ConfigJson)` pair so RC2's editor can pick from a
-data-driven tile catalogue. RC2 (SPA editor) is the next open
-item in §7.6. Nothing else in §7.4 – §7.11 has code yet.
+**Progress snapshot (2026-07-31).** **Phase 2 is complete — every
+item in §7.1 – §7.12 is delivered**, with two deliberate deferrals:
+`PC1` (Process Capability dashboard) moved to §7.7 *Optional* on
+2026-07-21, and the MSA report waits on the empty-panel DB being
+commissioned (§7.4). `TC4` / `TC5` finished their A–D sub-phases on
+2026-07-22. `CR4` (FPY Trend by line) and `TR4` (report result
+cache) landed after the original plan was written and are recorded
+below. The next work is Phase 3 (`docs/phase-3.md`), where the
+traceability slice already delivered `BT3` and `BT4` ahead of
+schedule.
 
 ### 7.1 Report infrastructure (M)
 
@@ -380,6 +377,27 @@ item in §7.6. Nothing else in §7.4 – §7.11 has code yet.
   the site cycle is also unconfigured). LoggerMessage event id 3402.
   12 new `TrendChartReport` unit tests + 9 new `Trend` endpoint tests
   (total 403, was 382).
+- `CR4` ✅ done `d77b21f` — **FPY Trend by line.** Added after the
+  original plan was written, on request: first-pass yield over time
+  for every AOI line, on both pre- and post-reflow at once.
+  `FpyTrendByLineReport` returns one `FpyTrendResult` per source
+  (machine ids collide across the two DBs, so every line stays
+  namespaced by its source), bucketed by day or week, at panel or
+  board granularity, carrying all three FPY flavours so the
+  Diagnostic / AOI toggle is display-only and never refetches.
+  `FpyAccumulator` is shared with `FpyTableReport` (`TR1`) so the two
+  agree numerically. Per-source failures are isolated the way
+  `/api/sources` isolates freshness probes — an offline DB is omitted
+  rather than failing the page.
+  The **Line filter is by line *number*** parsed from the machine
+  name (`L2PSTAOI` → line 2), not by machine id, and each source
+  resolves the requested lines to its own machine ids; a source with
+  no machine on a selected line contributes nothing rather than
+  everything. Endpoint `GET /api/reports/fpy-trend` plus CSV / XLSX /
+  PDF exports (`FpyTrendChartSvg` draws the chart into the PDF via
+  QuestPDF's `IContainer.Svg`). SPA route `/report/fpy-trend` with
+  URL-first filters, lazy-loaded ECharts chart, saved views and PDF
+  preview.
 
 ### 7.4 Process Capability (M)
 
@@ -503,7 +521,8 @@ item in §7.6. Nothing else in §7.4 – §7.11 has code yet.
   fail). Drill-in from a stage's sub-panel row into the
   tested-object table is deliberately deferred to TC5 (TC3 only
   exposes the summary).
-- `TC4` 🟡 in progress — Board-SVG asset pipeline. Prerequisite for TC5.
+- `TC4` ✅ done (all sub-phases A–D shipped 2026-07-22) — Board-SVG
+  asset pipeline. Prerequisite for TC5.
   Each AOI machine (both pre- and post-reflow lines) generates and
   stores a panel-layout SVG per product locally on the machine's
   filesystem. The SVG is a full production artifact: it contains
@@ -683,7 +702,8 @@ item in §7.6. Nothing else in §7.4 – §7.11 has code yet.
   > inside the component. Green: **534/534 dotnet, 211/211
   > vitest** (previously 202/204 — the flaky admin-users
   > timeouts settled during this run).
-- `TC5` 🚧 in progress — Board viewer SPA component with dual-stage
+- `TC5` ✅ done (all sub-phases A–D shipped 2026-07-22) — Board viewer
+  SPA component with dual-stage
   highlight. Depends on TC4 (asset pipeline) and TC3 (barcode
   lookup UI). The viewer renders the cached SVG for the current
   product and overlays circle markers on failed tested objects.

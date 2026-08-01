@@ -285,30 +285,65 @@ Legend: `M` = mandatory for Phase 3 sign-off, `S` = should-have,
 `C` = could-have (drop if slipping). Every item cites the skill that
 owns the canonical facts.
 
+**Progress snapshot (2026-07-31).** Phase 3 has not formally started;
+Phase 2 closed complete on 2026-07-31. The only Phase 3 items with
+code are in §6.1 Board Trace, delivered as a side effect of Phase 2's
+traceability slice: `BT3` and `BT4` are **done**, `BT1` and `BT2` are
+**partial**. Everything else — Review, Analyse, SigmaLine feedforward,
+PI-Capacity, MSA, automatic treatments, extra locales and the
+Sigmalink coexistence / retirement track — has **no code yet**. Note
+that **PI-Capacity (§6.5) must land before Analyse (§6.3) ships**, or
+DBQuery-Pi traffic can degrade AOI inspection cycle time.
+
 ### 6.1 Board Trace UI (M) — `vit-aoi-database` + `aoi-quality-metrics`
 
 Board Trace is the flagship Phase 3 feature (§1). The
 `Nieweb.Reports.Traceability` package from Phase 2 already loads a
 panel by barcode; Phase 3 wraps a first-class UI around it.
 
-- `BT1` — `/app/board-trace` route with a prominent barcode search
+> **Status (2026-07-31).** Phase 2's traceability slice (`TC1`–`TC5`
+> in `docs/phase-2.md`) delivered more of this section than planned:
+> `BT3` and `BT4` are **already done**, and `BT1` / `BT2` are
+> **partial**. The genuinely outstanding work is the consolidated
+> timeline (`BT2`), the QA landing tile (`BT5`) and the whole kiosk
+> track (`BT6`–`BT8`).
+
+- `BT1` 🟡 partial — `/app/board-trace` route with a prominent barcode
+  search
   box on every layout. Barcode scanner-friendly: input auto-focuses,
   Enter submits, no click required. Deep link: `/app/board-trace/<barcode>`.
-- `BT2` — End-to-end timeline UI: pre-reflow SPI verdict → pre-reflow
+  *Delivered by `TC3`:* the route
+  (`src/Nieweb.Web/src/routes/traceability-board.tsx`) and the
+  reusable `BarcodeLookupCard` on the home page. *Outstanding:* the
+  search box is not yet present on **every** layout, and the
+  scanner-friendly auto-focus / Enter-submit behaviour is unverified.
+- `BT2` 🟡 partial — End-to-end timeline UI: pre-reflow SPI verdict → pre-reflow
   AOI defects & sanctions → post-reflow AOI defects & sanctions →
   repair actions → final panel state. Each step shows timestamp,
   machine, operator, and any defect bit-flags decoded per the
   `vit-aoi-database` skill.
-- `BT3` — Cross-DB stitch. Pre-reflow (`MEAOI`) and post-reflow
+  *Delivered by `TC2` / `TC5` Phase D:* both stages load side by side,
+  and the `FailedObjectsTable` drill-down shows the decoded defect
+  bits, repair result / date / comment and operator per failed object.
+  *Outstanding:* the actual **timeline presentation** — the stages are
+  rendered as parallel tables, not as one chronological sequence — and
+  the SPI verdict step (needs a pre-reflow paste source).
+- `BT3` ✅ done — Cross-DB stitch. Pre-reflow (`MEAOI`) and post-reflow
   (`HLYAOI2024`) live on different SQL Server instances with
   different schema revisions; Board Trace merges the two histories on
   `(Barcode, Panel_Numeric_Date)` while respecting the capability
   flags (`IPinLevelSource` present only on post-reflow, `IPasteSource`
   present only on pre-reflow — see `.github/copilot-instructions.md`).
-- `BT4` — Defect visualisation. Where an admin-uploaded Board SVG
+  *Delivered by `TC2`:* `TraceabilityEndpoints` resolves a barcode
+  across every registered source and returns a per-stage result,
+  gated on the capability flags.
+- `BT4` ✅ done — Defect visualisation. Where an admin-uploaded Board SVG
   exists for the product, overlay each defect at its subpanel /
   component location. Where no SVG exists, fall back to the tabular
   view.
+  *Delivered by `TC4` + `TC5`:* the Board-SVG asset pipeline plus the
+  `<BoardViewer>` component with dual-stage colour-coded highlights
+  and a graceful tabular fallback when no SVG is cached.
 - `BT5` — QA landing tile: Board Trace becomes the default first
   tile on the QA role's dashboard.
 - `BT6` — **Kiosk mode.** Opt-in per deployment via an admin toggle
