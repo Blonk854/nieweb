@@ -21,6 +21,7 @@ import { fetchSources } from "../api/sources";
 import { listHomeReports, type HomeReportDto } from "../api/homeReports";
 import { unpinAdminReport } from "../api/adminReports";
 import { relativeFromNow } from "../components/freshness";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { BarcodeLookupCard } from "../components/BarcodeLookupCard";
 import { useSessionStore } from "../state/session";
 
@@ -82,16 +83,7 @@ export function HomeRoute() {
                     {isPending && <Loader size="xs" />}
                 </Group>
 
-                {error && (
-                    <Alert
-                        color="red"
-                        icon={<IconAlertTriangle size={18} />}
-                        title={t("home.sourcesErrorTitle")}
-                        role="alert"
-                    >
-                        {error instanceof Error ? error.message : String(error)}
-                    </Alert>
-                )}
+                {error && <ApiErrorAlert error={error} />}
 
                 {data && data.length === 0 && (
                     <Text c="dimmed">{t("home.sourcesEmpty")}</Text>

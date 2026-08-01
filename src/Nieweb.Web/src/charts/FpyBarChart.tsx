@@ -142,7 +142,7 @@ export function FpyBarChart(props: FpyBarChartProps) {
                                 lineStyle: { color: FPY_BAND_COLORS.amber, width: 1, opacity: 0.5 },
                                 label: {
                                     formatter: `${t("panelYield.chart.thresholdAmber")} (${thresholds.amber}%)`,
-                                    position: "insideStartTop",
+                                    position: "insideStartBottom",
                                 },
                             },
                         ],

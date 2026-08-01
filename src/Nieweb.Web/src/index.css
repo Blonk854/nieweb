@@ -107,3 +107,16 @@ body {
 .print-only {
     display: none;
 }
+
+/*
+ * Navbar links: after a mouse click the anchor keeps DOM focus until the
+ * user interacts elsewhere, and Mantine's NavLink paints a background while
+ * focused. That makes a clicked link look "stuck" highlighted — most
+ * noticeable on a slow report link (e.g. FPY Trend) where focus lingers for
+ * the whole load. Only the *active* route ([data-active]) should stay
+ * highlighted; keyboard users still get the :focus-visible ring.
+ */
+.mantine-NavLink-root:not([data-active]):focus:not(:focus-visible) {
+    background-color: transparent;
+}
+

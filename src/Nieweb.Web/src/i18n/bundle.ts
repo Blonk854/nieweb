@@ -14,6 +14,7 @@ export type TranslationBundle = {
     nav: {
         home: string;
         panelYield: string;
+        fpyTrend: string;
         pareto: string;
         dpmo: string;
         fpy: string;
@@ -201,6 +202,71 @@ export type TranslationBundle = {
             tileCount_one: string;
             tileCount_other: string;
             unpinAction: string;
+        };
+    };
+    /**
+     * Shared failure vocabulary rendered by `ApiErrorAlert` /
+     * `describeApiError`. The `*Title` leaves are alert headings keyed off
+     * the HTTP status; the rest are messages keyed off the server's
+     * `code` problem extension (see `ReportEndpoints.ProblemCodes`).
+     */
+    errors: {
+        networkTitle: string;
+        badRequestTitle: string;
+        unauthorizedTitle: string;
+        forbiddenTitle: string;
+        notFoundTitle: string;
+        serverTitle: string;
+        genericTitle: string;
+        network: string;
+        unauthorized: string;
+        forbidden: string;
+        emptyWindow: string;
+        invalidWindow: string;
+        invalidStart: string;
+        invalidEnd: string;
+        missingSource: string;
+        unknownSource: string;
+    };
+    fpyTrend: {
+        title: string;
+        subtitle: string;
+        filters: {
+            heading: string;
+            from: string;
+            to: string;
+            bucket: string;
+            granularity: string;
+            flavor: string;
+            cleanSkips: string;
+            skipStatuses: string;
+            skipStatusesPlaceholder: string;
+            line: string;
+            linePlaceholder: string;
+            lineOption: string;
+            submit: string;
+            reset: string;
+            print: string;
+            exportCsv: string;
+            exportXlsx: string;
+            exportPdf: string;
+            excludeNogo: string;
+            excludeNogoHint: string;
+        };
+        bucket: { week: string; day: string };
+        granularity: { board: string; panel: string };
+        flavor: { diagnostic: string; aoi: string };
+        results: {
+            empty: string;
+            lineCount: string;
+            overallFpy: string;
+            inspected: string;
+        };
+        chart: {
+            fpy: string;
+            inspected: string;
+            faulty: string;
+            ariaSummary: string;
         };
     };
     panelYield: {

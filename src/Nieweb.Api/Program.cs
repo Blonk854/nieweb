@@ -444,6 +444,21 @@ try
         {
             RequestPath = "/app",
             FileProvider = spaFileProvider,
+            OnPrepareResponse = ctx =>
+            {
+                // The SPA shell (index.html) must ALWAYS be revalidated so a
+                // new deploy's hashed asset URLs are picked up immediately.
+                // Hashed assets (index-<hash>.js, fpyTrend-<hash>.js, …) are
+                // content-addressed and immutable, so they keep the default
+                // cacheable headers. Without this, a browser can pin a stale
+                // shell that references deleted chunks or an old API contract.
+                if (ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                    ctx.Context.Response.Headers.Pragma = "no-cache";
+                    ctx.Context.Response.Headers.Expires = "0";
+                }
+            },
         });
     }
 
@@ -488,6 +503,9 @@ try
             .ExcludeFromDescription();
         app.MapFallback("/app/{*catchall}", async context =>
         {
+            // Deep-link refreshes serve the shell too — keep it non-cacheable
+            // for the same reason as the UseStaticFiles branch above.
+            context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
             context.Response.ContentType = "text/html; charset=utf-8";
             await context.Response.SendFileAsync(spaIndexPath);
         });

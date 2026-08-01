@@ -7,6 +7,7 @@ import {
     Container,
     Group,
     NavLink,
+    ScrollArea,
     Select,
     Text,
     UnstyledButton,
@@ -74,7 +75,12 @@ export function RootLayout() {
             </AppShell.Header>
 
             <AppShell.Navbar p="sm">
-                <SideNav />
+                <AppShell.Section grow component={ScrollArea}>
+                    <SideNav />
+                </AppShell.Section>
+                <AppShell.Section>
+                    <BrandFooter />
+                </AppShell.Section>
             </AppShell.Navbar>
 
             <AppShell.Main>
@@ -123,10 +129,10 @@ function SideNav() {
             />
             <NavLink
                 component={Link}
-                to="/report/panel-yield"
-                label={t("nav.panelYield")}
+                to="/report/fpy-trend"
+                label={t("nav.fpyTrend")}
                 leftSection={<IconChartBar size={18} />}
-                active={active.startsWith("/report/panel-yield")}
+                active={active.startsWith("/report/fpy-trend")}
             />
             <NavLink
                 component={Link}
@@ -147,7 +153,9 @@ function SideNav() {
                 to="/report/fpy"
                 label={t("nav.fpy")}
                 leftSection={<IconChartBar size={18} />}
-                active={active.startsWith("/report/fpy")}
+                active={
+                    active === "/report/fpy" || active.startsWith("/report/fpy/")
+                }
             />
             <NavLink
                 component={Link}
@@ -315,11 +323,12 @@ function SideNav() {
 }
 
 /**
- * Header brand cluster: the primary Nieweb wordmark stacked over the
- * BSS Green Premium sub-brand, wrapped in a link to the home page.
- * The two SVGs are shipped from `public/logo/` so they are cache-
- * friendly and can be swapped without a rebuild. The `aria-label`
- * satisfies a11y since the visual mark carries all the meaning.
+ * Header brand cluster: the primary Nieweb wordmark, wrapped in a link
+ * to the home page. The BigSoy Studios sub-brand now lives in the
+ * navbar footer (see {@link BrandFooter}). The SVG is shipped from
+ * `public/logo/` so it is cache-friendly and can be swapped without a
+ * rebuild. The `aria-label` satisfies a11y since the visual mark
+ * carries all the meaning.
  */
 function BrandMark() {
     const { t } = useTranslation();
@@ -329,25 +338,47 @@ function BrandMark() {
             aria-label={t("app.title")}
             style={{
                 display: "inline-flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-                gap: 2,
+                alignItems: "center",
                 textDecoration: "none",
             }}
         >
             <img
                 src="/app/logo/logo.svg"
                 alt=""
-                height={28}
+                height={44}
                 style={{ display: "block", width: "auto" }}
             />
-            <img
-                src="/app/logo/bss_green_premium_no_pod.svg"
-                alt=""
-                height={12}
-                style={{ display: "block", width: "auto", opacity: 0.85 }}
-            />
         </Link>
+    );
+}
+
+/**
+ * Navbar footer brand: the BigSoy Studios (BSS Green Premium) sub-brand,
+ * pinned to the bottom of the left navbar beneath the scrolling nav
+ * links. Sized to the navbar width with a thin separator above it.
+ */
+function BrandFooter() {
+    return (
+        <Box
+            style={{
+                borderTop: "1px solid var(--mantine-color-default-border)",
+                paddingTop: "var(--mantine-spacing-xs)",
+                display: "flex",
+                justifyContent: "center",
+            }}
+        >
+            <img
+                src="/app/logo/bss_green_.svg"
+                alt="BigSoy Studios"
+                style={{
+                    display: "block",
+                    height: 48,
+                    width: "auto",
+                    maxWidth: "100%",
+                    opacity: 0.85,
+                }}
+            />
+        </Box>
     );
 }
 

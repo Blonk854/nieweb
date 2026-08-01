@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Alert,
     Anchor,
     Badge,
     Button,
@@ -8,7 +7,6 @@ import {
     Checkbox,
     Group,
     Loader,
-    MultiSelect,
     SegmentedControl,
     Select,
     Stack,
@@ -20,7 +18,7 @@ import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { IconAlertTriangle, IconDownload, IconEye, IconPrinter } from "@tabler/icons-react";
+import { IconDownload, IconEye, IconPrinter } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 import {
     fetchMachines,
@@ -47,6 +45,8 @@ import {
     type SkipStatus,
 } from "./fpy.search";
 import { DataTable, type Column } from "../components/DataTable";
+import { MultiSelectField } from "../components/MultiSelectField";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { downloadWithAuth } from "../api/download";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
@@ -235,7 +235,7 @@ export function FpyRoute() {
                     </Group>
 
                     <Group grow align="flex-end">
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("fpy.filters.machines")}
                             placeholder={t("fpy.filters.machinesPlaceholder")}
                             data={(machinesQuery.data ?? []).map((m) => ({
@@ -253,7 +253,7 @@ export function FpyRoute() {
                             searchable
                             clearable
                         />
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("fpy.filters.products")}
                             placeholder={t("fpy.filters.productsPlaceholder")}
                             data={(productsQuery.data ?? []).map((p) => ({
@@ -314,7 +314,7 @@ export function FpyRoute() {
                             </Text>
                         </Stack>
                         <Stack gap="sm">
-                            <MultiSelect
+                            <MultiSelectField
                                 label={t("fpy.filters.skipStatuses")}
                                 description={t("fpy.filters.skipStatusesHint")}
                                 inputWrapperOrder={["label", "input", "description", "error"]}
@@ -528,16 +528,7 @@ function ResultsCard(props: {
                 {isFetching && <Loader size="xs" />}
             </Group>
 
-            {error ? (
-                <Alert
-                    color="red"
-                    icon={<IconAlertTriangle size={18} />}
-                    title={t("fpy.results.errorTitle")}
-                    role="alert"
-                >
-                    {error instanceof Error ? error.message : String(error)}
-                </Alert>
-            ) : null}
+            {error ? <ApiErrorAlert error={error} /> : null}
 
             {isPending && !error && <Loader />}
 

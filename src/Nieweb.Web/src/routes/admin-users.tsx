@@ -7,7 +7,6 @@ import {
     Checkbox,
     Group,
     Modal,
-    MultiSelect,
     PasswordInput,
     Stack,
     Table,
@@ -39,6 +38,7 @@ import { ApiError } from "../api/client";
 import { useDateTimeFormatter } from "../i18n/formatters";
 import { useSessionStore } from "../state/session";
 import { relativeFromNow } from "../components/freshness";
+import { MultiSelectField } from "../components/MultiSelectField";
 
 /**
  * Admin-only users route. Lists local accounts and lets an admin
@@ -424,7 +424,7 @@ function CreateUserModal(props: {
                         required
                         {...form.getInputProps("password")}
                     />
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("admin.users.create.rolesLabel")}
                         placeholder={t("admin.users.create.rolesPlaceholder")}
                         data={[...ROLE_OPTIONS]}
@@ -524,7 +524,7 @@ function EditUserModal(props: {
                             required
                             {...form.getInputProps("displayName")}
                         />
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("admin.users.edit.rolesLabel")}
                             data={[...ROLE_OPTIONS]}
                             {...form.getInputProps("roles")}

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import {
-    Alert,
     Anchor,
     Badge,
     Button,
@@ -8,7 +7,6 @@ import {
     Collapse,
     Group,
     Loader,
-    MultiSelect,
     NumberInput,
     SegmentedControl,
     Select,
@@ -22,7 +20,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
-    IconAlertTriangle,
     IconDownload,
     IconEye,
     IconPrinter,
@@ -63,6 +60,9 @@ import {
     type SkipStatus,
 } from "./pareto.search";
 import { DataTable, type Column } from "../components/DataTable";
+import { MultiSelectField } from "../components/MultiSelectField";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
+import { SavedViewsMenu } from "../components/SavedViewsMenu";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { downloadWithAuth } from "../api/download";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
@@ -256,6 +256,19 @@ export function ParetoRoute() {
         });
     }
 
+    // Applies a filter loaded from a saved view: pushes it into the URL
+    // (which drives the report query) *and* seeds the form state so the
+    // input controls also reflect the loaded view.
+    function applySavedFilter(filter: ParetoSearch) {
+        setForm(searchToForm(filter, timeZone));
+        scrollPendingRef.current = true;
+        void navigate({
+            to: "/report/pareto",
+            search: filter,
+            replace: false,
+        });
+    }
+
     // Chart bar click = drill-down. On the Defect axis we append the
     // clicked bit and stay; on a category axis (Product / AOI machine /
     // reference designator / part number / JEDEC) we add the clicked
@@ -393,7 +406,7 @@ export function ParetoRoute() {
                     </Group>
 
                     <Group grow align="flex-end">
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("pareto.filters.machines")}
                             placeholder={t("pareto.filters.machinesPlaceholder")}
                             data={(machinesQuery.data ?? [])
@@ -418,7 +431,7 @@ export function ParetoRoute() {
                             searchable
                             clearable
                         />
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("pareto.filters.products")}
                             placeholder={t("pareto.filters.productsPlaceholder")}
                             data={(productsQuery.data ?? [])
@@ -550,7 +563,7 @@ export function ParetoRoute() {
                             </Text>
                         </Stack>
                         <Stack gap="sm">
-                            <MultiSelect
+                            <MultiSelectField
                                 label={t("pareto.filters.skipStatuses")}
                                 description={t("pareto.filters.skipStatusesHint")}
                                 inputWrapperOrder={["label", "input", "description", "error"]}
@@ -672,6 +685,12 @@ export function ParetoRoute() {
                             >
                                 {t("pareto.filters.print")}
                             </Button>
+                            <SavedViewsMenu<ParetoSearch>
+                                reportKey="pareto"
+                                currentFilter={search}
+                                onApply={applySavedFilter}
+                                canSave={reportEnabled}
+                            />
                         </Group>
                         <Group>
                             <Anchor
@@ -956,16 +975,7 @@ function ResultsCard(props: {
                 {isFetching && <Loader size="xs" />}
             </Group>
 
-            {error ? (
-                <Alert
-                    color="red"
-                    icon={<IconAlertTriangle size={18} />}
-                    title={t("pareto.results.errorTitle")}
-                    role="alert"
-                >
-                    {error instanceof Error ? error.message : String(error)}
-                </Alert>
-            ) : null}
+            {error ? <ApiErrorAlert error={error} /> : null}
 
             {isPending && !error && <Loader />}
 

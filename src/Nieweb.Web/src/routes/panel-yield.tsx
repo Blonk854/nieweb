@@ -1,13 +1,11 @@
 import { useMemo, useState, lazy, Suspense } from "react";
 import {
-    Alert,
     Anchor,
     Button,
     Card,
     Checkbox,
     Group,
     Loader,
-    MultiSelect,
     Select,
     Stack,
     Text,
@@ -17,7 +15,7 @@ import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { IconAlertTriangle, IconDownload, IconEye, IconPrinter } from "@tabler/icons-react";
+import { IconDownload, IconEye, IconPrinter } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 import {
     fetchMachines,
@@ -34,7 +32,10 @@ import {
 import type { PanelYieldSearch } from "./panel-yield.search";
 import { pickDefaultSourceId } from "./panel-yield.search";
 import { DataTable, type Column } from "../components/DataTable";
+import { MultiSelectField } from "../components/MultiSelectField";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
+import { downloadWithAuth } from "../api/download";
 import { KpiCards } from "../components/KpiCards";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
@@ -166,6 +167,19 @@ export function PanelYieldRoute() {
         });
     }
 
+    // Exports must carry the bearer token, so a plain <a href> 401s.
+    // Fetch the file with auth and trigger a blob download instead.
+    async function downloadExport(format: "csv" | "xlsx" | "pdf") {
+        if (!reportEnabled) return;
+        const stem = `panel-yield-${search.sourceId ?? "source"}-${search.startUtc?.slice(0, 10) ?? ""}`;
+        try {
+            await downloadWithAuth(panelYieldExportUrl(search, format), `${stem}.${format}`);
+        } catch {
+            // downloadWithAuth clears the session on 401; other errors
+            // are transient. The report card already surfaces failures.
+        }
+    }
+
     return (
         <Stack gap="lg">
             <Stack gap={4}>
@@ -244,7 +258,7 @@ export function PanelYieldRoute() {
                         />
                     </Group>
 
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("panelYield.filters.machines")}
                         placeholder={t("panelYield.filters.machinesPlaceholder")}
                         data={(machinesQuery.data ?? []).map((m) => ({
@@ -263,7 +277,7 @@ export function PanelYieldRoute() {
                         clearable
                     />
 
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("panelYield.filters.products")}
                         placeholder={t("panelYield.filters.productsPlaceholder")}
                         data={(productsQuery.data ?? []).map((p) => ({
@@ -316,9 +330,12 @@ export function PanelYieldRoute() {
                         </Group>
                         <Group>
                             <Anchor
-                                href={reportEnabled ? panelYieldExportUrl(search, "csv") : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => void downloadExport("csv")}
                                 aria-disabled={!reportEnabled}
                                 data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
                             >
                                 <Group gap={4}>
                                     <IconDownload size={16} />
@@ -328,9 +345,12 @@ export function PanelYieldRoute() {
                                 </Group>
                             </Anchor>
                             <Anchor
-                                href={reportEnabled ? panelYieldExportUrl(search, "xlsx") : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => void downloadExport("xlsx")}
                                 aria-disabled={!reportEnabled}
                                 data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
                             >
                                 <Group gap={4}>
                                     <IconDownload size={16} />
@@ -340,9 +360,12 @@ export function PanelYieldRoute() {
                                 </Group>
                             </Anchor>
                             <Anchor
-                                href={reportEnabled ? panelYieldExportUrl(search, "pdf") : undefined}
+                                component="button"
+                                type="button"
+                                onClick={() => void downloadExport("pdf")}
                                 aria-disabled={!reportEnabled}
                                 data-disabled={!reportEnabled || undefined}
+                                disabled={!reportEnabled}
                             >
                                 <Group gap={4}>
                                     <IconDownload size={16} />
@@ -459,11 +482,7 @@ function ResultsCard(props: {
     const { enabled, isPending, isFetching, data, error, source } = props;
 
     if (!enabled) {
-        return (
-            <Card withBorder padding="lg" radius="md">
-                <Text c="dimmed">{t("panelYield.filters.emptyPrompt")}</Text>
-            </Card>
-        );
+        return null;
     }
 
     return (
@@ -473,16 +492,7 @@ function ResultsCard(props: {
                 {isFetching && <Loader size="xs" />}
             </Group>
 
-            {error ? (
-                <Alert
-                    color="red"
-                    icon={<IconAlertTriangle size={18} />}
-                    title={t("home.sourcesErrorTitle")}
-                    role="alert"
-                >
-                    {error instanceof Error ? error.message : String(error)}
-                </Alert>
-            ) : null}
+            {error ? <ApiErrorAlert error={error} /> : null}
 
             {isPending && !error && <Loader />}
 

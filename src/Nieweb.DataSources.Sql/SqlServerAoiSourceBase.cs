@@ -1037,6 +1037,19 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
             sb.AppendLine().Append("  AND p.IS_LAST_INSPECTION = 1");
         }
 
+        // Skip-classification callers only need rows that can flip a card
+        // to a skip: an "object missing" defect (Error_Table bit 1) or a
+        // manual-skip repair comment (any non-empty Repair_Button_Comment).
+        // OK, uncommented rows contribute nothing to SkipInputsIndex, so
+        // pruning them here is exact-parity and collapses the wire volume
+        // on the pre-reflow v4.3.1 TESTED_OBJECT (which is not physically
+        // defect-only).
+        if (q.SkipInputsOnly)
+        {
+            sb.AppendLine().Append(
+                "  AND ((t.Error_Table & 1) <> 0 OR (t.Repair_Button_Comment IS NOT NULL AND t.Repair_Button_Comment <> ''))");
+        }
+
         AppendInClause(sb, "p.Machine_Id", "@m", q.MachineIds);
         AppendInClause(sb, "p.Product_Id", "@p", q.ProductIds);
 

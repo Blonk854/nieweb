@@ -39,7 +39,9 @@ import {
     type ProductOption,
 } from "../api/sources";
 import { ApiError } from "../api/client";
+import { describeApiError } from "../api/problem";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import {
     BoardViewer,
     type BoardHighlight,
@@ -276,18 +278,7 @@ export function TraceabilityBoardRoute() {
                 </Alert>
             )}
 
-            {otherError && (
-                <Alert
-                    color="red"
-                    icon={<IconAlertTriangle size={18} />}
-                    title={t("traceability.board.errorTitle")}
-                    role="alert"
-                >
-                    {boardQuery.error instanceof Error
-                        ? boardQuery.error.message
-                        : String(boardQuery.error)}
-                </Alert>
-            )}
+            {otherError && <ApiErrorAlert error={boardQuery.error} />}
 
             {boardQuery.data && (
                 <Stack gap="sm">
@@ -723,17 +714,13 @@ function FailureDrilldown(props: {
                 failed: fq?.data,
                 failedIsLoading: fq?.isPending ?? false,
                 failedError:
-                    fq?.error instanceof Error
-                        ? fq.error.message
-                        : fq?.error != null
-                            ? String(fq.error)
-                            : null,
+                    fq?.error == null ? null : describeApiError(fq.error, t).message,
                 productName,
                 operatorLookup,
             });
         });
         return map;
-    }, [drillableStages, failedQueries, productQueries, operatorQueries]);
+    }, [drillableStages, failedQueries, productQueries, operatorQueries, t]);
 
     const activeEntry = perStage.get(activeSourceId);
     const activeStageVisual: BoardViewerStage = inferViewerStage(activeSourceId);

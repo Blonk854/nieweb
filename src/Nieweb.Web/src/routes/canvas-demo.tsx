@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import {
     Card,
     Group,
-    MultiSelect,
     Select,
     Stack,
     Text,
@@ -28,6 +27,7 @@ import {
     type CanvasTile,
 } from "../components/canvas/ReportCanvas";
 import type { TileType } from "../components/canvas/tileTypes";
+import { MultiSelectField } from "../components/MultiSelectField";
 import {
     pickDefaultSourceId,
     type CanvasDemoSearch,
@@ -253,7 +253,7 @@ export function CanvasDemoRoute() {
                         />
                     </Group>
 
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("canvas.filters.machines")}
                         placeholder={t("canvas.filters.machinesPlaceholder")}
                         data={(machinesQuery.data ?? []).map((m) => ({
@@ -273,7 +273,7 @@ export function CanvasDemoRoute() {
                         clearable
                     />
 
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("canvas.filters.products")}
                         placeholder={t("canvas.filters.productsPlaceholder")}
                         data={(productsQuery.data ?? []).map((p) => ({

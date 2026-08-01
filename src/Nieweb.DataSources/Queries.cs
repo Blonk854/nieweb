@@ -45,6 +45,19 @@ public sealed record TestedObjectQuery : BaseQuery
 {
     public TestedObjectCursor? Cursor { get; init; }
     public int PageSize { get; init; } = 1000;
+
+    /// <summary>
+    /// When <c>true</c>, restricts the stream to rows that can influence
+    /// skip classification — those with the <c>Error_Table</c> "object
+    /// missing" bit set or a non-empty <c>Repair_Button_Comment</c>.
+    /// Rows excluded by this predicate contribute nothing to
+    /// <c>SkipInputsIndex</c> (they are neither "missing" nor a manual
+    /// skip), so the resulting index is byte-identical while the wire
+    /// volume collapses on schemas whose <c>TESTED_OBJECT</c> is not
+    /// physically defect-only (the pre-reflow v4.3.1 DB). Defaults to
+    /// <c>false</c> so every other caller keeps the full projection.
+    /// </summary>
+    public bool SkipInputsOnly { get; init; }
 }
 
 /// <summary>Keyset paging cursor for PANELS (ordered by Panel_Numeric_Date, Panel_Id).</summary>

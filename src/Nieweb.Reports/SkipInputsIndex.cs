@@ -13,10 +13,14 @@ namespace Nieweb.Reports;
 /// streamed once.
 /// </summary>
 /// <remarks>
-/// Production <c>TESTED_OBJECT</c> is defect-only, so the tested-object
-/// stream is small even over a wide window. All streams honour the same
-/// window / machine / product scope and the source's IS_LAST_INSPECTION
-/// de-duplication so the join is consistent.
+/// The tested-object stream is restricted (via
+/// <see cref="TestedObjectQuery.SkipInputsOnly"/>) to rows that can
+/// influence classification — "object missing" defects or repair-
+/// commented rows — so it stays small even on the pre-reflow v4.3.1
+/// schema whose <c>TESTED_OBJECT</c> is <em>not</em> physically
+/// defect-only. All streams honour the same window / machine / product
+/// scope and the source's IS_LAST_INSPECTION de-duplication so the join
+/// is consistent.
 /// </remarks>
 internal sealed class SkipInputsIndex
 {
@@ -77,6 +81,9 @@ internal sealed class SkipInputsIndex
             MachineIds = machineIds,
             ProductIds = productIds,
             OnlyLastInspection = onlyLastInspection,
+            // Large pages minimise round trips when a report reads the
+            // whole window (this index streams every panel + tested object).
+            PageSize = 10_000,
         };
         await foreach (var panel in source.StreamPanelsAsync(panelQuery, cancellationToken).ConfigureAwait(false))
         {
@@ -91,6 +98,12 @@ internal sealed class SkipInputsIndex
             Window = window,
             MachineIds = machineIds,
             ProductIds = productIds,
+            PageSize = 10_000,
+            // Only "object missing" defects or repair-commented rows can
+            // affect classification; pruning the rest in SQL is exact-parity
+            // and avoids streaming the huge non-defect-only pre-reflow
+            // TESTED_OBJECT over a wide window.
+            SkipInputsOnly = true,
         };
         await foreach (var obj in source.StreamTestedObjectsAsync(objectQuery, cancellationToken).ConfigureAwait(false))
         {

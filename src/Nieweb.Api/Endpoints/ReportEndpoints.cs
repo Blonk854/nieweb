@@ -61,6 +61,15 @@ public static partial class ReportEndpoints
         group.MapGet("/fpy-table/export.xlsx", ExportFpyTableXlsxAsync)
             .WithName("ReportsFpyTableExportXlsx");
 
+        group.MapGet("/fpy-trend", RunFpyTrendAsync)
+            .WithName("ReportsFpyTrend");
+
+        group.MapGet("/fpy-trend/export.csv", ExportFpyTrendCsvAsync)
+            .WithName("ReportsFpyTrendExportCsv");
+
+        group.MapGet("/fpy-trend/export.xlsx", ExportFpyTrendXlsxAsync)
+            .WithName("ReportsFpyTrendExportXlsx");
+
         group.MapGet("/dpmo-table", RunDpmoTableAsync)
             .WithName("ReportsDpmoTable");
 
@@ -434,37 +443,38 @@ public static partial class ReportEndpoints
 
         if (string.IsNullOrWhiteSpace(sourceId))
         {
-            return (null, null, Results.Problem(
-                title: "Missing required query parameter 'sourceId'.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, null, CodedProblem(
+                ProblemCodes.MissingSource,
+                "Missing required query parameter 'sourceId'."));
         }
 
         var source = sources.FirstOrDefault(s =>
             string.Equals(s.Descriptor.Id, sourceId, StringComparison.OrdinalIgnoreCase));
         if (source is null)
         {
-            return (null, null, Results.Problem(
-                title: $"Unknown sourceId '{sourceId}'.",
-                statusCode: StatusCodes.Status404NotFound));
+            return (null, null, CodedProblem(
+                ProblemCodes.UnknownSource,
+                $"Unknown sourceId '{sourceId}'.",
+                StatusCodes.Status404NotFound));
         }
 
         if (!TryParseUtc(startUtc, out var start))
         {
-            return (null, null, Results.Problem(
-                title: "Query parameter 'startUtc' is missing or not a valid ISO-8601 UTC instant.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, null, CodedProblem(
+                ProblemCodes.InvalidStart,
+                "Query parameter 'startUtc' is missing or not a valid ISO-8601 UTC instant."));
         }
         if (!TryParseUtc(endUtc, out var end))
         {
-            return (null, null, Results.Problem(
-                title: "Query parameter 'endUtc' is missing or not a valid ISO-8601 UTC instant.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, null, CodedProblem(
+                ProblemCodes.InvalidEnd,
+                "Query parameter 'endUtc' is missing or not a valid ISO-8601 UTC instant."));
         }
         if (end <= start)
         {
-            return (null, null, Results.Problem(
-                title: "'endUtc' must be strictly after 'startUtc'.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, null, CodedProblem(
+                ProblemCodes.EmptyWindow,
+                "'endUtc' must be strictly after 'startUtc'."));
         }
 
         DateRange window;
@@ -475,9 +485,9 @@ public static partial class ReportEndpoints
 #pragma warning disable CA1031 // catch general exception - report a client-friendly 400 for any DateRange rejection
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
-            return (null, null, Results.Problem(
-                title: "Invalid window: " + ex.Message,
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, null, CodedProblem(
+                ProblemCodes.InvalidWindow,
+                "Invalid window: " + ex.Message));
         }
 #pragma warning restore CA1031
 

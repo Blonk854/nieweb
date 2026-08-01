@@ -9,6 +9,8 @@ import { requireAuthentication } from "./guards";
 import { HomeRoute } from "../routes/home";
 import { PanelYieldRoute } from "../routes/panel-yield";
 import { validatePanelYieldSearch } from "../routes/panel-yield.search";
+import { FpyTrendRoute } from "../routes/fpy-trend";
+import { validateFpyTrendSearch } from "../routes/fpy-trend.search";
 import { ParetoRoute } from "../routes/pareto";
 import { validateParetoSearch } from "../routes/pareto.search";
 import { SkipSummaryRoute } from "../routes/skip-summary";
@@ -70,6 +72,15 @@ const paretoRoute = createRoute({
     component: ParetoRoute,
     validateSearch: validateParetoSearch,
     // Same auth-gating story as panelYieldRoute.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const fpyTrendRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/fpy-trend",
+    component: FpyTrendRoute,
+    validateSearch: validateFpyTrendSearch,
+    // Same auth-gating story as the other report routes.
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
@@ -317,6 +328,7 @@ const oldSchoolViewRoute = createRoute({
 const routeTree = rootRoute.addChildren([
     homeRoute,
     panelYieldRoute,
+    fpyTrendRoute,
     paretoRoute,
     skipSummaryRoute,
     dpmoRoute,

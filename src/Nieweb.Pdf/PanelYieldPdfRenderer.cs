@@ -57,6 +57,10 @@ public static class PanelYieldPdfRenderer
         {
             col.Spacing(10);
             col.Item().Element(c => ComposeOverall(c, result.Overall));
+            if (result.ByMachine.Count > 0)
+            {
+                col.Item().Height(220).Svg(FpyChartSvg.Build(result));
+            }
             col.Item().Text("By AOI machine").SemiBold().FontSize(11);
             col.Item().Element(c => ComposeByMachine(c, result));
         });

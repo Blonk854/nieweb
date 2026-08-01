@@ -196,10 +196,55 @@ public static partial class ReportEndpoints
         return false;
     }
 
-    private static IResult ProblemFor(string field, string detail) =>
+    /// <summary>
+    /// Stable, machine-readable identifiers emitted as the <c>code</c>
+    /// extension member on every report ProblemDetails body. The SPA maps
+    /// these onto localized, actionable messages; without them a client can
+    /// only show a bare "HTTP 400 Bad Request". Never rename a value — the
+    /// SPA and any integrator switch on the literal string.
+    /// </summary>
+    internal static class ProblemCodes
+    {
+        /// <summary>No <c>sourceId</c> was supplied.</summary>
+        public const string MissingSource = "missing_source";
+
+        /// <summary>The supplied <c>sourceId</c> is not registered.</summary>
+        public const string UnknownSource = "unknown_source";
+
+        /// <summary><c>startUtc</c> is absent or not an ISO-8601 instant.</summary>
+        public const string InvalidStart = "invalid_start";
+
+        /// <summary><c>endUtc</c> is absent or not an ISO-8601 instant.</summary>
+        public const string InvalidEnd = "invalid_end";
+
+        /// <summary>
+        /// The window is empty or inverted (<c>endUtc &lt;= startUtc</c>) — the
+        /// "date range is too small" case a user hits by picking the same
+        /// instant twice.
+        /// </summary>
+        public const string EmptyWindow = "empty_window";
+
+        /// <summary>The window was rejected by <see cref="DateRange"/> for any other reason.</summary>
+        public const string InvalidWindow = "invalid_window";
+
+        /// <summary>Any other query parameter failed validation.</summary>
+        public const string InvalidParameter = "invalid_parameter";
+    }
+
+    /// <summary>
+    /// RFC-9457 problem response carrying a stable <see cref="ProblemCodes"/>
+    /// value in the <c>code</c> extension member so clients can localize it.
+    /// </summary>
+    private static IResult CodedProblem(string code, string title, int statusCode = StatusCodes.Status400BadRequest) =>
         Results.Problem(
-            title: $"Query parameter '{field}' is invalid: {detail}",
-            statusCode: StatusCodes.Status400BadRequest);
+            title: title,
+            statusCode: statusCode,
+            extensions: new Dictionary<string, object?> { ["code"] = code });
+
+    private static IResult ProblemFor(string field, string detail) =>
+        CodedProblem(
+            ProblemCodes.InvalidParameter,
+            $"Query parameter '{field}' is invalid: {detail}");
 
     /// <summary>
     /// Shared source-id + window parser used by every non-panel-yield
@@ -218,35 +263,36 @@ public static partial class ReportEndpoints
 
         if (string.IsNullOrWhiteSpace(sourceId))
         {
-            return (null, default, Results.Problem(
-                title: "Missing required query parameter 'sourceId'.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, default, CodedProblem(
+                ProblemCodes.MissingSource,
+                "Missing required query parameter 'sourceId'."));
         }
         var source = sources.FirstOrDefault(s =>
             string.Equals(s.Descriptor.Id, sourceId, StringComparison.OrdinalIgnoreCase));
         if (source is null)
         {
-            return (null, default, Results.Problem(
-                title: $"Unknown sourceId '{sourceId}'.",
-                statusCode: StatusCodes.Status404NotFound));
+            return (null, default, CodedProblem(
+                ProblemCodes.UnknownSource,
+                $"Unknown sourceId '{sourceId}'.",
+                StatusCodes.Status404NotFound));
         }
         if (!TryParseUtc(startUtc, out var start))
         {
-            return (null, default, Results.Problem(
-                title: "Query parameter 'startUtc' is missing or not a valid ISO-8601 UTC instant.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, default, CodedProblem(
+                ProblemCodes.InvalidStart,
+                "Query parameter 'startUtc' is missing or not a valid ISO-8601 UTC instant."));
         }
         if (!TryParseUtc(endUtc, out var end))
         {
-            return (null, default, Results.Problem(
-                title: "Query parameter 'endUtc' is missing or not a valid ISO-8601 UTC instant.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, default, CodedProblem(
+                ProblemCodes.InvalidEnd,
+                "Query parameter 'endUtc' is missing or not a valid ISO-8601 UTC instant."));
         }
         if (end <= start)
         {
-            return (null, default, Results.Problem(
-                title: "'endUtc' must be strictly after 'startUtc'.",
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, default, CodedProblem(
+                ProblemCodes.EmptyWindow,
+                "'endUtc' must be strictly after 'startUtc'."));
         }
         DateRange window;
         try
@@ -256,9 +302,9 @@ public static partial class ReportEndpoints
 #pragma warning disable CA1031 // catch general exception - report a client-friendly 400 for any DateRange rejection
         catch (Exception ex) when (ex is ArgumentException or ArgumentOutOfRangeException)
         {
-            return (null, default, Results.Problem(
-                title: "Invalid window: " + ex.Message,
-                statusCode: StatusCodes.Status400BadRequest));
+            return (null, default, CodedProblem(
+                ProblemCodes.InvalidWindow,
+                "Invalid window: " + ex.Message));
         }
 #pragma warning restore CA1031
         return (source, window, null);

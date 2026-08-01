@@ -12,6 +12,8 @@ import {
 } from "@mantine/core";
 import { IconAlertCircle, IconDownload, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { ApiError } from "../api/client";
+import { describeApiError } from "../api/problem";
 import { useSessionStore } from "../state/session";
 
 /**
@@ -76,9 +78,7 @@ export function PdfPreviewModal(props: PdfPreviewModalProps) {
                 });
                 if (!response.ok) {
                     const body = await response.text().catch(() => "");
-                    throw new Error(
-                        `HTTP ${response.status} ${response.statusText}${body ? `: ${body}` : ""}`,
-                    );
+                    throw new ApiError(response.status, response.statusText, body);
                 }
                 const disposition = response.headers.get("Content-Disposition");
                 const downloadName =
@@ -93,7 +93,7 @@ export function PdfPreviewModal(props: PdfPreviewModalProps) {
                 if (controller.signal.aborted) return;
                 setState({
                     kind: "error",
-                    message: err instanceof Error ? err.message : String(err),
+                    message: describeApiError(err, t).message,
                 });
             }
         })();
@@ -101,7 +101,7 @@ export function PdfPreviewModal(props: PdfPreviewModalProps) {
         return () => {
             controller.abort();
         };
-    }, [props.opened, props.pdfUrl, props.fallbackFilename]);
+    }, [props.opened, props.pdfUrl, props.fallbackFilename, t]);
 
     // Belt-and-braces: revoke the object URL on unmount.
     useEffect(() => {

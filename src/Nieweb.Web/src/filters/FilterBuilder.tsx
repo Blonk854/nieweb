@@ -8,7 +8,6 @@ import {
     Select,
     Stack,
     Switch,
-    TagsInput,
     Text,
     TextInput,
     Tooltip,
@@ -18,6 +17,7 @@ import "@mantine/dates/styles.css";
 import { IconAlertCircle, IconPlus, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
+import { TagsInputField } from "../components/MultiSelectField";
 import {
     FILTER_FIELDS,
     coerceValuesForArity,
@@ -339,7 +339,7 @@ function ValuesControl(props: {
 
     if (arity === "List") {
         return (
-            <TagsInput
+            <TagsInputField
                 label={
                     withLabel ? t("filters.builder.valueList") : undefined
                 }

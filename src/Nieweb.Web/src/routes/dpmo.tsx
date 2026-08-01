@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Alert,
     Anchor,
     Badge,
     Button,
@@ -8,7 +7,6 @@ import {
     Checkbox,
     Group,
     Loader,
-    MultiSelect,
     SegmentedControl,
     Select,
     Stack,
@@ -21,7 +19,6 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
-    IconAlertTriangle,
     IconDownload,
     IconEye,
     IconPrinter,
@@ -54,6 +51,8 @@ import {
     type SkipStatus,
 } from "./dpmo.search";
 import { DataTable, type Column } from "../components/DataTable";
+import { MultiSelectField } from "../components/MultiSelectField";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { downloadWithAuth } from "../api/download";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
@@ -245,7 +244,7 @@ export function DpmoRoute() {
                     </Group>
 
                     <Group grow align="flex-end">
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("dpmo.filters.machines")}
                             placeholder={t("dpmo.filters.machinesPlaceholder")}
                             data={(machinesQuery.data ?? []).map((m) => ({
@@ -263,7 +262,7 @@ export function DpmoRoute() {
                             searchable
                             clearable
                         />
-                        <MultiSelect
+                        <MultiSelectField
                             label={t("dpmo.filters.products")}
                             placeholder={t("dpmo.filters.productsPlaceholder")}
                             data={(productsQuery.data ?? []).map((p) => ({
@@ -339,7 +338,7 @@ export function DpmoRoute() {
                             </Text>
                         </Stack>
                         <Stack gap="sm">
-                            <MultiSelect
+                            <MultiSelectField
                                 label={t("dpmo.filters.skipStatuses")}
                                 description={t("dpmo.filters.skipStatusesHint")}
                                 inputWrapperOrder={["label", "input", "description", "error"]}
@@ -547,16 +546,7 @@ function ResultsCard(props: {
                 {isFetching && <Loader size="xs" />}
             </Group>
 
-            {error ? (
-                <Alert
-                    color="red"
-                    icon={<IconAlertTriangle size={18} />}
-                    title={t("dpmo.results.errorTitle")}
-                    role="alert"
-                >
-                    {error instanceof Error ? error.message : String(error)}
-                </Alert>
-            ) : null}
+            {error ? <ApiErrorAlert error={error} /> : null}
 
             {isPending && !error && <Loader />}
 

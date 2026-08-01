@@ -1,13 +1,11 @@
 import { useMemo, useState } from "react";
 import {
-    Alert,
     Badge,
     Button,
     Card,
     Checkbox,
     Group,
     Loader,
-    MultiSelect,
     Select,
     Stack,
     Text,
@@ -17,7 +15,6 @@ import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { IconAlertTriangle } from "@tabler/icons-react";
 import "@mantine/dates/styles.css";
 import {
     fetchMachines,
@@ -35,6 +32,8 @@ import {
     type SkipSummarySearch,
 } from "./skip-summary.search";
 import { DataTable, type Column } from "../components/DataTable";
+import { MultiSelectField } from "../components/MultiSelectField";
+import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import {
     instantIsoToWallClock,
@@ -171,7 +170,7 @@ export function SkipSummaryRoute() {
                         />
                     </Group>
 
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("skipSummary.filters.machines")}
                         placeholder={t("skipSummary.filters.machinesPlaceholder")}
                         data={(machinesQuery.data ?? []).map((m) => ({
@@ -190,7 +189,7 @@ export function SkipSummaryRoute() {
                         clearable
                     />
 
-                    <MultiSelect
+                    <MultiSelectField
                         label={t("skipSummary.filters.products")}
                         placeholder={t("skipSummary.filters.productsPlaceholder")}
                         data={(productsQuery.data ?? []).map((p) => ({
@@ -309,16 +308,7 @@ function ResultsCard(props: {
                 {isFetching && <Loader size="xs" />}
             </Group>
 
-            {error ? (
-                <Alert
-                    color="red"
-                    icon={<IconAlertTriangle size={18} />}
-                    title={t("skipSummary.results.errorTitle")}
-                    role="alert"
-                >
-                    {error instanceof Error ? error.message : String(error)}
-                </Alert>
-            ) : null}
+            {error ? <ApiErrorAlert error={error} /> : null}
 
             {isPending && !error && <Loader />}
 

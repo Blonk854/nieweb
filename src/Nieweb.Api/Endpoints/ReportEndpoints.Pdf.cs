@@ -42,6 +42,60 @@ public static partial class ReportEndpoints
 
         group.MapGet("/pareto/export.pdf", ExportParetoPdfAsync)
              .WithName("ReportsParetoExportPdf");
+
+        group.MapGet("/fpy-trend/export.pdf", ExportFpyTrendPdfAsync)
+             .WithName("ReportsFpyTrendExportPdf");
+    }
+
+    private static async Task ExportFpyTrendPdfAsync(
+        HttpContext context,
+        string? startUtc,
+        string? endUtc,
+        string? bucket,
+        string? siteTimeZone,
+        string? granularity,
+        string? skipExclusion,
+        string? skipStatuses,
+        string? lines,
+        string? productIds,
+        string? sourceIds,
+        bool? onlyLastInspection,
+        bool? excludeNogo,
+        string? flavor,
+        IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var (response, window, error) = await BuildFpyTrendAsync(
+            startUtc, endUtc, bucket, siteTimeZone, granularity, skipExclusion, skipStatuses,
+            lines, productIds, sourceIds, onlyLastInspection, excludeNogo,
+            sources, skipConfigProvider, logger, cancellationToken).ConfigureAwait(false);
+        if (error is not null)
+        {
+            await error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+        if (!TryParseEnumAlias<FpyFlavor>(flavor, required: false, out var flavorValue, out var flavorError, defaultValue: FpyFlavor.Diagnostic))
+        {
+            await ProblemFor("flavor", flavorError!).ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(siteTimeZone);
+        var stem = string.Create(CultureInfo.InvariantCulture,
+            $"fpy-trend-{response!.Bucket}-{response.Granularity}-{window.StartUtc:yyyyMMdd}-{window.EndUtcExclusive:yyyyMMdd}")
+            .ToLowerInvariant();
+
+        await WritePdfAsync(
+            context,
+            filenameStem: stem,
+            render: stream => FpyTrendPdfRenderer.Render(
+                response!.Sources, response.Bucket, response.Granularity, response.SkipExclusion,
+                flavorValue, ResolveDisplayName(context.User), stream, timeZone: displayTz),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task ExportPanelYieldPdfAsync(

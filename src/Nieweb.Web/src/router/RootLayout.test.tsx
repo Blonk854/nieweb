@@ -41,6 +41,7 @@ function makeRouter(initialPath: string) {
     const children = [
         "/",
         "/report/panel-yield",
+        "/report/fpy-trend",
         "/report/pareto",
         "/report/canvas-demo",
         "/traceability/board",
@@ -136,7 +137,7 @@ describe("RootLayout SideNav", () => {
         const user = userEvent.setup();
 
         const panelYield = await screen.findByRole("link", {
-            name: "Panel Yield by Line",
+            name: "FPY Trend",
         });
         const pareto = screen.getByRole("link", { name: "Pareto" });
 
