@@ -198,9 +198,9 @@ several tables.
   the **live** `HLYAOI2024` catalogue on the same server with the same
   service account. Contains `PIN`, `PIN_MEASURE`, all four `*_HISTO`
   tables, and the `Barcode_Product` view. `Panel_Status` values
-  `{-2,-1,0,1,2}`. Login `svc_hlyaoiprod` currently has **write**
-  access because a read-only account is not yet provisioned — read-only
-  discipline is enforced in code by
+  `{-2,-1,0,1,2}`. Login `svc_hlyaoiprodinq` (provisioned 2026-07-29,
+  replacing the old write-capable `svc_hlyaoiprod`) is **read-only** —
+  read-only discipline is still enforced in code as defense-in-depth by
   `src/Nieweb.DataSources.Sql/SqlGuards.cs` and by
   `SqlServerAoiSourceBase` (`WITH (NOLOCK)`, `READ UNCOMMITTED`,
   30 s query timeout, per-query audit log). Because the DB is on the
