@@ -80,6 +80,15 @@ public static partial class ReportEndpoints
         group.MapGet("/dpmo-table/export.xlsx", ExportDpmoTableXlsxAsync)
             .WithName("ReportsDpmoTableExportXlsx");
 
+        group.MapGet("/dpmo-trend", RunDpmoTrendAsync)
+            .WithName("ReportsDpmoTrend");
+
+        group.MapGet("/dpmo-trend/export.csv", ExportDpmoTrendCsvAsync)
+            .WithName("ReportsDpmoTrendExportCsv");
+
+        group.MapGet("/dpmo-trend/export.xlsx", ExportDpmoTrendXlsxAsync)
+            .WithName("ReportsDpmoTrendExportXlsx");
+
         group.MapGet("/pareto", RunParetoAsync)
             .WithName("ReportsPareto");
 

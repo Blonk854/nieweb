@@ -46,6 +46,63 @@ public static partial class ReportEndpoints
 
         group.MapGet("/fpy-trend/export.pdf", ExportFpyTrendPdfAsync)
              .WithName("ReportsFpyTrendExportPdf");
+
+        group.MapGet("/dpmo-trend/export.pdf", ExportDpmoTrendPdfAsync)
+             .WithName("ReportsDpmoTrendExportPdf");
+    }
+
+    private static async Task ExportDpmoTrendPdfAsync(
+        HttpContext context,
+        string? startUtc,
+        string? endUtc,
+        string? bucket,
+        string? siteTimeZone,
+        string? opportunity,
+        string? skipExclusion,
+        string? skipStatuses,
+        string? lines,
+        string? productIds,
+        string? sourceIds,
+        bool? excludeNogo,
+        string? numerator,
+        IEnumerable<IAoiSource> sources,
+        ISkipClassificationConfigProvider skipConfigProvider,
+        IReportResultCache resultCache,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var (response, window, error) = await BuildDpmoTrendAsync(
+            startUtc, endUtc, bucket, siteTimeZone, opportunity, skipExclusion, skipStatuses,
+            lines, productIds, sourceIds, excludeNogo,
+            sources, skipConfigProvider, resultCache, useCache: true,
+            logger, cancellationToken).ConfigureAwait(false);
+        if (error is not null)
+        {
+            await error.ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+        // The view carries all three numerators, but a PDF is a flat artefact:
+        // it has to commit to one. Real defects is the operational default.
+        if (!TryParseEnumAlias<DpmoNumerator>(numerator, required: false, out var numeratorValue, out var numeratorError, defaultValue: DpmoNumerator.Real))
+        {
+            await ProblemFor("numerator", numeratorError!).ExecuteAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        var displayTz = Nieweb.Pdf.NiewebPdfTimestamps.Resolve(siteTimeZone);
+        var stem = string.Create(CultureInfo.InvariantCulture,
+            $"dpmo-trend-{response!.Bucket}-{response.Opportunity}-{window.StartUtc:yyyyMMdd}-{window.EndUtcExclusive:yyyyMMdd}")
+            .ToLowerInvariant();
+
+        await WritePdfAsync(
+            context,
+            filenameStem: stem,
+            render: stream => DpmoTrendPdfRenderer.Render(
+                response!.Sources, response.Bucket, response.Opportunity, response.SkipExclusion,
+                numeratorValue, ResolveDisplayName(context.User), stream, timeZone: displayTz),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task ExportFpyTrendPdfAsync(

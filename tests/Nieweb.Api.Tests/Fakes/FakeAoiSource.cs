@@ -28,6 +28,14 @@ internal sealed class FakeAoiSource : IAoiSource, IPinLevelSource
 
     public IReadOnlyList<Machine> SeededMachines { get; init; } = [];
 
+    /// <summary>
+    /// When set, <see cref="ListMachinesAsync"/> throws this instead of
+    /// returning <see cref="SeededMachines"/>. Lets a test simulate an
+    /// offline / mis-configured source and assert that multi-source endpoints
+    /// omit it rather than failing the whole response.
+    /// </summary>
+    public Exception? ListMachinesThrows { get; init; }
+
     public IReadOnlyList<ReviewOperator> SeededOperators { get; init; } = [];
 
     public IReadOnlyList<Product> SeededProducts { get; init; } = [];
@@ -160,7 +168,9 @@ internal sealed class FakeAoiSource : IAoiSource, IPinLevelSource
     }
 
     public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct)
-        => Task.FromResult(SeededMachines);
+        => ListMachinesThrows is not null
+            ? Task.FromException<IReadOnlyList<Machine>>(ListMachinesThrows)
+            : Task.FromResult(SeededMachines);
 
     public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct)
         => Task.FromResult(SeededOperators);
