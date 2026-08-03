@@ -17,6 +17,7 @@ export type TranslationBundle = {
         fpyTrend: string;
         pareto: string;
         dpmo: string;
+        dpmoTrend: string;
         fpy: string;
         skipSummary: string;
         canvasDemo: string;
@@ -266,6 +267,47 @@ export type TranslationBundle = {
             fpy: string;
             inspected: string;
             faulty: string;
+            ariaSummary: string;
+        };
+    };
+    dpmoTrend: {
+        title: string;
+        subtitle: string;
+        filters: {
+            heading: string;
+            from: string;
+            to: string;
+            bucket: string;
+            opportunity: string;
+            numerator: string;
+            cleanSkips: string;
+            skipStatuses: string;
+            skipStatusesPlaceholder: string;
+            line: string;
+            linePlaceholder: string;
+            lineOption: string;
+            submit: string;
+            reset: string;
+            print: string;
+            exportCsv: string;
+            exportXlsx: string;
+            exportPdf: string;
+            excludeNogo: string;
+            excludeNogoHint: string;
+        };
+        bucket: { week: string; day: string };
+        opportunity: { all: string; components: string };
+        numerator: { real: string; aoi: string; dummy: string };
+        results: {
+            empty: string;
+            lineCount: string;
+            overallDpmo: string;
+            opportunities: string;
+        };
+        chart: {
+            dpmo: string;
+            defects: string;
+            opportunities: string;
             ariaSummary: string;
         };
     };

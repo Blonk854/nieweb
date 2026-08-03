@@ -146,7 +146,20 @@ function SideNav() {
                 to="/report/dpmo"
                 label={t("nav.dpmo")}
                 leftSection={<IconChartBar size={18} />}
-                active={active.startsWith("/report/dpmo")}
+                // Exact-match, NOT startsWith("/report/dpmo"): that prefix also
+                // matches "/report/dpmo-trend", which would light up both nav
+                // items at once. Same shape as the /report/fpy vs
+                // /report/fpy-trend pair below.
+                active={
+                    active === "/report/dpmo" || active.startsWith("/report/dpmo/")
+                }
+            />
+            <NavLink
+                component={Link}
+                to="/report/dpmo-trend"
+                label={t("nav.dpmoTrend")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/dpmo-trend")}
             />
             <NavLink
                 component={Link}

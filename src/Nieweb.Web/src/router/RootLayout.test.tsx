@@ -152,6 +152,27 @@ describe("RootLayout SideNav", () => {
         expect(panelYield).not.toHaveAttribute("data-active");
     });
 
+    it("does not light up DPMO and DPMO Trend at the same time", async () => {
+        // Regression: "/report/dpmo-trend" starts with "/report/dpmo", so a
+        // startsWith check on the DPMO link highlights BOTH nav items at once.
+        // Same shape as the earlier /report/fpy vs /report/fpy-trend bug.
+        signInAs(["Reader"]);
+        renderLayoutAt("/");
+        const user = userEvent.setup();
+
+        const dpmo = await screen.findByRole("link", { name: "DPMO" });
+        const dpmoTrend = await screen.findByRole("link", { name: "DPMO Trend" });
+
+        await user.click(dpmoTrend);
+        expect(dpmoTrend).toHaveAttribute("data-active");
+        expect(dpmo).not.toHaveAttribute("data-active");
+
+        // And the reverse: the plain DPMO route must not light the trend link.
+        await user.click(dpmo);
+        expect(dpmo).toHaveAttribute("data-active");
+        expect(dpmoTrend).not.toHaveAttribute("data-active");
+    });
+
     it("shows Timezone and Change password under Settings for non-admin users", async () => {
         signInAs(["Reader"]);
         renderLayoutAt("/");

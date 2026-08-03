@@ -17,6 +17,8 @@ import { SkipSummaryRoute } from "../routes/skip-summary";
 import { validateSkipSummarySearch } from "../routes/skip-summary.search";
 import { DpmoRoute } from "../routes/dpmo";
 import { validateDpmoSearch } from "../routes/dpmo.search";
+import { DpmoTrendRoute } from "../routes/dpmo-trend";
+import { validateDpmoTrendSearch } from "../routes/dpmo-trend.search";
 import { FpyRoute } from "../routes/fpy";
 import { validateFpySearch } from "../routes/fpy.search";
 import { CanvasDemoRoute } from "../routes/canvas-demo";
@@ -98,6 +100,15 @@ const dpmoRoute = createRoute({
     path: "/report/dpmo",
     component: DpmoRoute,
     validateSearch: validateDpmoSearch,
+    // Same auth-gating story as the other report routes.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const dpmoTrendRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/report/dpmo-trend",
+    component: DpmoTrendRoute,
+    validateSearch: validateDpmoTrendSearch,
     // Same auth-gating story as the other report routes.
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
@@ -332,6 +343,7 @@ const routeTree = rootRoute.addChildren([
     paretoRoute,
     skipSummaryRoute,
     dpmoRoute,
+    dpmoTrendRoute,
     fpyRoute,
     canvasDemoRoute,
     traceabilityBoardRoute,
