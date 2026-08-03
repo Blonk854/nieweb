@@ -58,6 +58,28 @@ public sealed record TestedObjectQuery : BaseQuery
     /// <c>false</c> so every other caller keeps the full projection.
     /// </summary>
     public bool SkipInputsOnly { get; init; }
+
+    /// <summary>
+    /// When <c>true</c>, restricts the stream to rows carrying at least one
+    /// defect bit (<c>Error_Table &lt;&gt; 0 OR Error_Table_AR &lt;&gt; 0</c>).
+    /// <para>
+    /// This is <b>exact-parity</b> for defect-counting callers: a row with no
+    /// bits set popcounts to zero in every numerator flavour (AOI, Real,
+    /// Dummy), so pruning it cannot change a defect total. What it does change
+    /// is wire volume — on schemas whose <c>TESTED_OBJECT</c> is not physically
+    /// defect-only (the pre-reflow v4.3.1 DB emits one row per tested object,
+    /// not one per defect) the pruned stream is orders of magnitude smaller.
+    /// </para>
+    /// <para>
+    /// Do <b>not</b> set this when the caller needs a count of tested objects —
+    /// the pruned stream can no longer answer "how many objects were
+    /// inspected". Opportunity denominators must come from
+    /// <c>CARDS.Nb_Of_Tests_On_Comp</c> / <c>Nb_Of_Tests_On_Pads</c>
+    /// regardless, never from a <c>TESTED_OBJECT</c> row count.
+    /// </para>
+    /// Defaults to <c>false</c> so every existing caller keeps the full stream.
+    /// </summary>
+    public bool DefectsOnly { get; init; }
 }
 
 /// <summary>Keyset paging cursor for PANELS (ordered by Panel_Numeric_Date, Panel_Id).</summary>

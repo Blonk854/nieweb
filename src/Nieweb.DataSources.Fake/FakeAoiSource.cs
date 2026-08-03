@@ -362,6 +362,12 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
             {
                 continue;
             }
+            // Model the real stream shape: DefectsOnly prunes rows with no
+            // defect bit set, exactly as the SQL predicate does.
+            if (query.DefectsOnly && obj.ErrorTable == 0 && obj.ErrorTableAr == 0)
+            {
+                continue;
+            }
             yield return obj;
         }
     }

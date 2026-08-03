@@ -975,7 +975,7 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
 
     // ---- Shared TESTED_OBJECT query builder --------------------------------
 
-    private (string Sql, Action<SqlParameterCollection> Bind) BuildTestedObjectsQuery(
+    internal (string Sql, Action<SqlParameterCollection> Bind) BuildTestedObjectsQuery(
         TestedObjectQuery q, int topCount)
     {
         EnsureUnderInListCap(q.MachineIds, nameof(q.MachineIds));
@@ -1048,6 +1048,21 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
         {
             sb.AppendLine().Append(
                 "  AND ((t.Error_Table & 1) <> 0 OR (t.Repair_Button_Comment IS NOT NULL AND t.Repair_Button_Comment <> ''))");
+        }
+
+        // Defect-counting callers only need rows that carry at least one
+        // defect bit. A row with no bits set popcounts to zero in every
+        // numerator flavour, so pruning it is exact-parity while collapsing
+        // the wire volume on the pre-reflow v4.3.1 TESTED_OBJECT.
+        //
+        // CRITICAL: use the arColumn local, not a literal t.Error_Table_AR.
+        // Pre-reflow v4.3.1 TESTED_OBJECT lacks that column; arColumn already
+        // degrades to t.Error_Table there via HasTestedObjectErrorTableAr,
+        // which keeps this predicate valid on both schemas.
+        if (q.DefectsOnly)
+        {
+            sb.AppendLine().Append("  AND (t.Error_Table <> 0 OR ")
+                .Append(arColumn).Append(" <> 0)");
         }
 
         AppendInClause(sb, "p.Machine_Id", "@m", q.MachineIds);
