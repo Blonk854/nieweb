@@ -129,17 +129,26 @@ function SideNav() {
             />
             <NavLink
                 component={Link}
-                to="/report/fpy-trend"
-                label={t("nav.fpyTrend")}
-                leftSection={<IconChartBar size={18} />}
-                active={active.startsWith("/report/fpy-trend")}
-            />
-            <NavLink
-                component={Link}
                 to="/report/pareto"
                 label={t("nav.pareto")}
                 leftSection={<IconChartBar size={18} />}
                 active={active.startsWith("/report/pareto")}
+            />
+            <NavLink
+                component={Link}
+                to="/report/fpy"
+                label={t("nav.fpy")}
+                leftSection={<IconChartBar size={18} />}
+                active={
+                    active === "/report/fpy" || active.startsWith("/report/fpy/")
+                }
+            />
+            <NavLink
+                component={Link}
+                to="/report/fpy-trend"
+                label={t("nav.fpyTrend")}
+                leftSection={<IconChartBar size={18} />}
+                active={active.startsWith("/report/fpy-trend")}
             />
             <NavLink
                 component={Link}
@@ -160,15 +169,6 @@ function SideNav() {
                 label={t("nav.dpmoTrend")}
                 leftSection={<IconChartBar size={18} />}
                 active={active.startsWith("/report/dpmo-trend")}
-            />
-            <NavLink
-                component={Link}
-                to="/report/fpy"
-                label={t("nav.fpy")}
-                leftSection={<IconChartBar size={18} />}
-                active={
-                    active === "/report/fpy" || active.startsWith("/report/fpy/")
-                }
             />
             <NavLink
                 component={Link}

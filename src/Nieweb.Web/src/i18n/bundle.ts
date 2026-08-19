@@ -248,6 +248,10 @@ export type TranslationBundle = {
             submit: string;
             reset: string;
             print: string;
+            runDisabledHint: string;
+            printDisabledHint: string;
+            exportDisabledHint: string;
+            previewDisabledHint: string;
             exportCsv: string;
             exportXlsx: string;
             exportPdf: string;
@@ -289,6 +293,10 @@ export type TranslationBundle = {
             submit: string;
             reset: string;
             print: string;
+            runDisabledHint: string;
+            printDisabledHint: string;
+            exportDisabledHint: string;
+            previewDisabledHint: string;
             exportCsv: string;
             exportXlsx: string;
             exportPdf: string;
@@ -334,6 +342,10 @@ export type TranslationBundle = {
             exportPdf: string;
             emptyPrompt: string;
             missingRequired: string;
+            runDisabledHint: string;
+            printDisabledHint: string;
+            exportDisabledHint: string;
+            previewDisabledHint: string;
             print: string;
         };
         results: {
@@ -439,6 +451,10 @@ export type TranslationBundle = {
             submit: string;
             reset: string;
             print: string;
+            runDisabledHint: string;
+            printDisabledHint: string;
+            exportDisabledHint: string;
+            previewDisabledHint: string;
             exportCsv: string;
             exportXlsx: string;
             exportPdf: string;
@@ -990,7 +1006,9 @@ export type TranslationBundle = {
     savedViews: {
         menu: string;
         empty: string;
+        unsavedChanges: string;
         save: string;
+        saveDisabledHint: string;
         saveTitle: string;
         namePlaceholder: string;
         nameRequired: string;

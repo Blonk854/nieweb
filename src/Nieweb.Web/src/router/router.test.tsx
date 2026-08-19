@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MantineProvider } from "@mantine/core";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -111,6 +112,18 @@ describe("Router", () => {
                 screen.getByRole("heading", { level: 2, name: /panel yield by line/i }),
             ).toBeInTheDocument(),
         );
+    });
+
+    it("shows a hover hint when the run-report button is disabled", async () => {
+        vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("not called"))));
+        const user = userEvent.setup();
+
+        renderRouteAt("/report/panel-yield");
+
+        const runButton = await screen.findByRole("button", { name: /run report/i });
+        await user.hover(runButton);
+
+        expect(await screen.findByText(/Select a source and date range to run the report/i)).toBeInTheDocument();
     });
 
     it("navigates to the Login route at /login", async () => {

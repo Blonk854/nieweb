@@ -12,6 +12,7 @@ import {
     Switch,
     Text,
     Title,
+    Tooltip,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -273,21 +274,29 @@ export function FpyTrendRoute() {
 
                     <Group justify="space-between" className="no-print">
                         <Group>
-                            <Button type="submit" disabled={!canSubmit}>
-                                {t("fpyTrend.filters.submit")}
-                            </Button>
+                            <Tooltip label={t("fpyTrend.filters.runDisabledHint")} disabled={canSubmit}>
+                                <span>
+                                    <Button type="submit" disabled={!canSubmit}>
+                                        {t("fpyTrend.filters.submit")}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                             <Button variant="subtle" onClick={handleReset} type="button">
                                 {t("fpyTrend.filters.reset")}
                             </Button>
-                            <Button
-                                variant="default"
-                                leftSection={<IconPrinter size={16} />}
-                                onClick={() => window.print()}
-                                type="button"
-                                disabled={!reportEnabled}
-                            >
-                                {t("fpyTrend.filters.print")}
-                            </Button>
+                            <Tooltip label={t("fpyTrend.filters.printDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Button
+                                        variant="default"
+                                        leftSection={<IconPrinter size={16} />}
+                                        onClick={() => window.print()}
+                                        type="button"
+                                        disabled={!reportEnabled}
+                                    >
+                                        {t("fpyTrend.filters.print")}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                             <SavedViewsMenu<FpyTrendSearch>
                                 reportKey="fpy-trend"
                                 currentFilter={search}
@@ -296,22 +305,38 @@ export function FpyTrendRoute() {
                             />
                         </Group>
                         <Group>
-                            <TrendExportLink label={t("fpyTrend.filters.exportCsv")} onClick={() => void downloadExport("csv")} disabled={!reportEnabled} />
-                            <TrendExportLink label={t("fpyTrend.filters.exportXlsx")} onClick={() => void downloadExport("xlsx")} disabled={!reportEnabled} />
-                            <TrendExportLink label={t("fpyTrend.filters.exportPdf")} onClick={() => void downloadExport("pdf")} disabled={!reportEnabled} />
-                            <Anchor
-                                component="button"
-                                type="button"
-                                onClick={() => setPdfPreviewOpen(true)}
-                                aria-disabled={!reportEnabled}
-                                data-disabled={!reportEnabled || undefined}
-                                disabled={!reportEnabled}
-                            >
-                                <Group gap={4}>
-                                    <IconEye size={16} />
-                                    <Text size="sm">{t("common.pdfPreview.openAction")}</Text>
-                                </Group>
-                            </Anchor>
+                            <Tooltip label={t("fpyTrend.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <TrendExportLink label={t("fpyTrend.filters.exportCsv")} onClick={() => void downloadExport("csv")} disabled={!reportEnabled} />
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("fpyTrend.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <TrendExportLink label={t("fpyTrend.filters.exportXlsx")} onClick={() => void downloadExport("xlsx")} disabled={!reportEnabled} />
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("fpyTrend.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <TrendExportLink label={t("fpyTrend.filters.exportPdf")} onClick={() => void downloadExport("pdf")} disabled={!reportEnabled} />
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("fpyTrend.filters.previewDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        onClick={() => setPdfPreviewOpen(true)}
+                                        aria-disabled={!reportEnabled}
+                                        data-disabled={!reportEnabled || undefined}
+                                        disabled={!reportEnabled}
+                                    >
+                                        <Group gap={4}>
+                                            <IconEye size={16} />
+                                            <Text size="sm">{t("common.pdfPreview.openAction")}</Text>
+                                        </Group>
+                                    </Anchor>
+                                </span>
+                            </Tooltip>
                         </Group>
                     </Group>
                 </Stack>

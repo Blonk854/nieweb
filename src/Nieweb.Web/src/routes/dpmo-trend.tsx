@@ -12,6 +12,7 @@ import {
     Switch,
     Text,
     Title,
+    Tooltip,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -284,21 +285,29 @@ export function DpmoTrendRoute() {
 
                     <Group justify="space-between" className="no-print">
                         <Group>
-                            <Button type="submit" disabled={!canSubmit}>
-                                {t("dpmoTrend.filters.submit")}
-                            </Button>
+                            <Tooltip label={t("dpmoTrend.filters.runDisabledHint")} disabled={canSubmit}>
+                                <span>
+                                    <Button type="submit" disabled={!canSubmit}>
+                                        {t("dpmoTrend.filters.submit")}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                             <Button variant="subtle" onClick={handleReset} type="button">
                                 {t("dpmoTrend.filters.reset")}
                             </Button>
-                            <Button
-                                variant="default"
-                                leftSection={<IconPrinter size={16} />}
-                                onClick={() => window.print()}
-                                type="button"
-                                disabled={!reportEnabled}
-                            >
-                                {t("dpmoTrend.filters.print")}
-                            </Button>
+                            <Tooltip label={t("dpmoTrend.filters.printDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Button
+                                        variant="default"
+                                        leftSection={<IconPrinter size={16} />}
+                                        onClick={() => window.print()}
+                                        type="button"
+                                        disabled={!reportEnabled}
+                                    >
+                                        {t("dpmoTrend.filters.print")}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                             <SavedViewsMenu<DpmoTrendSearch>
                                 reportKey="dpmo-trend"
                                 currentFilter={search}
@@ -307,22 +316,38 @@ export function DpmoTrendRoute() {
                             />
                         </Group>
                         <Group>
-                            <TrendExportLink label={t("dpmoTrend.filters.exportCsv")} onClick={() => void downloadExport("csv")} disabled={!reportEnabled} />
-                            <TrendExportLink label={t("dpmoTrend.filters.exportXlsx")} onClick={() => void downloadExport("xlsx")} disabled={!reportEnabled} />
-                            <TrendExportLink label={t("dpmoTrend.filters.exportPdf")} onClick={() => void downloadExport("pdf")} disabled={!reportEnabled} />
-                            <Anchor
-                                component="button"
-                                type="button"
-                                onClick={() => setPdfPreviewOpen(true)}
-                                aria-disabled={!reportEnabled}
-                                data-disabled={!reportEnabled || undefined}
-                                disabled={!reportEnabled}
-                            >
-                                <Group gap={4}>
-                                    <IconEye size={16} />
-                                    <Text size="sm">{t("common.pdfPreview.openAction")}</Text>
-                                </Group>
-                            </Anchor>
+                            <Tooltip label={t("dpmoTrend.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <TrendExportLink label={t("dpmoTrend.filters.exportCsv")} onClick={() => void downloadExport("csv")} disabled={!reportEnabled} />
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("dpmoTrend.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <TrendExportLink label={t("dpmoTrend.filters.exportXlsx")} onClick={() => void downloadExport("xlsx")} disabled={!reportEnabled} />
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("dpmoTrend.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <TrendExportLink label={t("dpmoTrend.filters.exportPdf")} onClick={() => void downloadExport("pdf")} disabled={!reportEnabled} />
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("dpmoTrend.filters.previewDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        onClick={() => setPdfPreviewOpen(true)}
+                                        aria-disabled={!reportEnabled}
+                                        data-disabled={!reportEnabled || undefined}
+                                        disabled={!reportEnabled}
+                                    >
+                                        <Group gap={4}>
+                                            <IconEye size={16} />
+                                            <Text size="sm">{t("common.pdfPreview.openAction")}</Text>
+                                        </Group>
+                                    </Anchor>
+                                </span>
+                            </Tooltip>
                         </Group>
                     </Group>
                 </Stack>

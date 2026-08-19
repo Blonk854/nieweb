@@ -54,10 +54,13 @@ export type SavedViewsMenuProps<TFilter> = {
      * report hasn't been run yet).
      */
     canSave?: boolean;
+    /** Optional dirty-state hint. If true, the menu surfaces a clear note
+     * that the current filter differs from the saved URL / last-applied view. */
+    isDirty?: boolean;
 };
 
 export function SavedViewsMenu<TFilter>(props: SavedViewsMenuProps<TFilter>) {
-    const { reportKey, currentFilter, onApply, canSave = true } = props;
+    const { reportKey, currentFilter, onApply, canSave = true, isDirty = false } = props;
     const { t } = useTranslation();
     const queryClient = useQueryClient();
 
@@ -145,13 +148,32 @@ export function SavedViewsMenu<TFilter>(props: SavedViewsMenuProps<TFilter>) {
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    <Menu.Item
-                        leftSection={<IconBookmarkPlus size={16} />}
-                        onClick={openSaveModal}
-                        disabled={!canSave}
-                    >
-                        {t("savedViews.save")}
-                    </Menu.Item>
+                    {isDirty && (
+                        <Menu.Label c="yellow">
+                            {t("savedViews.unsavedChanges")}
+                        </Menu.Label>
+                    )}
+
+                    {!canSave ? (
+                        <Tooltip label={t("savedViews.saveDisabledHint")}>
+                            <span>
+                                <Menu.Item
+                                    leftSection={<IconBookmarkPlus size={16} />}
+                                    onClick={openSaveModal}
+                                    disabled
+                                >
+                                    {t("savedViews.save")}
+                                </Menu.Item>
+                            </span>
+                        </Tooltip>
+                    ) : (
+                        <Menu.Item
+                            leftSection={<IconBookmarkPlus size={16} />}
+                            onClick={openSaveModal}
+                        >
+                            {t("savedViews.save")}
+                        </Menu.Item>
+                    )}
 
                     {listQuery.isPending && (
                         <Menu.Item disabled>

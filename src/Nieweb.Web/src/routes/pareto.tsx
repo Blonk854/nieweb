@@ -14,6 +14,7 @@ import {
     Switch,
     Text,
     Title,
+    Tooltip,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -670,21 +671,29 @@ export function ParetoRoute() {
 
                     <Group justify="space-between" className="no-print">
                         <Group>
-                            <Button type="submit" disabled={!canSubmit}>
-                                {t("pareto.filters.submit")}
-                            </Button>
+                            <Tooltip label={t("pareto.filters.runDisabledHint")} disabled={canSubmit}>
+                                <span>
+                                    <Button type="submit" disabled={!canSubmit}>
+                                        {t("pareto.filters.submit")}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                             <Button variant="subtle" onClick={handleReset} type="button">
                                 {t("pareto.filters.reset")}
                             </Button>
-                            <Button
-                                variant="default"
-                                leftSection={<IconPrinter size={16} />}
-                                onClick={() => window.print()}
-                                type="button"
-                                disabled={!reportEnabled}
-                            >
-                                {t("pareto.filters.print")}
-                            </Button>
+                            <Tooltip label={t("pareto.filters.printDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Button
+                                        variant="default"
+                                        leftSection={<IconPrinter size={16} />}
+                                        onClick={() => window.print()}
+                                        type="button"
+                                        disabled={!reportEnabled}
+                                    >
+                                        {t("pareto.filters.print")}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                             <SavedViewsMenu<ParetoSearch>
                                 reportKey="pareto"
                                 currentFilter={search}
@@ -693,67 +702,83 @@ export function ParetoRoute() {
                             />
                         </Group>
                         <Group>
-                            <Anchor
-                                component="button"
-                                type="button"
-                                onClick={() => void downloadExport("csv")}
-                                aria-disabled={!reportEnabled}
-                                data-disabled={!reportEnabled || undefined}
-                                disabled={!reportEnabled}
-                            >
-                                <Group gap={4}>
-                                    <IconDownload size={16} />
-                                    <Text size="sm">
-                                        {t("pareto.filters.exportCsv")}
-                                    </Text>
-                                </Group>
-                            </Anchor>
-                            <Anchor
-                                component="button"
-                                type="button"
-                                onClick={() => void downloadExport("xlsx")}
-                                aria-disabled={!reportEnabled}
-                                data-disabled={!reportEnabled || undefined}
-                                disabled={!reportEnabled}
-                            >
-                                <Group gap={4}>
-                                    <IconDownload size={16} />
-                                    <Text size="sm">
-                                        {t("pareto.filters.exportXlsx")}
-                                    </Text>
-                                </Group>
-                            </Anchor>
-                            <Anchor
-                                component="button"
-                                type="button"
-                                onClick={() => void downloadExport("pdf")}
-                                aria-disabled={!reportEnabled}
-                                data-disabled={!reportEnabled || undefined}
-                                disabled={!reportEnabled}
-                            >
-                                <Group gap={4}>
-                                    <IconDownload size={16} />
-                                    <Text size="sm">
-                                        {t("pareto.filters.exportPdf")}
-                                    </Text>
-                                </Group>
-                            </Anchor>
-                            <Anchor
-                                component="button"
-                                type="button"
-                                onClick={() => setPdfPreviewOpen(true)}
-                                aria-disabled={!reportEnabled}
-                                data-disabled={!reportEnabled || undefined}
-                                disabled={!reportEnabled}
-                                data-testid="pareto-preview-pdf"
-                            >
-                                <Group gap={4}>
-                                    <IconEye size={16} />
-                                    <Text size="sm">
-                                        {t("common.pdfPreview.openAction")}
-                                    </Text>
-                                </Group>
-                            </Anchor>
+                            <Tooltip label={t("pareto.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        onClick={() => void downloadExport("csv")}
+                                        aria-disabled={!reportEnabled}
+                                        data-disabled={!reportEnabled || undefined}
+                                        disabled={!reportEnabled}
+                                    >
+                                        <Group gap={4}>
+                                            <IconDownload size={16} />
+                                            <Text size="sm">
+                                                {t("pareto.filters.exportCsv")}
+                                            </Text>
+                                        </Group>
+                                    </Anchor>
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("pareto.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        onClick={() => void downloadExport("xlsx")}
+                                        aria-disabled={!reportEnabled}
+                                        data-disabled={!reportEnabled || undefined}
+                                        disabled={!reportEnabled}
+                                    >
+                                        <Group gap={4}>
+                                            <IconDownload size={16} />
+                                            <Text size="sm">
+                                                {t("pareto.filters.exportXlsx")}
+                                            </Text>
+                                        </Group>
+                                    </Anchor>
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("pareto.filters.exportDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        onClick={() => void downloadExport("pdf")}
+                                        aria-disabled={!reportEnabled}
+                                        data-disabled={!reportEnabled || undefined}
+                                        disabled={!reportEnabled}
+                                    >
+                                        <Group gap={4}>
+                                            <IconDownload size={16} />
+                                            <Text size="sm">
+                                                {t("pareto.filters.exportPdf")}
+                                            </Text>
+                                        </Group>
+                                    </Anchor>
+                                </span>
+                            </Tooltip>
+                            <Tooltip label={t("pareto.filters.previewDisabledHint")} disabled={reportEnabled}>
+                                <span>
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        onClick={() => setPdfPreviewOpen(true)}
+                                        aria-disabled={!reportEnabled}
+                                        data-disabled={!reportEnabled || undefined}
+                                        disabled={!reportEnabled}
+                                        data-testid="pareto-preview-pdf"
+                                    >
+                                        <Group gap={4}>
+                                            <IconEye size={16} />
+                                            <Text size="sm">
+                                                {t("common.pdfPreview.openAction")}
+                                            </Text>
+                                        </Group>
+                                    </Anchor>
+                                </span>
+                            </Tooltip>
                         </Group>
                     </Group>
                 </Stack>

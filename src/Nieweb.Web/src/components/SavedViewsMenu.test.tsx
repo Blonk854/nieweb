@@ -90,6 +90,44 @@ describe("SavedViewsMenu", () => {
         expect(fetchSpy).toHaveBeenCalledWith("panel-yield");
     });
 
+    it("renders a dirty-state callout when the current filter has unsaved edits", async () => {
+        fetchSpy.mockResolvedValue([]);
+        const user = userEvent.setup();
+        render(
+            <SavedViewsMenu
+                reportKey="panel-yield"
+                currentFilter={{ sourceId: "postreflow" }}
+                onApply={() => {}}
+                isDirty
+            />,
+            { wrapper: makeWrapper() },
+        );
+
+        await openMenu(user);
+        expect(await screen.findByText(/Unsaved changes/i)).toBeInTheDocument();
+        expect(screen.getByText(/Save current view/i)).toBeInTheDocument();
+    });
+
+    it("shows a hover hint when the user cannot save yet", async () => {
+        fetchSpy.mockResolvedValue([]);
+        const user = userEvent.setup();
+        render(
+            <SavedViewsMenu
+                reportKey="panel-yield"
+                currentFilter={{}}
+                onApply={() => {}}
+                canSave={false}
+            />,
+            { wrapper: makeWrapper() },
+        );
+
+        await openMenu(user);
+        const saveItem = findItemByText(/Save current view/i);
+        expect(saveItem).toBeDefined();
+        await user.hover(saveItem!);
+        expect(await screen.findByText(/Select a source and date range before saving/i)).toBeInTheDocument();
+    });
+
     it("lists own views under 'Mine' and applies the parsed filter on click", async () => {
         fetchSpy.mockResolvedValue([
             view({ id: 10, name: "Yield yesterday", filterJson: '{"sourceId":"postreflow"}' }),
