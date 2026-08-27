@@ -1,10 +1,13 @@
 # Phase 3 — Sigmalink absorption + deferred Vieweb items
 
-_Status: **PROPOSAL** — awaiting sign-off._
+_Status: **IN PROGRESS** — Board Trace (§6.1) is the active slice.
+`BT3`, `BT4`, `BT9`, and the BoardViewer crosshair fix are **done**;
+`BT1` / `BT2` are **partial**; kiosk mode (`BT6`–`BT8`) is not
+started. Review, Analyse, PI-Capacity, and feedforward have **no code
+yet**._
 _Depends on: `docs/tech-stack.md` (SIGNED-OFF 2026-07-20),
-`docs/phase-2.md` (IN PROGRESS — Phase 3 assumes numeric parity with
-Vieweb 1.6.2 has landed for the FPY, DPMO, Pareto, Deviation, Trend,
-Traceability, and Report-composition scopes)._
+`docs/phase-2.md` (**COMPLETE** 2026-07-31). Post-plan chart work
+(DPMO Trend by line, 2026-08-26) is recorded in §6.0._
 _Successor of: `docs/phase-2.md`._
 
 ## 1. Purpose
@@ -163,12 +166,14 @@ The remaining deferred Vieweb items are the MSA report and Process Capability da
 4. **MSA numeric parity.** For a reference empty-panel run, the Cp,
    Cpk, EV, %EV, and GR&R values Nieweb computes match hand-computed
    values from the raw MSA DB rows to rounding error (snapshot test).
-5. **Automatic-treatment reliability.** A weekly treatment scheduled
-   Monday 06:00 for the last full week runs unattended for **eight**
-   consecutive weeks against staging and emails / saves the XLSX
-   every time. Any failed delivery raises an audit row surfaced in
-   the admin UI (bug #9699 mitigation).
-6. **Locale coverage.** DE, ES, ZH bundles complete for every
+5. **Automatic-treatment reliability.** *(Cut from project scope — §2.2.
+   Criterion retained for reference if automatic treatments are revived.)*
+   A weekly treatment scheduled Monday 06:00 for the last full week runs
+   unattended for **eight** consecutive weeks against staging and emails
+   / saves the XLSX every time. Any failed delivery raises an audit row
+   surfaced in the admin UI (bug #9699 mitigation).
+6. **Locale coverage.** *(Cut from project scope — §2.2. EN + FR only for
+   operational delivery.)* DE, ES, ZH bundles complete for every
    user-facing string exercised by an E2E smoke; missing-key gate in
    CI stays green.
 7. **Read-only discipline preserved.** No new code path writes to
@@ -299,15 +304,33 @@ Legend: `M` = mandatory for Phase 3 sign-off, `S` = should-have,
 `C` = could-have (drop if slipping). Every item cites the skill that
 owns the canonical facts.
 
-**Progress snapshot (2026-07-31).** Phase 3 has not formally started;
-Phase 2 closed complete on 2026-07-31. The only Phase 3 items with
-code are in §6.1 Board Trace, delivered as a side effect of Phase 2's
-traceability slice: `BT3` and `BT4` are **done**, `BT1` and `BT2` are
-**partial**. Everything else — Review, Analyse, SigmaLine feedforward,
-PI-Capacity, MSA, automatic treatments, extra locales and the
-Sigmalink coexistence / retirement track — has **no code yet**. Note
-that **PI-Capacity (§6.5) must land before Analyse (§6.3) ships**, or
-DBQuery-Pi traffic can degrade AOI inspection cycle time.
+**Progress snapshot (2026-08-26).** Phase 2 closed complete on
+2026-07-31. Phase 3 is **in progress** on the `phase-c` branch. Board
+Trace (§6.1) is the only section with substantial new code since the
+Phase 2 traceability slice: `BT3`, `BT4`, and `BT9` are **done**;
+`BT1` and `BT2` are **partial**; QA landing tile (`BT5`) and kiosk
+mode (`BT6`–`BT8`) are **open**. A post-plan **DPMO Trend by line** chart report landed on
+`phase-c` (§6.0) — same family as Phase 2's FPY Trend (`CR4`) but
+outside the original Phase 3 backlog. Everything else — Review,
+Analyse, SigmaLine feedforward, PI-Capacity, MSA, automatic
+treatments, extra locales, and the Sigmalink coexistence / retirement
+track — has **no code yet**. **PI-Capacity (§6.5) must land before
+Analyse (§6.3) ships**, or DBQuery-Pi traffic can degrade AOI
+inspection cycle time.
+
+### 6.0 Post-Phase-2 chart reports (shipped on `phase-c`, not Phase 3 scope)
+
+These items extend the Phase 2 chart catalogue after the 2026-07-31
+close-out. They are **not** Phase 3 sign-off criteria; recorded here so
+the backlog snapshot stays honest.
+
+- `CR5` ✅ done `1ea495b` / `46aca6c` — **DPMO Trend by line.**
+  `DpmoTrendByLineReport` returns one `DpmoTrendResult` per source
+  with time-bucket decomposition (same bucketing as FPY Trend).
+  API: `/api/reports/dpmo-trend` + CSV / XLSX / PDF exports.
+  SPA: `/report/dpmo-trend` with ECharts line chart, nav entry,
+  and i18n (EN / FR). Uses a `DefectsOnly` predicate on
+  `TESTED_OBJECT` streams so the denominator matches the DPMO table.
 
 ### 6.1 Board Trace UI (M) — `vit-aoi-database` + `aoi-quality-metrics`
 
@@ -315,22 +338,23 @@ Board Trace is the flagship Phase 3 feature (§1). The
 `Nieweb.Reports.Traceability` package from Phase 2 already loads a
 panel by barcode; Phase 3 wraps a first-class UI around it.
 
-> **Status (2026-07-31).** Phase 2's traceability slice (`TC1`–`TC5`
-> in `docs/phase-2.md`) delivered more of this section than planned:
-> `BT3` and `BT4` are **already done**, and `BT1` / `BT2` are
-> **partial**. The genuinely outstanding work is the consolidated
-> timeline (`BT2`), the QA landing tile (`BT5`) and the whole kiosk
-> track (`BT6`–`BT8`).
+> **Status (2026-08-26).** Phase 2's traceability slice (`TC1`–`TC5`
+> in `docs/phase-2.md`) plus follow-on Board Trace work on `phase-c`
+> delivered more of this section than planned: `BT3`, `BT4`, and
+> `BT9` are **done**; `BT1` / `BT2` are **partial**. The genuinely
+> outstanding work is the consolidated timeline (`BT2`), the QA
+> landing tile (`BT5`), and the whole kiosk track (`BT6`–`BT8`).
 
 - `BT1` 🟡 partial — `/app/board-trace` route with a prominent barcode
   search
   box on every layout. Barcode scanner-friendly: input auto-focuses,
   Enter submits, no click required. Deep link: `/app/board-trace/<barcode>`.
-  *Delivered by `TC3`:* the route
-  (`src/Nieweb.Web/src/routes/traceability-board.tsx`) and the
-  reusable `BarcodeLookupCard` on the home page. *Outstanding:* the
-  search box is not yet present on **every** layout, and the
-  scanner-friendly auto-focus / Enter-submit behaviour is unverified.
+  *Delivered by `TC3` + Board Trace redesign (`65683a5`):* the route
+  (`src/Nieweb.Web/src/routes/traceability-board.tsx`), the reusable
+  `BarcodeLookupCard` on the home page, a URL-driven **two-sided PCB**
+  toggle (`?side=`), and saved-view support. *Outstanding:* the search
+  box is not yet present on **every** layout, and the scanner-friendly
+  auto-focus / Enter-submit behaviour is unverified.
 - `BT2` 🟡 partial — End-to-end timeline UI: pre-reflow SPI verdict → pre-reflow
   AOI defects & sanctions → post-reflow AOI defects & sanctions →
   repair actions → final panel state. Each step shows timestamp,
@@ -356,8 +380,24 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
   component location. Where no SVG exists, fall back to the tabular
   view.
   *Delivered by `TC4` + `TC5`:* the Board-SVG asset pipeline plus the
-  `<BoardViewer>` component with dual-stage colour-coded highlights
-  and a graceful tabular fallback when no SVG is cached.
+  `<BoardViewer>` component with dual-stage colour-coded highlights,
+  optional **crosshair** on the primary highlight (header toggle,
+  `localStorage` preference), zoom / pan, Foreign Material splat
+  overlay, and a graceful tabular fallback when no SVG is cached.
+  *Follow-up `403b9d5`:* crosshair dash lengths are sized from the SVG
+  viewBox (micron user units) so the lines stay visible at full-panel
+  zoom — a fixed CSS `stroke-dasharray` rendered as invisible speckles
+  on real Sigmalink panel SVGs.
+- `BT9` ✅ done `403b9d5` — **Prior AOI passes for the same barcode.**
+  When a panel has been re-inspected, Board Trace returns up to **10
+  prior passes per face** as lightweight metadata (`PriorPasses` on
+  each `BoardStageSide`). The default UX is unchanged (latest pass).
+  Operators pin an older pass via repeated URL params
+  (`?panelId=<sourceId>:<panelId>`); stale or mismatched pins fall
+  back to latest with a soft `SelectionWarning` (not a stage error).
+  SPA: Passes menu per stage, historical pill, side toggle keeps the
+  pin, saved views persist barcode + side only. Plan:
+  [`plan.md`](../plan.md) at repo root.
 - `BT5` — QA landing tile: Board Trace becomes the default first
   tile on the QA role's dashboard.
 - `BT6` — **Kiosk mode.** Opt-in per deployment via an admin toggle
@@ -387,23 +427,31 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
 
 ### 6.2 Review UI (M) — `sigmalink-review`
 
+> **Scope note (§1).** Phase 3 delivers **offline review + OIS export
+> only** (`REV3` + export plumbing). Inline (`REV2`), remote (`REV4`),
+> repair / Zebra label (`REV5`), and full XML layout parity (`REV6`)
+> are **deferred** unless a design partner requests them — listed
+> below for traceability, not as current-sprint work.
+
 - `REV1` — Domain model (`ReviewSession`, `ReviewDefect`,
   `ReviewSanction`, `ReviewComment`, `ReviewCustomMessage`) +
   state machine covering `OK_OPERATOR`, `KO_OPERATOR`, repaired,
   scrap, false call, true call. Constants preserved
   character-for-character.
-- `REV2` — Inline mode: full-screen, keyboard-first, one panel at a
+- `REV2` ⬜ deferred — Inline mode: full-screen, keyboard-first, one panel at a
   time, `review_inline.xml`-configurable layout. Timeout 720 s
-  (Sigmalink default).
+  (Sigmalink default). *Out of Phase 3 scope (§1).*
 - `REV3` — Offline mode: local queue on a review workstation,
   batch-sync back to Nieweb. Timeout 30 s (Sigmalink default). Ties
-  into OIS export via `OISPlugin.xml` equivalent.
-- `REV4` — Remote mode: browser at a QA desk, read-only unless the
-  operator holds `ROLE_REVIEWER`.
-- `REV5` — Repair mode: annotates rejected panels, prints a Zebra
+  into OIS export via `OISPlugin.xml` equivalent. **Primary Review
+  deliverable for Phase 3.**
+- `REV4` ⬜ deferred — Remote mode: browser at a QA desk, read-only unless the
+  operator holds `ROLE_REVIEWER`. *Out of Phase 3 scope (§1).*
+- `REV5` ⬜ deferred — Repair mode: annotates rejected panels, prints a Zebra
   label with the barcode + defect summary. Zebra ZPL is emitted
   server-side; the workstation just POSTs to the label spooler.
-- `REV6` — Layout XML compatibility. Nieweb reads the same
+  *Out of Phase 3 scope (§1).*
+- `REV6` ⬜ deferred — Layout XML compatibility. Nieweb reads the same
   `review_lines.xml`, `review_layout.xml`, `review_actions.xml`,
   `review_defects.xml`, `review_comments.xml`,
   `review_custom_messages.xml`, `review_policy.xml`,

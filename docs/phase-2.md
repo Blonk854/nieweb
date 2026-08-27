@@ -1,9 +1,7 @@
 # Phase 2 — feature parity with Vieweb 1.6.2
 
-_Status: **IN PROGRESS** — report infrastructure (§7.1), FPY table
-(§7.2 TR1), DPMO table + Pareto server side (§7.2 TR2), Pareto SPA
-page (§7.3 CR1), DefectBitDecoder + #11211 (§7.8), and corporate
-branding (§11.2) have shipped. See §7 for the per-item status snapshot._
+_Status: **COMPLETE** (2026-07-31). Post-close chart work: DPMO Trend
+by line (`CR5`, 2026-08-26 on `phase-c`). See §7.3._
 _Depends on: `docs/tech-stack.md` (SIGNED-OFF 2026-07-20)._
 _Successor of: `docs/phase-1-mvp.md`._
 
@@ -248,16 +246,17 @@ time — sequence matters more than clock estimates.
 `🟡 partial <sha>` — some sub-items delivered, follow-ups called out;
 `⬜ open` — not started.
 
-**Progress snapshot (2026-07-31).** **Phase 2 is complete — every
+**Progress snapshot (2026-08-26).** **Phase 2 is complete — every
 item in §7.1 – §7.12 is delivered**, with two deliberate deferrals:
 `PC1` (Process Capability dashboard) moved to §7.7 *Optional* on
 2026-07-21, and the MSA report waits on the empty-panel DB being
 commissioned (§7.4). `TC4` / `TC5` finished their A–D sub-phases on
 2026-07-22. `CR4` (FPY Trend by line) and `TR4` (report result
 cache) landed after the original plan was written and are recorded
-below. The next work is Phase 3 (`docs/phase-3.md`), where the
-traceability slice already delivered `BT3` and `BT4` ahead of
-schedule.
+below. **`CR5` (DPMO Trend by line) landed 2026-08-26** on `phase-c`
+as post-close chart work — same bucketing family as `CR4`. The active
+work is Phase 3 (`docs/phase-3.md`), where the traceability slice
+already delivered `BT3`, `BT4`, and `BT9` ahead of schedule.
 
 ### 7.1 Report infrastructure (M)
 
@@ -398,6 +397,19 @@ schedule.
   QuestPDF's `IContainer.Svg`). SPA route `/report/fpy-trend` with
   URL-first filters, lazy-loaded ECharts chart, saved views and PDF
   preview.
+
+- `CR5` ✅ done `1ea495b` / `46aca6c` — **DPMO Trend by line.** Added
+  2026-08-26 on `phase-c` after Phase 2 close-out: defects-per-million
+  opportunities over time for every AOI line, on both pre- and
+  post-reflow at once. `DpmoTrendByLineReport` mirrors the
+  `FpyTrendByLineReport` shape (`DpmoTrendResult` per source,
+  day/week buckets, panel/board granularity). Uses a `DefectsOnly`
+  predicate on `TESTED_OBJECT` streams so the numerator matches the
+  DPMO table (`TR2`). Endpoint `GET /api/reports/dpmo-trend` plus
+  CSV / XLSX / PDF exports. SPA route `/report/dpmo-trend` with
+  ECharts chart, nav entry, and i18n (EN / FR). Recorded in
+  `docs/phase-3.md` §6.0 as post-Phase-2 work outside the Phase 3
+  backlog.
 
 ### 7.4 Process Capability (M)
 
