@@ -300,6 +300,12 @@ describe("BoardViewer", () => {
         // Primary component centroid (from SAMPLE_SVG: rotate(270 78473 47460)).
         expect(hLine?.getAttribute("y1")).toBe("47460");
         expect(vLine?.getAttribute("x1")).toBe("78473");
+        // Dasharray is sized from the viewBox (not a fixed CSS px
+        // value) so the lines stay visible at full-panel zoom.
+        // SAMPLE_SVG viewBox max span = 213360 → 2% = 4267.
+        expect(hLine?.getAttribute("stroke-dasharray")).toBe("4267 2987");
+        expect(hLine?.getAttribute("stroke")).toBe("#ff3b30");
+        expect(hLine?.getAttribute("stroke-width")).toBe("2");
     });
 
     it("renders a yellow paint splat at the reported micron coord for Foreign Material rows", async () => {

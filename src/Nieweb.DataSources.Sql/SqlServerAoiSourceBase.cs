@@ -590,8 +590,15 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
     }
 
     /// <inheritdoc />
+    public virtual Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        CancellationToken ct)
+        => ListPanelsByBarcodeAsync(barcode, limit: 1, ct);
+
+    /// <inheritdoc />
     public virtual async Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
         string barcode,
+        int limit,
         CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
@@ -602,12 +609,16 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
                 nameof(barcode));
         }
 
-        // Return the LATEST inspection per Face_Number for this
-        // barcode. ROW_NUMBER() partitioned by Face_Number picks one
-        // row per side without a GROUP BY that would lose the
-        // non-aggregated columns. Ordered by Face_Number ascending
-        // so the SPA's side toggle can render side 1 before side 2
-        // without a client-side sort.
+        // Hard ceiling against unbounded dumps. The product cap of 10
+        // prior passes lives in TraceabilityReport; this adapter only
+        // guards the SQL shape.
+        var clamped = Math.Clamp(limit, 1, 100);
+
+        // ROW_NUMBER() partitioned by Face_Number returns up to
+        // @limit inspections per side without a GROUP BY that would
+        // lose the non-aggregated columns. Ordered by Face_Number
+        // then rn so callers get side 1 before side 2, newest first
+        // within each side.
         const string Sql = """
             ;WITH ranked AS (
               SELECT
@@ -628,14 +639,18 @@ public abstract partial class SqlServerAoiSourceBase : IAoiSource
               Has_Been_Reviewed, Nb_Of_Tested_Object, Nb_Of_Error_Object,
               Operator_Id, Product_Id, Recipe_Id, Face_Number
             FROM ranked
-            WHERE rn = 1
-            ORDER BY Face_Number;
+            WHERE rn <= @limit
+            ORDER BY Face_Number, rn;
             """;
 
-        var rows = new List<PanelRow>(2);
+        var rows = new List<PanelRow>(clamped * 2);
         await foreach (var row in ExecuteQueryAsync(
             Sql,
-            bindParameters: p => p.Add(new SqlParameter("@barcode", SqlDbType.VarChar, 64) { Value = barcode }),
+            bindParameters: p =>
+            {
+                p.Add(new SqlParameter("@barcode", SqlDbType.VarChar, 64) { Value = barcode });
+                p.Add(new SqlParameter("@limit", SqlDbType.Int) { Value = clamped });
+            },
             map: MapPanelRow,
             ct).ConfigureAwait(false))
         {

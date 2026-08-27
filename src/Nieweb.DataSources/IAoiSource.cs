@@ -146,18 +146,37 @@ public interface IAoiSource
     /// <remarks>
     /// <para>
     /// Entry point for TC2 board trace, which needs both sides so
-    /// operators can flip between them. The default implementation
-    /// wraps <see cref="GetPanelByBarcodeAsync"/> into a single-
-    /// element list, which is enough for in-memory fakes and
-    /// single-sided products. SQL adapters override with a
-    /// <c>ROW_NUMBER()</c> partition query so both sides come back
-    /// in a single round trip.
+    /// operators can flip between them. Forwards to
+    /// <see cref="ListPanelsByBarcodeAsync(string, int, CancellationToken)"/>
+    /// with <c>limit: 1</c> (latest pass per face).
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        CancellationToken ct)
+        => ListPanelsByBarcodeAsync(barcode, limit: 1, ct);
+
+    /// <summary>
+    /// Looks up up to <paramref name="limit"/> most-recent inspections
+    /// per <c>Face_Number</c> for <paramref name="barcode"/>. Rows are
+    /// ordered by <c>Face_Number</c> ascending, then newest-first within
+    /// each face (<c>Panel_Numeric_Date DESC, Panel_Id DESC</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Used by TC2 board trace when surfacing prior AOI passes. The
+    /// default implementation wraps
+    /// <see cref="GetPanelByBarcodeAsync"/> and therefore returns at
+    /// most one row regardless of <paramref name="limit"/> — SQL
+    /// adapters and multi-pass fakes must override this overload.
     /// </para>
     /// </remarks>
     async Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
         string barcode,
+        int limit,
         CancellationToken ct)
     {
+        _ = limit;
         var panel = await GetPanelByBarcodeAsync(barcode, ct).ConfigureAwait(false);
         return panel is null ? Array.Empty<PanelRow>() : new[] { panel };
     }

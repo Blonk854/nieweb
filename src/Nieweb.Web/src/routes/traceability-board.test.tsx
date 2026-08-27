@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MantineProvider } from "@mantine/core";
 import {
     createMemoryHistory,
@@ -99,6 +99,19 @@ function boardTrace(barcode: string, opts: {
     postError?: string | null;
     preFound?: boolean;
     preError?: string | null;
+    postPriors?: Array<{
+        panelId: number;
+        faceNumber: number;
+        panelUtc: string;
+        panelStatus: number;
+        anomalyBr: number;
+        anomalyAr: number;
+        nbOfErrorObject: number;
+        hasBeenReviewed: boolean;
+    }>;
+    postPinned?: number | null;
+    postPanelId?: number;
+    postSelectionWarning?: string | null;
 }) {
     const panel = (panelId: number) => ({
         panel: {
@@ -138,11 +151,29 @@ function boardTrace(barcode: string, opts: {
         productId: 42,
         panelNumericDate: 1_780_660_800,
     });
-    const sides = (panelId: number, cardCount: number) => [
+    const sides = (
+        panelId: number,
+        cardCount: number,
+        extras?: {
+            priorPasses?: Array<{
+                panelId: number;
+                faceNumber: number;
+                panelUtc: string;
+                panelStatus: number;
+                anomalyBr: number;
+                anomalyAr: number;
+                nbOfErrorObject: number;
+                hasBeenReviewed: boolean;
+            }>;
+            pinnedPanelId?: number | null;
+        },
+    ) => [
         {
             faceNumber: 1,
             panel: panel(panelId),
             cards: Array.from({ length: cardCount }, (_, i) => card(i, panelId)),
+            priorPasses: extras?.priorPasses ?? [],
+            pinnedPanelId: extras?.pinnedPanelId ?? null,
         },
     ];
     return {
@@ -152,9 +183,15 @@ function boardTrace(barcode: string, opts: {
                 sourceId: "postreflow",
                 sourceName: "Post-reflow AOI",
                 capabilities: 1,
-                sides: opts.postFound ? sides(1001, 2) : [],
+                sides: opts.postFound
+                    ? sides(opts.postPanelId ?? 1001, 2, {
+                          priorPasses: opts.postPriors,
+                          pinnedPanelId: opts.postPinned,
+                      })
+                    : [],
                 pinsAvailable: true,
                 error: opts.postError ?? null,
+                selectionWarning: opts.postSelectionWarning ?? null,
             },
             {
                 sourceId: "prereflow",
@@ -163,6 +200,7 @@ function boardTrace(barcode: string, opts: {
                 sides: opts.preFound ? sides(2001, 1) : [],
                 pinsAvailable: false,
                 error: opts.preError ?? null,
+                selectionWarning: null,
             },
         ],
     };
@@ -296,6 +334,31 @@ describe("TraceabilityBoardRoute", () => {
             expect(router.state.location.search).toMatchObject({
                 barcode: "NEW-BARCODE",
             });
+        });
+    });
+
+    it("syncs the input value when the barcode search param changes via navigation", async () => {
+        stubFetch([
+            savedViewsEmpty,
+            {
+                match: (u) => u.includes("/api/traceability/boards/by-barcode"),
+                status: 200,
+                body: boardTrace("SEED", { postFound: true, preFound: true }),
+            },
+        ]);
+        const { router } = renderBoard("/traceability/board?barcode=SEED");
+        const input = await screen.findByTestId("traceability-board-input");
+        expect(input).toHaveValue("SEED");
+
+        await act(async () => {
+            await router.navigate({
+                to: "/traceability/board",
+                search: { barcode: "NEW-BARCODE" },
+            });
+        });
+
+        await waitFor(() => {
+            expect(input).toHaveValue("NEW-BARCODE");
         });
     });
 
@@ -602,6 +665,160 @@ describe("TraceabilityBoardRoute — drill-down", () => {
         await waitFor(() => {
             expect(postRow).toHaveAttribute("data-selected", "true");
         });
+    });
+
+    it("shows the passes menu when priorPasses are present and hides it on pre-reflow", async () => {
+        const priors = [
+            {
+                panelId: 1000,
+                faceNumber: 1,
+                panelUtc: "2026-06-05T11:00:00Z",
+                panelStatus: 2,
+                anomalyBr: 1,
+                anomalyAr: 0,
+                nbOfErrorObject: 1,
+                hasBeenReviewed: false,
+            },
+            {
+                panelId: 999,
+                faceNumber: 1,
+                panelUtc: "2026-06-05T10:00:00Z",
+                panelStatus: 2,
+                anomalyBr: 1,
+                anomalyAr: 0,
+                nbOfErrorObject: 1,
+                hasBeenReviewed: false,
+            },
+        ];
+        stubFetch([
+            savedViewsEmpty,
+            {
+                match: (u) => u.includes("/api/traceability/boards/by-barcode"),
+                status: 200,
+                body: boardTrace("REPEAT-001", {
+                    postFound: true,
+                    preFound: true,
+                    postPriors: priors,
+                }),
+            },
+        ]);
+        renderBoard("/traceability/board?barcode=REPEAT-001");
+
+        expect(
+            await screen.findByTestId("traceability-board-passes-postreflow"),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByTestId("traceability-board-passes-prereflow"),
+        ).not.toBeInTheDocument();
+    });
+
+    it("clicking a prior pass updates the URL and re-fetches with the pin", async () => {
+        const priors = [
+            {
+                panelId: 1000,
+                faceNumber: 1,
+                panelUtc: "2026-06-05T11:00:00Z",
+                panelStatus: 2,
+                anomalyBr: 1,
+                anomalyAr: 0,
+                nbOfErrorObject: 1,
+                hasBeenReviewed: false,
+            },
+        ];
+        const fetchMock = stubFetch([
+            savedViewsEmpty,
+            {
+                match: (u) =>
+                    u.includes("/api/traceability/boards/by-barcode") &&
+                    !u.includes("panelId="),
+                status: 200,
+                body: boardTrace("REPEAT-001", {
+                    postFound: true,
+                    preFound: true,
+                    postPriors: priors,
+                }),
+            },
+            {
+                match: (u) =>
+                    u.includes("/api/traceability/boards/by-barcode") &&
+                    u.includes("panelId=postreflow%3A1000"),
+                status: 200,
+                body: boardTrace("REPEAT-001", {
+                    postFound: true,
+                    preFound: true,
+                    postPanelId: 1000,
+                    postPinned: 1000,
+                    postPriors: [
+                        {
+                            panelId: 1001,
+                            faceNumber: 1,
+                            panelUtc: "2026-06-05T12:00:00Z",
+                            panelStatus: 1,
+                            anomalyBr: 0,
+                            anomalyAr: 0,
+                            nbOfErrorObject: 0,
+                            hasBeenReviewed: true,
+                        },
+                    ],
+                }),
+            },
+        ]);
+
+        const { router } = renderBoard("/traceability/board?barcode=REPEAT-001");
+        const trigger = await screen.findByTestId(
+            "traceability-board-passes-postreflow",
+        );
+        fireEvent.click(trigger);
+        fireEvent.click(
+            await screen.findByTestId("traceability-board-pass-postreflow-1000"),
+        );
+
+        await waitFor(() => {
+            expect(router.state.location.search).toMatchObject({
+                barcode: "REPEAT-001",
+                passes: { postreflow: 1000 },
+            });
+        });
+        await waitFor(() => {
+            expect(
+                fetchMock.mock.calls.some(
+                    (c) =>
+                        String(c[0]).includes("panelId=postreflow%3A1000") ||
+                        String(c[0]).includes("panelId=postreflow:1000"),
+                ),
+            ).toBe(true);
+        });
+        expect(
+            await screen.findByTestId("traceability-board-pass-pill-postreflow"),
+        ).toBeInTheDocument();
+    });
+
+    it("shows a soft selection-warning alert without the stage-error badge", async () => {
+        stubFetch([
+            savedViewsEmpty,
+            {
+                match: (u) => u.includes("/api/traceability/boards/by-barcode"),
+                status: 200,
+                body: boardTrace("REPEAT-001", {
+                    postFound: true,
+                    preFound: true,
+                    postSelectionWarning:
+                        "This pass link is older than the retained 10-pass window.",
+                }),
+            },
+        ]);
+        renderBoard(
+            "/traceability/board?barcode=REPEAT-001&passes[postreflow]=99999",
+        );
+
+        expect(
+            await screen.findByTestId(
+                "traceability-board-selection-warning-postreflow",
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/this stage could not be queried/i),
+        ).not.toBeInTheDocument();
     });
 });
 

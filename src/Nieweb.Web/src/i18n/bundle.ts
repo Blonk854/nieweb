@@ -1067,6 +1067,14 @@ export type TranslationBundle = {
             sideLabel: string;
             side1st: string;
             side2nd: string;
+            passes: {
+                more_one: string;
+                more_other: string;
+                more: string;
+                latest: string;
+                viewing: string;
+                selectionWarningTitle: string;
+            };
             /**
              * Decodes `PANELS.Panel_Status` (Vision3D CR4 §5.1). Enum:
              * -2 = Still faulty after review (Sigmalink KO_OPERATOR),

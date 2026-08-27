@@ -191,10 +191,13 @@ public static class TraceabilityEndpoints
     /// 200 with one stage per configured source when at least one
     /// stage matched or errored; 404 when every stage returned
     /// <c>Panel = null</c> and no error (barcode never seen on any
-    /// DB); 400 on missing / oversized barcode.
+    /// DB); 400 on missing / oversized barcode or malformed
+    /// <c>panelId</c> syntax. Unknown source ids in <c>panelId</c>
+    /// pins are dropped (not 400).
     /// </summary>
     private static async Task<Results<Ok<BoardTrace>, NotFound, ProblemHttpResult>> GetBoardByBarcodeAsync(
         string? barcode,
+        string[]? panelId,
         IEnumerable<IAoiSource> sources,
         CancellationToken cancellationToken)
     {
@@ -212,8 +215,64 @@ public static class TraceabilityEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        var knownSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var source in sources)
+        {
+            knownSources.Add(source.Descriptor.Id);
+        }
+
+        Dictionary<string, int>? selectedPanelIds = null;
+        if (panelId is { Length: > 0 })
+        {
+            selectedPanelIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in panelId)
+            {
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    return TypedResults.Problem(
+                        title: "Malformed panelId query parameter (expected sourceId:panelId).",
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                var colon = raw.IndexOf(':');
+                if (colon <= 0 || colon >= raw.Length - 1)
+                {
+                    return TypedResults.Problem(
+                        title: $"Malformed panelId '{raw}' (expected sourceId:panelId).",
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                var sourceKey = raw[..colon];
+                var idText = raw[(colon + 1)..];
+                if (string.IsNullOrWhiteSpace(sourceKey)
+                    || !int.TryParse(idText, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out var parsedId)
+                    || parsedId <= 0)
+                {
+                    return TypedResults.Problem(
+                        title: $"Malformed panelId '{raw}' (expected sourceId:panelId).",
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                // Unknown / unconfigured source → drop silently so a
+                // renamed source never blanks a valid barcode lookup.
+                if (!knownSources.Contains(sourceKey))
+                {
+                    continue;
+                }
+
+                // Last-wins when the same source is pinned twice.
+                selectedPanelIds[sourceKey] = parsedId;
+            }
+
+            if (selectedPanelIds.Count == 0)
+            {
+                selectedPanelIds = null;
+            }
+        }
+
         var result = await TraceabilityReport
-            .GetBoardByBarcodeAsync(sources, barcode, cancellationToken)
+            .GetBoardByBarcodeAsync(sources, barcode, selectedPanelIds, cancellationToken)
             .ConfigureAwait(false);
 
         if (result is null || result.Stages.Count == 0)

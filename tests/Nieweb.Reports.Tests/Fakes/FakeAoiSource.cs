@@ -166,6 +166,30 @@ internal sealed class FakeAoiSource : IAoiSource
         return Task.FromResult<PanelRow?>(match);
     }
 
+    public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        CancellationToken ct)
+        => ListPanelsByBarcodeAsync(barcode, limit: 1, ct);
+
+    public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        int limit,
+        CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        var clamped = Math.Clamp(limit, 1, 100);
+        var matched = SeededPanels
+            .Where(p => string.Equals(p.PanelBarCode, barcode, StringComparison.Ordinal))
+            .GroupBy(p => p.FaceNumber ?? 0)
+            .OrderBy(g => g.Key)
+            .SelectMany(g => g
+                .OrderByDescending(p => p.PanelNumericDate)
+                .ThenByDescending(p => p.PanelId)
+                .Take(clamped))
+            .ToList();
+        return Task.FromResult<IReadOnlyList<PanelRow>>(matched);
+    }
+
     public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
         => Task.FromResult<IReadOnlyList<CardRow>>(
             SeededCards.Where(c => c.PanelId == panelId).ToList());

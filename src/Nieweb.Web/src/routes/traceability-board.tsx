@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
     Alert,
     Badge,
@@ -6,6 +6,7 @@ import {
     Card,
     Group,
     Loader,
+    Menu,
     SegmentedControl,
     SimpleGrid,
     Stack,
@@ -17,6 +18,7 @@ import {
 import {
     IconAlertTriangle,
     IconBarcode,
+    IconHistory,
     IconSearch,
     IconTable,
 } from "@tabler/icons-react";
@@ -30,6 +32,7 @@ import {
     type BoardStageTrace,
     type CardRow,
     type FailedObjectsResponse,
+    type PanelPassSummary,
     type TraceabilityPanel,
 } from "../api/traceability";
 import {
@@ -50,7 +53,10 @@ import {
 import { FailedObjectsTable } from "../components/FailedObjectsTable";
 import { useDateTimeFormatter } from "../i18n/formatters";
 import { cardStatusOrSkippedKey, panelStatusOrSkippedKey } from "../i18n/statusText";
-import type { TraceabilityBoardSearch } from "./traceability-board.search";
+import {
+    toSavedTraceabilityBoardFilter,
+    type TraceabilityBoardSearch,
+} from "./traceability-board.search";
 
 /**
  * TC3 board-trace route (`/traceability/board?barcode=X`). Consumes
@@ -101,6 +107,14 @@ export function TraceabilityBoardRoute() {
     const [barcodeInput, setBarcodeInput] = useState(search.barcode ?? "");
     const [formError, setFormError] = useState<string | null>(null);
 
+    useEffect(() => {
+        const nextBarcode = search.barcode ?? "";
+        setBarcodeInput(nextBarcode);
+        if (nextBarcode.length > 0) {
+            setFormError(null);
+        }
+    }, [search.barcode]);
+
     // TC5 Phase D drill-down state. `null` = collapsed. When set to a
     // sourceId, the drill-down section appears below the stage cards
     // and that source becomes the initial active-viewer stage. The
@@ -111,11 +125,17 @@ export function TraceabilityBoardRoute() {
     const [primaryHighlight, setPrimaryHighlight] = useState<BoardHighlight | null>(null);
 
     const boardQuery = useQuery({
-        queryKey: ["traceability-board", search.barcode],
-        queryFn: () => fetchBoardByBarcode(search.barcode!),
+        queryKey: ["traceability-board", search.barcode, search.passes],
+        queryFn: () => fetchBoardByBarcode(search.barcode!, search.passes),
         enabled: Boolean(search.barcode),
         retry: false,
     });
+
+    // Clear drill-down highlight when the selected pass changes so a
+    // marker from pass A cannot phantom-highlight after switching to B.
+    useEffect(() => {
+        setPrimaryHighlight(null);
+    }, [search.passes]);
 
     function openDrilldown(sourceId: string) {
         setDrilldownSourceId(sourceId);
@@ -244,7 +264,7 @@ export function TraceabilityBoardRoute() {
                         </Button>
                         <SavedViewsMenu<TraceabilityBoardSearch>
                             reportKey="traceability-board"
-                            currentFilter={search}
+                            currentFilter={toSavedTraceabilityBoardFilter(search)}
                             onApply={applySavedFilter}
                             canSave={canSave}
                         />
@@ -321,6 +341,34 @@ export function TraceabilityBoardRoute() {
                                 key={stage.sourceId}
                                 stage={stage}
                                 onOpenDrilldown={() => openDrilldown(stage.sourceId)}
+                                onSelectPass={(panelId) => {
+                                    void navigate({
+                                        to: "/traceability/board",
+                                        search: (prev: TraceabilityBoardSearch) => ({
+                                            ...prev,
+                                            passes: {
+                                                ...(prev.passes ?? {}),
+                                                [stage.sourceId]: panelId,
+                                            },
+                                        }),
+                                    });
+                                }}
+                                onResetPass={() => {
+                                    void navigate({
+                                        to: "/traceability/board",
+                                        search: (prev: TraceabilityBoardSearch) => {
+                                            const nextPasses = { ...(prev.passes ?? {}) };
+                                            delete nextPasses[stage.sourceId];
+                                            return {
+                                                ...prev,
+                                                passes:
+                                                    Object.keys(nextPasses).length > 0
+                                                        ? nextPasses
+                                                        : undefined,
+                                            };
+                                        },
+                                    });
+                                }}
                             />
                         ))}
                     </SimpleGrid>
@@ -354,12 +402,18 @@ export function TraceabilityBoardRoute() {
 function StageCard(props: {
     stage: SidedStageTrace;
     onOpenDrilldown?: () => void;
+    onSelectPass?: (panelId: number) => void;
+    onResetPass?: () => void;
 }) {
-    const { stage, onOpenDrilldown } = props;
+    const { stage, onOpenDrilldown, onSelectPass, onResetPass } = props;
     const { t } = useTranslation();
 
     const found = stage.panel !== null;
     const hasError = stage.error !== null && stage.error !== undefined;
+    const hasSelectionWarning =
+        stage.selectionWarning !== null &&
+        stage.selectionWarning !== undefined &&
+        stage.selectionWarning.length > 0;
     // Vision3D CR4/CR5 `PANELS.Anomaly_BR` bit 5 (mask 32) =
     // "One or more defects". Set pre-review by the AOI engine and
     // never cleared during review, so false-call panels (where
@@ -371,6 +425,8 @@ function StageCard(props: {
         stage.panel !== null &&
         (stage.panel.panel.anomalyBr & 32) !== 0;
     const canDrill = Boolean(onOpenDrilldown) && hasFailures;
+    const priorPasses = stage.priorPasses;
+    const isHistorical = stage.pinnedPanelId != null;
 
     return (
         <Card
@@ -413,6 +469,18 @@ function StageCard(props: {
                     </Alert>
                 )}
 
+                {hasSelectionWarning && !hasError && (
+                    <Alert
+                        color="yellow"
+                        icon={<IconAlertTriangle size={16} />}
+                        role="status"
+                        title={t("traceability.board.passes.selectionWarningTitle")}
+                        data-testid={`traceability-board-selection-warning-${stage.sourceId}`}
+                    >
+                        {stage.selectionWarning}
+                    </Alert>
+                )}
+
                 {!hasError && !found && (
                     <Text c="dimmed" size="sm">
                         {t("traceability.board.stageNotFound")}
@@ -420,10 +488,22 @@ function StageCard(props: {
                 )}
 
                 {found && stage.panel && (
-                    <PanelSummary
-                        stage={stage}
-                        onOpenDrilldown={canDrill ? onOpenDrilldown : undefined}
-                    />
+                    <>
+                        {priorPasses.length > 0 && onSelectPass && (
+                            <PassesMenu
+                                sourceId={stage.sourceId}
+                                priorPasses={priorPasses}
+                                isHistorical={isHistorical}
+                                onSelectPass={onSelectPass}
+                                onResetPass={onResetPass}
+                            />
+                        )}
+                        <PanelSummary
+                            stage={stage}
+                            onOpenDrilldown={canDrill ? onOpenDrilldown : undefined}
+                            onResetPass={isHistorical ? onResetPass : undefined}
+                        />
+                    </>
                 )}
 
                 {canDrill && onOpenDrilldown && (
@@ -444,11 +524,78 @@ function StageCard(props: {
     );
 }
 
+function PassesMenu(props: {
+    sourceId: string;
+    priorPasses: readonly PanelPassSummary[];
+    isHistorical: boolean;
+    onSelectPass: (panelId: number) => void;
+    onResetPass?: () => void;
+}) {
+    const { sourceId, priorPasses, isHistorical, onSelectPass, onResetPass } = props;
+    const { t } = useTranslation();
+    const format = useDateTimeFormatter({
+        dateStyle: "medium",
+        timeStyle: "medium",
+    });
+    const count = priorPasses.length;
+
+    return (
+        <Menu shadow="md" width={320} position="bottom-start">
+            <Menu.Target>
+                <Button
+                    size="xs"
+                    variant="light"
+                    leftSection={<IconHistory size={14} />}
+                    data-testid={`traceability-board-passes-${sourceId}`}
+                >
+                    {t("traceability.board.passes.more", { count })}
+                </Button>
+            </Menu.Target>
+            <Menu.Dropdown data-testid={`traceability-board-passes-menu-${sourceId}`}>
+                {isHistorical && onResetPass && (
+                    <>
+                        <Menu.Item onClick={onResetPass}>
+                            {t("traceability.board.passes.latest")}
+                        </Menu.Item>
+                        <Menu.Divider />
+                    </>
+                )}
+                {priorPasses.map((pass) => {
+                    const when = new Date(pass.panelUtc);
+                    const label = Number.isNaN(when.getTime())
+                        ? pass.panelUtc
+                        : format.format(when);
+                    const statusKey = panelStatusOrSkippedKey(
+                        pass.panelStatus,
+                        pass.anomalyBr,
+                        pass.anomalyAr,
+                    );
+                    return (
+                        <Menu.Item
+                            key={pass.panelId}
+                            onClick={() => onSelectPass(pass.panelId)}
+                            rightSection={
+                                <Badge size="xs" variant="light">
+                                    {t(statusKey)}
+                                </Badge>
+                            }
+                            data-testid={`traceability-board-pass-${sourceId}-${pass.panelId}`}
+                        >
+                            {label}
+                        </Menu.Item>
+                    );
+                })}
+            </Menu.Dropdown>
+        </Menu>
+    );
+}
+
 function PanelSummary(props: {
     stage: SidedStageTrace;
     onOpenDrilldown?: () => void;
+    onResetPass?: () => void;
 }) {
-    const { stage } = props;
+    const { stage, onResetPass } = props;
     const { t } = useTranslation();
     const panel = stage.panel!;
     // Panel dates are formatted with the user's timezone preference
@@ -463,8 +610,27 @@ function PanelSummary(props: {
         ? panel.panelUtc
         : panelDateFormat.format(panelDate);
 
+    const passRank = computePassRank(stage);
+    const historicalPill =
+        passRank && onResetPass ? (
+            <Badge
+                size="sm"
+                variant="outline"
+                style={{ cursor: "pointer" }}
+                onClick={onResetPass}
+                data-testid={`traceability-board-pass-pill-${stage.sourceId}`}
+            >
+                {t("traceability.board.passes.viewing", {
+                    current: passRank.current,
+                    total: passRank.total,
+                    when: panelDateText,
+                })}
+            </Badge>
+        ) : null;
+
     return (
         <Stack gap="xs">
+            {historicalPill}
             <MetaRow
                 label={t("traceability.board.panelDateLabel")}
                 value={panelDateText}
@@ -899,12 +1065,15 @@ type SidedStageTrace = {
     capabilities: number;
     pinsAvailable: boolean;
     error: string | null;
+    selectionWarning: string | null;
     /** Which physical side we projected (null when the stage has no sides). */
     faceNumber: number | null;
     /** The selected side's panel, or null when the stage saw no matches. */
     panel: TraceabilityPanel | null;
     /** The selected side's sub-panels, empty when there's no panel. */
     cards: readonly CardRow[];
+    priorPasses: readonly PanelPassSummary[];
+    pinnedPanelId: number | null;
 };
 
 /**
@@ -931,10 +1100,50 @@ function pickSideForStage(
         capabilities: stage.capabilities,
         pinsAvailable: stage.pinsAvailable,
         error: stage.error,
+        selectionWarning: stage.selectionWarning ?? null,
         faceNumber: picked?.faceNumber ?? null,
         panel: picked?.panel ?? null,
         cards: picked?.cards ?? [],
+        priorPasses: picked?.priorPasses ?? [],
+        pinnedPanelId: picked?.pinnedPanelId ?? null,
     };
+}
+
+/**
+ * Rank of the visible pass inside the 10-row window (latest = 1).
+ * Returns null when viewing the default latest pass.
+ */
+function computePassRank(
+    stage: SidedStageTrace,
+): { current: number; total: number } | null {
+    if (stage.panel == null) return null;
+    if (stage.pinnedPanelId == null && stage.priorPasses.length === 0) {
+        return null;
+    }
+    const all = [
+        {
+            panelId: stage.panel.panel.panelId,
+            panelUtc: stage.panel.panelUtc,
+        },
+        ...stage.priorPasses.map((p) => ({
+            panelId: p.panelId,
+            panelUtc: p.panelUtc,
+        })),
+    ].sort((a, b) => {
+        const ta = Date.parse(a.panelUtc);
+        const tb = Date.parse(b.panelUtc);
+        if (tb !== ta) return tb - ta;
+        return b.panelId - a.panelId;
+    });
+    const idx = all.findIndex((p) => p.panelId === stage.panel!.panel.panelId);
+    if (idx < 0) return null;
+    // Only show the pill when not viewing the latest (rank 1).
+    if (idx === 0 && stage.pinnedPanelId == null) return null;
+    if (idx === 0 && stage.pinnedPanelId != null) {
+        // Pinned to what is currently latest — treat as not historical.
+        return null;
+    }
+    return { current: idx + 1, total: all.length };
 }
 
 /**

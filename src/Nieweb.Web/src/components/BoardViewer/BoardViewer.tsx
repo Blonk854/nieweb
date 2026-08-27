@@ -71,7 +71,10 @@ import {
  *       via a switch in the card header, preference persisted in
  *       <code>localStorage</code>). When on, the primary highlight
  *       gets a red dashed crosshair across the whole panel viewBox
- *       so tiny 0402 parts remain findable at low zoom.</li>
+ *       so tiny 0402 parts remain findable at low zoom. Dash
+ *       lengths are sized from the viewBox (SVG user units /
+ *       microns) — a fixed CSS dash like <code>6 4</code> would be
+ *       invisible on a ~200&nbsp;mm board.</li>
  * </ol>
  *
  * <h3>Mouse controls</h3>
@@ -160,7 +163,11 @@ export type BoardViewerProps = {
 
 const OVERLAY_ATTR = "data-nieweb-highlights";
 const OVERLAY_RED = "#ff3b30";
-const CROSSHAIR_COLOR = "#ffffff";
+/** Crosshair stroke — red matches the highlight palette and stays
+ *  readable on the dark-green Sigmalink panel background. */
+const CROSSHAIR_COLOR = OVERLAY_RED;
+/** Screen-pixel stroke width (paired with non-scaling-stroke). */
+const CROSSHAIR_STROKE_PX = 2;
 const FM_YELLOW = "#FFEA00";
 /** Superviseur constant <code>Object_Type_Id = 0x02000000</code>. */
 const OBJECT_TYPE_FOREIGN_MATERIAL = 33554432;
@@ -576,8 +583,7 @@ function PanZoomStage(props: PanZoomStageProps) {
                 }
                 [${OVERLAY_ATTR}='true'] .nieweb-crosshair line {
                     stroke: ${CROSSHAIR_COLOR};
-                    stroke-opacity: 0.8;
-                    stroke-dasharray: 400 300;
+                    stroke-opacity: 0.95;
                 }
                 @keyframes nieweb-pulse {
                     0%, 100% { stroke-opacity: 0.75; stroke-width: 4; }
@@ -782,26 +788,57 @@ function renderOverlay(inputs: OverlayInputs): void {
             viewBox &&
             (viewBox.width > 0 || viewBox.height > 0)
         ) {
+            // Dash lengths are SVG user units (microns). With
+            // vector-effect:non-scaling-stroke, stroke-*width* is
+            // device pixels but dasharray stays in user space — so
+            // a CSS value like "400 300" renders as ~1 px speckles
+            // on a full-panel view and looks like "no crosshair".
+            // Size dashes from the viewBox so they read at low zoom.
+            const boardSpan = Math.max(viewBox.width, viewBox.height);
+            const dashOn = Math.max(2_000, Math.round(boardSpan * 0.02));
+            const dashOff = Math.max(1_500, Math.round(dashOn * 0.7));
+            const dasharray = `${dashOn} ${dashOff}`;
+
             const crosshairLayer = doc.createElementNS(NS, "g");
             crosshairLayer.setAttribute("class", "nieweb-crosshair");
             crosshairLayer.setAttribute("pointer-events", "none");
 
+            const paintLine = (
+                line: SVGLineElement,
+                x1: number,
+                y1: number,
+                x2: number,
+                y2: number,
+            ) => {
+                line.setAttribute("x1", String(x1));
+                line.setAttribute("y1", String(y1));
+                line.setAttribute("x2", String(x2));
+                line.setAttribute("y2", String(y2));
+                line.setAttribute("vector-effect", "non-scaling-stroke");
+                line.setAttribute("stroke", CROSSHAIR_COLOR);
+                line.setAttribute("stroke-opacity", "0.95");
+                line.setAttribute("stroke-width", String(CROSSHAIR_STROKE_PX));
+                line.setAttribute("stroke-dasharray", dasharray);
+            };
+
             const hLine = doc.createElementNS(NS, "line");
-            hLine.setAttribute("x1", String(viewBox.x));
-            hLine.setAttribute("y1", String(primaryCoord.y));
-            hLine.setAttribute("x2", String(viewBox.x + viewBox.width));
-            hLine.setAttribute("y2", String(primaryCoord.y));
-            hLine.setAttribute("vector-effect", "non-scaling-stroke");
-            hLine.setAttribute("stroke-width", "1");
+            paintLine(
+                hLine,
+                viewBox.x,
+                primaryCoord.y,
+                viewBox.x + viewBox.width,
+                primaryCoord.y,
+            );
             crosshairLayer.appendChild(hLine);
 
             const vLine = doc.createElementNS(NS, "line");
-            vLine.setAttribute("x1", String(primaryCoord.x));
-            vLine.setAttribute("y1", String(viewBox.y));
-            vLine.setAttribute("x2", String(primaryCoord.x));
-            vLine.setAttribute("y2", String(viewBox.y + viewBox.height));
-            vLine.setAttribute("vector-effect", "non-scaling-stroke");
-            vLine.setAttribute("stroke-width", "1");
+            paintLine(
+                vLine,
+                primaryCoord.x,
+                viewBox.y,
+                primaryCoord.x,
+                viewBox.y + viewBox.height,
+            );
             crosshairLayer.appendChild(vLine);
 
             overlay.appendChild(crosshairLayer);

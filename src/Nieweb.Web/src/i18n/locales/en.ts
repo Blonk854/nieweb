@@ -1101,6 +1101,14 @@ export const en: TranslationBundle = {
             sideLabel: "Side",
             side1st: "1st",
             side2nd: "2nd",
+            passes: {
+                more_one: "1 more pass",
+                more_other: "{{count}} more passes",
+                more: "{{count}} more passes",
+                latest: "Latest pass",
+                viewing: "Viewing pass {{current}} of {{total}} · {{when}}",
+                selectionWarningTitle: "Requested pass unavailable",
+            },
             panelStatus: {
                 koOperator: "Failed (op)",
                 ko: "Failed",

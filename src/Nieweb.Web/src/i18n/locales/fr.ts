@@ -1102,6 +1102,14 @@ export const fr: TranslationBundle = {
             sideLabel: "Face",
             side1st: "1re",
             side2nd: "2e",
+            passes: {
+                more_one: "1 autre passage",
+                more_other: "{{count}} autres passages",
+                more: "{{count}} autres passages",
+                latest: "Dernier passage",
+                viewing: "Passage {{current}} sur {{total}} · {{when}}",
+                selectionWarningTitle: "Passage demandé indisponible",
+            },
             panelStatus: {
                 koOperator: "Échec (op)",
                 ko: "Échec",

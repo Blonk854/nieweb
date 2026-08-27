@@ -71,6 +71,37 @@ test.describe("Traceability Board happy-path smoke", () => {
         ).toBeVisible();
     });
 
+    test("REPEAT-001 prior pass menu pins an older inspection", async ({
+        page,
+    }) => {
+        await signInViaSpa(page);
+
+        await page.goto("/app/traceability/board?barcode=REPEAT-001");
+        await expect(
+            page.getByRole("heading", { name: /Board trace|Panel trace/i }),
+        ).toBeVisible();
+
+        const stage = page.getByTestId(
+            `traceability-board-stage-${FIXTURE_SOURCE_ID}`,
+        );
+        await expect(stage).toBeVisible();
+
+        await page
+            .getByTestId(`traceability-board-passes-${FIXTURE_SOURCE_ID}`)
+            .click();
+        // Oldest pass is panel id 200 (first of the three REPEAT-001 rows).
+        await page
+            .getByTestId(`traceability-board-pass-${FIXTURE_SOURCE_ID}-200`)
+            .click();
+
+        await expect(page).toHaveURL(/passes/);
+        await expect(
+            page.getByTestId(
+                `traceability-board-pass-pill-${FIXTURE_SOURCE_ID}`,
+            ),
+        ).toBeVisible();
+    });
+
     test("unknown barcode surfaces the not-found alert", async ({ page }) => {
         await signInViaSpa(page);
 

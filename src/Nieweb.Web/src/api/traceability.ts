@@ -180,6 +180,21 @@ export type TraceabilityTestedObject = {
 };
 
 /**
+ * Mirrors `Nieweb.Reports.Traceability.PanelPassSummary`. Lightweight
+ * prior-pass metadata (no cards) for the StageCard pass menu.
+ */
+export type PanelPassSummary = {
+    panelId: number;
+    faceNumber: number;
+    panelUtc: string;
+    panelStatus: number;
+    anomalyBr: number;
+    anomalyAr: number;
+    nbOfErrorObject: number;
+    hasBeenReviewed: boolean;
+};
+
+/**
  * Mirrors `Nieweb.Reports.Traceability.BoardStageSide`. One entry
  * per inspected side of the physical PCB on a single AOI source.
  */
@@ -187,6 +202,10 @@ export type BoardStageSide = {
     faceNumber: number;
     panel: TraceabilityPanel;
     cards: CardRow[];
+    /** Other inspections of this face (latest-first), excluding the selected pass. */
+    priorPasses?: PanelPassSummary[];
+    /** Set only when an explicit pass override is active for this face. */
+    pinnedPanelId?: number | null;
 };
 
 /** Mirrors `Nieweb.Reports.Traceability.BoardStageTrace`. */
@@ -202,6 +221,8 @@ export type BoardStageTrace = {
     sides: BoardStageSide[];
     pinsAvailable: boolean;
     error: string | null;
+    /** Soft message when a pin fell back to latest. Distinct from `error`. */
+    selectionWarning?: string | null;
 };
 
 /** Mirrors `Nieweb.Reports.Traceability.BoardTrace`. */
@@ -236,13 +257,25 @@ export type FailedObjectsResponse = {
 
 /**
  * TC2 board lookup by barcode. Fans across every configured source
- * and returns a stable, per-source stage list. Throws `ApiError` on
- * 400 (missing/oversized barcode) and 404 (barcode seen on no stage
- * and no error) — matches server contract in
+ * and returns a stable, per-source stage list. Optional `passes`
+ * map (sourceId → panelId) is serialised as repeated
+ * `panelId=<src>:<id>` query params. Throws `ApiError` on
+ * 400 (missing/oversized barcode / malformed panelId) and 404
+ * (barcode seen on no stage and no error) — matches server contract in
  * TraceabilityEndpoints.GetBoardByBarcodeAsync.
  */
-export function fetchBoardByBarcode(barcode: string): Promise<BoardTrace> {
+export function fetchBoardByBarcode(
+    barcode: string,
+    passes?: Record<string, number>,
+): Promise<BoardTrace> {
     const q = new URLSearchParams({ barcode });
+    if (passes) {
+        for (const [sourceId, panelId] of Object.entries(passes)) {
+            if (typeof panelId === "number" && panelId > 0) {
+                q.append("panelId", `${sourceId}:${panelId}`);
+            }
+        }
+    }
     return apiFetch<BoardTrace>(`/api/traceability/boards/by-barcode?${q.toString()}`);
 }
 

@@ -26,7 +26,7 @@ data: the AOI and SPI machines write their inspection results to the
 Superviseur DB regardless of what created the program, and Nieweb
 reads only from there.
 
-Two Phase 3 focus areas, both driven by daily user need:
+Phase 3 priority order is now intentionally narrowed and sequenced:
 
 1. **Board Trace.** Any operator or engineer should be able to scan
    a serial number (barcode) and get a clear, complete picture of
@@ -39,11 +39,18 @@ Two Phase 3 focus areas, both driven by daily user need:
    ships an opt-in **kiosk mode** so anyone with a barcode scanner
    and access to a shop-floor workstation can pull up a panel's
    history without needing a Nieweb login.
-2. **Actionable data analysis.** The Analyse dashboards (Live, Line
+2. **Analyse dashboards.** The Analyse dashboards (Live, Line
    Performance, Product, Panel, Cp / Cpk) don't just display KPIs —
    they make it easy to pinpoint _where_ the process is losing yield
    (which line, which shift, which product, which pad, which
    component package) so engineers can go fix the actual cause.
+3. **Review (offline + OIS export only).** We will implement the
+   offline review workflow and, if needed, the OIS export path; the
+   broader inline / remote / repair review surface is deferred past this
+   phase because it is not required for the project's current scope.
+
+SPI-specific follow-up remains explicitly deferred; it is not part of
+this Phase 3 scope.
 
 Non-goals (deferred to Phase 4 or later): the SigmaLink dual-lane
 review conveyor UI (needs a Zebra printer + IO board pair we don't
@@ -65,22 +72,29 @@ own admin UI shipped in Phase 2, and Data Import stays with Sigmalink
 | Sigmalink module | Nieweb equivalent (Phase 3) | Skill reference | Why |
 |---|---|---|---|
 | **Data Import (iCAD)** | ❌ **Out of scope, never consumed.** Sigmalink remains the CAD authoring tool independently of Nieweb. Nieweb reads inspection results from the Superviseur DB, not from CAD-authored files. | — | Nieweb is a data-analysis tool, not a Sigmalink replacement. |
-| **Review** | Configurable review UI under `/app/review/*`. Inline + offline + remote + repair modes. XML-configured layout, defect status constants, comments, custom messages, OIS export, printer / conveyor hooks. Dual-lane is deferred (§8). | `sigmalink-review` | Line operators still use Sigmalink Review daily; retiring Vieweb didn't cover the review workflow. |
-| **Analyse** (Live / Line Performance / Product / Panel / Cp-Cpk) | Five new dashboards under `/app/analyse/*` using the same tile-based `<ReportCanvas>` composition shipped in Phase 2 §7.6. Feed from **DBQuery-Pi** and **DBQuery-K** back-ends. | `sigmalink-analyse` | Ends the parallel Analyse WAR install (port 8082) and unifies KPI computation with the Nieweb reports layer so numbers can't drift. |
+| **Review** | Offline review workflow under `/app/review/*`, plus OIS export where needed. We do not implement the full inline / remote / repair review surface in this phase. XML-configured layout, defect status constants, and custom messages stay in the backlog unless a concrete owner needs them. | `sigmalink-review` | The project only needs the offline review path and any required OIS export for the immediate workflow. |
+| **Analyse** (Live / Line Performance / Product / Panel / Cp-Cpk) | Five new dashboards under `/app/analyse/*` using the same tile-based `<ReportCanvas>` composition shipped in Phase 2 §7.6. Feed from **DBQuery-Pi** and **DBQuery-K** back-ends. | `sigmalink-analyse` | This becomes the second Phase 3 priority and removes the parallel Analyse WAR install (port 8082) while keeping KPI numbers aligned. |
 | **SigmaLine feedforward** | Real-time SPI → AOI hint pipeline. Feeds AOI recipes with the SPI verdict (offset X / Y / Z, volume) so the AOI can escalate suspect boards. | `sigmalink-legacy` (feedforward) + `sigmalink-analyse` (panel-side mapping) | On-line quality gain; the SPI operators already ask for this. |
 | **PI-Capacity guard** | Enforced before any DBQuery-Pi request so inspection cycle time can't be degraded. Reads `pi-conf.xml` per Pi model. | `sigmalink-legacy` | Mandatory before Analyse ships — same warning that governs every read against the production DB. |
 | Configure | ✅ Already covered by Nieweb `/app/admin/*` (Users, Roles, Production lines, Shifts, MSA parameters, Databases, Board SVGs). | — | Nothing new required. |
 | Monitor | ✅ Already covered by Nieweb `/health/*`, `/api/admin/audit`, and OpenTelemetry. | — | Nothing new required. |
 
-### 2.2 Vieweb items deferred from Phase 2
+### 2.2 Optional future additions (cut from the project scope)
 
-| Phase 2 reference | Nieweb Phase 3 delivery | Why deferred |
+The following are useful but are explicitly not required for this project and are therefore cut from the Phase 3 plan:
+
+| Phase 2 reference | Status | Why cut |
 |---|---|---|
-| §9 · MSA report | `Nieweb.Reports.Msa` + `templatemsa` entity + MSA-threshold admin page. Cp / Cpk / EV / %EV / GR&R on `Reference Designator` and `Package`. | Needed a dedicated empty-panel Superviseur DB that is now being commissioned (see §9 Q3). |
+| §7.7 · Automatic treatments | **Cut** — not in project scope. | Not required for the current line-operations deployment; no business need at this time. |
+| §9 · Test Empty Master entity | **Cut** — not in project scope. | Requires MSA DB infrastructure that is not part of the current plan. |
+| §9 · Additional locales | **Cut** — not in project scope. | Not required for operational delivery; the project remains EN + FR only. |
+
+The remaining deferred Vieweb items are the MSA report and Process Capability dashboard; both remain optional future work once the dedicated empty-panel Superviseur DB is available. |
+
+| Phase 2 reference | Nieweb future delivery | Why deferred |
+|---|---|---|
+| §9 · MSA report | `Nieweb.Reports.Msa` + `templatemsa` entity + MSA-threshold admin page. Cp / Cpk / EV / %EV / GR&R on `Reference Designator` and `Package`. | Needed a dedicated empty-panel Superviseur DB that is not yet commissioned on site. |
 | §7.7 · Process Capability dashboard | `Nieweb.Reports.ProcessCapability` — per-production-line grid of DPMO, FPY_Diag, Machine efficiency, Avg cycle duration, Nb inspections, plus Cp / Cpk compo & paste rows sourced from the MSA DB above. | Depended on MSA data; parked with it. |
-| §7.7 · Automatic treatments | `Nieweb.Scheduling` + `Nieweb.Mail` + `AutomaticTreatment` entity + admin UI. Daily / weekly / monthly scheduled runs, XLSX by email and/or file drop, per-treatment + global kill switches (parity with Vieweb `batchIsOn`), regression tests for Vieweb bugs #9699 and #12421. | Blocked on SMTP host & credentials from IT (phase-2 §10.2 Q1). Confirmed available for Phase 3 (§9 Q1). |
-| §9 · Test Empty Master entity | `TestEmptyMasterEntity` on the MSA DB, wired into the report editor and PDF export. | Same MSA-DB dependency. |
-| §9 · Additional locales | DE, ES, ZH bundles under `src/Nieweb.Web/src/i18n/locales/`, matching the Sigmalink 1.6.5 locale set. Server-side messages (`messages_de.properties` etc.) shipped alongside. | Deferred out of Phase 2 to keep the parity effort focused on EN + FR. |
 
 ### 2.3 Cross-cutting features
 

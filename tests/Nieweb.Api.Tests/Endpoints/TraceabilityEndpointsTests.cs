@@ -333,6 +333,10 @@ public sealed class TraceabilityEndpointsTests : IClassFixture<NiewebApiFactory>
         public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct) => _inner.ListRecipesAsync(ct);
         public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct) => _inner.GetPanelByIdAsync(panelId, ct);
         public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct) => _inner.GetPanelByBarcodeAsync(barcode, ct);
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, CancellationToken ct)
+            => _inner.ListPanelsByBarcodeAsync(barcode, ct);
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, int limit, CancellationToken ct)
+            => _inner.ListPanelsByBarcodeAsync(barcode, limit, ct);
         public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct) => _inner.ListCardsForPanelAsync(panelId, ct);
         public Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(
             long panelId, int cardIdOnPanel, CancellationToken ct)
@@ -522,5 +526,131 @@ public sealed class TraceabilityEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.NotNull(body);
         Assert.Equal(PanelId, body!.Panel.Panel.PanelId);
         Assert.Empty(body.Objects);
+    }
+
+    // ==================================================================
+    // Prior AOI passes (multi-pass board trace).
+    // ==================================================================
+
+    private static FakeAoiSource NewMultiPassPost()
+    {
+        // Three passes of REPEAT-500 on face 1 (oldest → newest).
+        var panels = new List<PanelRow>();
+        var cards = new List<CardRow>();
+        for (var i = 0; i < 3; i++)
+        {
+            var id = 600 + i;
+            panels.Add(SeededPanel with
+            {
+                PanelId = id,
+                PanelBarCode = "REPEAT-500",
+                PanelNumericDate = PanelEpoch + (i * 900),
+                FaceNumber = 1,
+                AnomalyBr = i < 2 ? 1 : 0,
+                NbOfErrorObject = i < 2 ? 1 : 0,
+            });
+            cards.Add(SeededCard with { PanelId = id, PanelNumericDate = PanelEpoch + (i * 900) });
+        }
+
+        return new FakeAoiSource(
+            new SourceDescriptor("postreflow", "Post-reflow AOI", "5.0", Capabilities.PinLevel))
+        {
+            SeededPanels = panels,
+            SeededCards = cards,
+        };
+    }
+
+    [Fact]
+    public async Task BoardByBarcode_MultiPass_ReturnsLatestSelectedAndPriors()
+    {
+        await using var factory = WithTwoFakes(NewMultiPassPost(), NewPreReflowFake("REPEAT-500"));
+        using var client = await AuthedClientAsync(factory, "tc2-multipass@nieweb.test");
+        using var response = await client.GetAsync(
+            new Uri("/api/traceability/boards/by-barcode?barcode=REPEAT-500", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<BoardTrace>(_responseJson);
+        Assert.NotNull(body);
+        var post = body!.Stages.Single(s => s.SourceId == "postreflow");
+        Assert.Single(post.Sides);
+        Assert.Equal(602, post.Sides[0].Panel.Panel.PanelId);
+        Assert.Null(post.Sides[0].PinnedPanelId);
+        Assert.Equal(2, post.Sides[0].PriorPasses.Count);
+        Assert.Equal(601, post.Sides[0].PriorPasses[0].PanelId);
+        Assert.Equal(600, post.Sides[0].PriorPasses[1].PanelId);
+
+        var pre = body.Stages.Single(s => s.SourceId == "prereflow");
+        Assert.NotEmpty(pre.Sides);
+        Assert.Empty(pre.Sides[0].PriorPasses);
+    }
+
+    [Fact]
+    public async Task BoardByBarcode_PinnedPass_SelectsPriorAndExcludesFromList()
+    {
+        await using var factory = WithTwoFakes(NewMultiPassPost(), NewPreReflowFake("REPEAT-500"));
+        using var client = await AuthedClientAsync(factory, "tc2-pin@nieweb.test");
+        using var response = await client.GetAsync(
+            new Uri("/api/traceability/boards/by-barcode?barcode=REPEAT-500&panelId=postreflow:600", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<BoardTrace>(_responseJson);
+        Assert.NotNull(body);
+        var post = body!.Stages.Single(s => s.SourceId == "postreflow");
+        Assert.Equal(600, post.Sides[0].Panel.Panel.PanelId);
+        Assert.Equal(600, post.Sides[0].PinnedPanelId);
+        Assert.DoesNotContain(post.Sides[0].PriorPasses, p => p.PanelId == 600);
+        Assert.Contains(post.Sides[0].PriorPasses, p => p.PanelId == 602);
+        Assert.Null(post.Error);
+        Assert.Null(post.SelectionWarning);
+    }
+
+    [Fact]
+    public async Task BoardByBarcode_MalformedPanelId_Returns400()
+    {
+        await using var factory = WithTwoFakes(NewMultiPassPost(), NewPreReflowFake());
+        using var client = await AuthedClientAsync(factory, "tc2-badpin@nieweb.test");
+        using var response = await client.GetAsync(
+            new Uri("/api/traceability/boards/by-barcode?barcode=REPEAT-500&panelId=foo", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BoardByBarcode_UnknownSourcePin_IsIgnored()
+    {
+        await using var factory = WithTwoFakes(NewMultiPassPost(), NewPreReflowFake("REPEAT-500"));
+        using var client = await AuthedClientAsync(factory, "tc2-unknownsrc@nieweb.test");
+        using var response = await client.GetAsync(
+            new Uri("/api/traceability/boards/by-barcode?barcode=REPEAT-500&panelId=unknown-source:999", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<BoardTrace>(_responseJson);
+        Assert.NotNull(body);
+        var post = body!.Stages.Single(s => s.SourceId == "postreflow");
+        Assert.Equal(602, post.Sides[0].Panel.Panel.PanelId);
+        Assert.Null(post.Sides[0].PinnedPanelId);
+        Assert.Null(post.SelectionWarning);
+    }
+
+    [Fact]
+    public async Task BoardByBarcode_OutOfWindowPin_FallsBackWithSelectionWarning()
+    {
+        await using var factory = WithTwoFakes(NewMultiPassPost(), NewPreReflowFake("REPEAT-500"));
+        using var client = await AuthedClientAsync(factory, "tc2-stale@nieweb.test");
+        using var response = await client.GetAsync(
+            new Uri("/api/traceability/boards/by-barcode?barcode=REPEAT-500&panelId=postreflow:99999", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<BoardTrace>(_responseJson);
+        Assert.NotNull(body);
+        var post = body!.Stages.Single(s => s.SourceId == "postreflow");
+        Assert.Equal(602, post.Sides[0].Panel.Panel.PanelId);
+        Assert.Null(post.Sides[0].PinnedPanelId);
+        Assert.Null(post.Error);
+        Assert.NotNull(post.SelectionWarning);
+
+        var pre = body.Stages.Single(s => s.SourceId == "prereflow");
+        Assert.NotEmpty(pre.Sides);
+        Assert.Null(pre.Error);
+        Assert.Null(pre.SelectionWarning);
     }
 }

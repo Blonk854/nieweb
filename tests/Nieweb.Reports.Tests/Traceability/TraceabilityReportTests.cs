@@ -549,6 +549,168 @@ public sealed class TraceabilityReportTests
         Assert.Null(side.Panel.OperatorName);
     }
 
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_multi_pass_selects_latest_and_lists_priors()
+    {
+        var panels = new List<PanelRow>();
+        var cards = new List<CardRow>();
+        for (var i = 0; i < 3; i++)
+        {
+            var id = 700 + i;
+            panels.Add(Panel with
+            {
+                PanelId = id,
+                PanelBarCode = "SN-REPEAT",
+                PanelNumericDate = PanelEpoch + (i * 100),
+                FaceNumber = 1,
+            });
+            cards.Add(Card with { PanelId = id });
+        }
+
+        var source = new FakeAoiSource(new SourceDescriptor("postreflow", "Post", "5.0", Capabilities.None))
+        {
+            SeededPanels = panels,
+            SeededCards = cards,
+        };
+
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [source], "SN-REPEAT", CancellationToken.None);
+
+        var stage = Assert.Single(trace!.Stages);
+        var side = Assert.Single(stage.Sides);
+        Assert.Equal(702, side.Panel.Panel.PanelId);
+        Assert.Null(side.PinnedPanelId);
+        Assert.Equal(2, side.PriorPasses.Count);
+        Assert.Equal(701, side.PriorPasses[0].PanelId);
+        Assert.Equal(700, side.PriorPasses[1].PanelId);
+    }
+
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_two_faces_partition_priors_independently()
+    {
+        var panels = new List<PanelRow>
+        {
+            Panel with { PanelId = 1, PanelBarCode = "SN-2SIDE", PanelNumericDate = PanelEpoch, FaceNumber = 1 },
+            Panel with { PanelId = 2, PanelBarCode = "SN-2SIDE", PanelNumericDate = PanelEpoch + 10, FaceNumber = 1 },
+            Panel with { PanelId = 3, PanelBarCode = "SN-2SIDE", PanelNumericDate = PanelEpoch, FaceNumber = 2 },
+            Panel with { PanelId = 4, PanelBarCode = "SN-2SIDE", PanelNumericDate = PanelEpoch + 10, FaceNumber = 2 },
+        };
+        var cards = panels.Select(p => Card with { PanelId = p.PanelId }).ToList();
+        var source = new FakeAoiSource(new SourceDescriptor("postreflow", "Post", "5.0", Capabilities.None))
+        {
+            SeededPanels = panels,
+            SeededCards = cards,
+        };
+
+        var pins = new Dictionary<string, int> { ["postreflow"] = 1 };
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [source], "SN-2SIDE", pins, CancellationToken.None);
+
+        var stage = Assert.Single(trace!.Stages);
+        Assert.Equal(2, stage.Sides.Count);
+
+        var face1 = stage.Sides.Single(s => s.FaceNumber == 1);
+        Assert.Equal(1, face1.Panel.Panel.PanelId);
+        Assert.Equal(1, face1.PinnedPanelId);
+        Assert.Single(face1.PriorPasses);
+        Assert.Equal(2, face1.PriorPasses[0].PanelId);
+
+        var face2 = stage.Sides.Single(s => s.FaceNumber == 2);
+        Assert.Equal(4, face2.Panel.Panel.PanelId);
+        Assert.Null(face2.PinnedPanelId);
+        Assert.Single(face2.PriorPasses);
+        Assert.Equal(3, face2.PriorPasses[0].PanelId);
+    }
+
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_caps_at_ten_passes_and_loads_cards_once_per_face()
+    {
+        var panels = new List<PanelRow>();
+        var cards = new List<CardRow>();
+        for (var i = 0; i < 12; i++)
+        {
+            var id = 800 + i;
+            panels.Add(Panel with
+            {
+                PanelId = id,
+                PanelBarCode = "SN-MANY",
+                PanelNumericDate = PanelEpoch + i,
+                FaceNumber = 1,
+            });
+            cards.Add(Card with { PanelId = id });
+        }
+
+        var inner = new FakeAoiSource(new SourceDescriptor("postreflow", "Post", "5.0", Capabilities.None))
+        {
+            SeededPanels = panels,
+            SeededCards = cards,
+        };
+        var counting = new CardCountingSource(inner);
+
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [counting], "SN-MANY", CancellationToken.None);
+
+        var stage = Assert.Single(trace!.Stages);
+        var side = Assert.Single(stage.Sides);
+        Assert.Equal(811, side.Panel.Panel.PanelId); // latest of 12
+        Assert.Equal(9, side.PriorPasses.Count); // 10 total − selected
+        Assert.Equal(1, counting.CardLoadCount);
+    }
+
+    [Fact]
+    public async Task GetBoardByBarcodeAsync_stale_pin_falls_back_with_selection_warning()
+    {
+        var post = NewNamedSource("postreflow", "SN-STALE", 100);
+        var pre = NewNamedSource("prereflow", "SN-STALE", 200);
+        var pins = new Dictionary<string, int> { ["postreflow"] = 99999 };
+
+        var trace = await TraceabilityReport.GetBoardByBarcodeAsync(
+            [post, pre], "SN-STALE", pins, CancellationToken.None);
+
+        Assert.NotNull(trace);
+        var postStage = trace!.Stages.Single(s => s.SourceId == "postreflow");
+        Assert.Equal(100, postStage.Sides[0].Panel.Panel.PanelId);
+        Assert.Null(postStage.Error);
+        Assert.NotNull(postStage.SelectionWarning);
+
+        var preStage = trace.Stages.Single(s => s.SourceId == "prereflow");
+        Assert.Equal(200, preStage.Sides[0].Panel.Panel.PanelId);
+        Assert.Null(preStage.Error);
+        Assert.Null(preStage.SelectionWarning);
+    }
+
+    private sealed class CardCountingSource : IAoiSource
+    {
+        private readonly IAoiSource _inner;
+        public int CardLoadCount { get; private set; }
+
+        public CardCountingSource(IAoiSource inner) => _inner = inner;
+
+        public SourceDescriptor Descriptor => _inner.Descriptor;
+        public Task<DateTime?> GetLatestPanelUtcAsync(CancellationToken ct) => _inner.GetLatestPanelUtcAsync(ct);
+        public Task<Page<PanelRow, PanelCursor>> QueryPanelsAsync(PanelQuery query, CancellationToken ct) => _inner.QueryPanelsAsync(query, ct);
+        public Task<Page<CardRow, CardCursor>> QueryCardsAsync(CardQuery query, CancellationToken ct) => _inner.QueryCardsAsync(query, ct);
+        public Task<Page<TestedObjectRow, TestedObjectCursor>> QueryTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct) => _inner.QueryTestedObjectsAsync(query, ct);
+        public IAsyncEnumerable<PanelRow> StreamPanelsAsync(PanelQuery query, CancellationToken ct) => _inner.StreamPanelsAsync(query, ct);
+        public IAsyncEnumerable<CardRow> StreamCardsAsync(CardQuery query, CancellationToken ct) => _inner.StreamCardsAsync(query, ct);
+        public IAsyncEnumerable<TestedObjectRow> StreamTestedObjectsAsync(TestedObjectQuery query, CancellationToken ct) => _inner.StreamTestedObjectsAsync(query, ct);
+        public Task<IReadOnlyList<Machine>> ListMachinesAsync(CancellationToken ct) => _inner.ListMachinesAsync(ct);
+        public Task<IReadOnlyList<ReviewOperator>> ListOperatorsAsync(CancellationToken ct) => _inner.ListOperatorsAsync(ct);
+        public Task<IReadOnlyList<Product>> ListProductsAsync(CancellationToken ct) => _inner.ListProductsAsync(ct);
+        public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct) => _inner.ListRecipesAsync(ct);
+        public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct) => _inner.GetPanelByIdAsync(panelId, ct);
+        public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct) => _inner.GetPanelByBarcodeAsync(barcode, ct);
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, CancellationToken ct) => _inner.ListPanelsByBarcodeAsync(barcode, ct);
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, int limit, CancellationToken ct) => _inner.ListPanelsByBarcodeAsync(barcode, limit, ct);
+        public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
+        {
+            CardLoadCount++;
+            return _inner.ListCardsForPanelAsync(panelId, ct);
+        }
+        public Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(long panelId, int cardIdOnPanel, CancellationToken ct)
+            => _inner.ListTestedObjectsForSubpanelAsync(panelId, cardIdOnPanel, ct);
+    }
+
     /// <summary>
     /// Stub that throws from every lookup — used to prove
     /// per-stage error isolation in TC2.
@@ -578,6 +740,8 @@ public sealed class TraceabilityReportTests
         public Task<IReadOnlyList<Recipe>> ListRecipesAsync(CancellationToken ct) => throw _boom;
         public Task<PanelRow?> GetPanelByIdAsync(int panelId, CancellationToken ct) => throw _boom;
         public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct) => throw _boom;
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, CancellationToken ct) => throw _boom;
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, int limit, CancellationToken ct) => throw _boom;
         public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct) => throw _boom;
         public Task<IReadOnlyList<TestedObjectRow>> ListTestedObjectsForSubpanelAsync(
             long panelId, int cardIdOnPanel, CancellationToken ct) => throw _boom;
@@ -640,6 +804,12 @@ public sealed class TraceabilityReportTests
 
         public Task<PanelRow?> GetPanelByBarcodeAsync(string barcode, CancellationToken ct)
             => _inner.GetPanelByBarcodeAsync(barcode, ct);
+
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, CancellationToken ct)
+            => _inner.ListPanelsByBarcodeAsync(barcode, ct);
+
+        public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(string barcode, int limit, CancellationToken ct)
+            => _inner.ListPanelsByBarcodeAsync(barcode, limit, ct);
 
         public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)
             => _inner.ListCardsForPanelAsync(panelId, ct);

@@ -229,6 +229,13 @@ public static class TraceabilityReport
     }
 
     /// <summary>
+    /// Product cap on prior AOI passes returned per face. Matches the
+    /// "operators shouldn't re-run a panel more than 10 times" rule and
+    /// bounds the board-trace payload.
+    /// </summary>
+    public const int PriorPassLimit = 10;
+
+    /// <summary>
     /// TC2 — cross-DB board trace by barcode. Fans the lookup out
     /// across every configured <see cref="IAoiSource"/> and returns
     /// one <see cref="BoardStageTrace"/> per source so the SPA can
@@ -259,9 +266,23 @@ public static class TraceabilityReport
     /// endpoint layer maps that to 404.
     /// </para>
     /// </remarks>
+    public static Task<BoardTrace?> GetBoardByBarcodeAsync(
+        IEnumerable<IAoiSource> sources,
+        string barcode,
+        CancellationToken ct)
+        => GetBoardByBarcodeAsync(sources, barcode, selectedPanelIds: null, ct);
+
+    /// <summary>
+    /// TC2 — cross-DB board trace by barcode with optional per-source
+    /// pass overrides. <paramref name="selectedPanelIds"/> maps
+    /// source id → panel id (one pin per source, last-wins at the
+    /// endpoint). A pin that cannot be honoured falls back to the
+    /// latest pass and sets <see cref="BoardStageTrace.SelectionWarning"/>.
+    /// </summary>
     public static async Task<BoardTrace?> GetBoardByBarcodeAsync(
         IEnumerable<IAoiSource> sources,
         string barcode,
+        IReadOnlyDictionary<string, int>? selectedPanelIds,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(sources);
@@ -270,7 +291,14 @@ public static class TraceabilityReport
         var stages = new List<BoardStageTrace>();
         foreach (var source in sources)
         {
-            stages.Add(await ProbeStageAsync(source, barcode, ct).ConfigureAwait(false));
+            int? pinnedId = null;
+            if (selectedPanelIds is not null
+                && selectedPanelIds.TryGetValue(source.Descriptor.Id, out var id))
+            {
+                pinnedId = id;
+            }
+
+            stages.Add(await ProbeStageAsync(source, barcode, pinnedId, ct).ConfigureAwait(false));
         }
 
         if (stages.Count == 0)
@@ -283,6 +311,7 @@ public static class TraceabilityReport
     private static async Task<BoardStageTrace> ProbeStageAsync(
         IAoiSource source,
         string barcode,
+        int? pinnedPanelId,
         CancellationToken ct)
     {
         var descriptor = source.Descriptor;
@@ -291,7 +320,9 @@ public static class TraceabilityReport
         IReadOnlyList<PanelRow> panels;
         try
         {
-            panels = await source.ListPanelsByBarcodeAsync(barcode, ct).ConfigureAwait(false);
+            panels = await source
+                .ListPanelsByBarcodeAsync(barcode, PriorPassLimit, ct)
+                .ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -319,6 +350,31 @@ public static class TraceabilityReport
                 Sides: Array.Empty<BoardStageSide>(),
                 PinsAvailable: pinsAvailable,
                 Error: null);
+        }
+
+        // Group by face (newest-first within each face). The SQL /
+        // fake already returns Face_Number, rn order; re-group so a
+        // pin that lands on the wrong face is ignored for other faces.
+        var byFace = panels
+            .GroupBy(p => p.FaceNumber ?? 0)
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        string? selectionWarning = null;
+        var honourPin = false;
+        if (pinnedPanelId is int wanted)
+        {
+            var match = panels.FirstOrDefault(p => p.PanelId == wanted);
+            if (match is null
+                || !string.Equals(match.PanelBarCode, barcode, StringComparison.Ordinal))
+            {
+                selectionWarning =
+                    "This pass link is older than the retained 10-pass window and is no longer available. Showing the latest pass.";
+            }
+            else
+            {
+                honourPin = true;
+            }
         }
 
         // Sides typically share the same product / machine (both faces of
@@ -352,15 +408,34 @@ public static class TraceabilityReport
         catch (Exception) { operators = Array.Empty<ReviewOperator>(); }
 #pragma warning restore CA1031
 
-        var sides = new List<BoardStageSide>(panels.Count);
-        foreach (var panel in panels)
+        var sides = new List<BoardStageSide>(byFace.Count);
+        foreach (var faceGroup in byFace)
         {
-            var productName = LookupProductName(products, panel.ProductId);
-            var machineName = LookupMachineName(machines, panel.MachineId);
-            var operatorName = LookupOperatorName(operators, panel.OperatorId);
+            var faceRows = faceGroup
+                .OrderByDescending(p => p.PanelNumericDate)
+                .ThenByDescending(p => p.PanelId)
+                .ToList();
+
+            PanelRow selected;
+            int? pinnedForFace = null;
+            if (honourPin
+                && pinnedPanelId is int pin
+                && faceRows.Exists(p => p.PanelId == pin))
+            {
+                selected = faceRows.First(p => p.PanelId == pin);
+                pinnedForFace = pin;
+            }
+            else
+            {
+                selected = faceRows[0];
+            }
+
+            var productName = LookupProductName(products, selected.ProductId);
+            var machineName = LookupMachineName(machines, selected.MachineId);
+            var operatorName = LookupOperatorName(operators, selected.OperatorId);
             var productSvgKey = NormalizeProductSvgKey(productName);
             var materialised = Materialise(
-                panel,
+                selected,
                 productName,
                 machineName,
                 operatorName,
@@ -369,7 +444,7 @@ public static class TraceabilityReport
             IReadOnlyList<CardRow> cards;
             try
             {
-                cards = await source.ListCardsForPanelAsync(panel.PanelId, ct).ConfigureAwait(false);
+                cards = await source.ListCardsForPanelAsync(selected.PanelId, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -388,12 +463,32 @@ public static class TraceabilityReport
             }
 #pragma warning restore CA1031
 
-            // Face_Number is NOT NULL on both live DBs; the coalesce
-            // defends against test fakes that leave it null and
-            // guarantees the SPA's side toggle always has a numeric
-            // key to route on.
-            var faceNumber = panel.FaceNumber ?? 0;
-            sides.Add(new BoardStageSide(faceNumber, materialised, cards));
+            var prior = new List<PanelPassSummary>(faceRows.Count - 1);
+            foreach (var row in faceRows)
+            {
+                if (row.PanelId == selected.PanelId)
+                {
+                    continue;
+                }
+
+                var (_, utc) = Split(row);
+                prior.Add(new PanelPassSummary(
+                    PanelId: row.PanelId,
+                    FaceNumber: faceGroup.Key,
+                    PanelUtc: utc,
+                    PanelStatus: row.PanelStatus,
+                    AnomalyBr: row.AnomalyBr,
+                    AnomalyAr: row.AnomalyAr,
+                    NbOfErrorObject: row.NbOfErrorObject,
+                    HasBeenReviewed: row.HasBeenReviewed));
+            }
+
+            sides.Add(new BoardStageSide(
+                FaceNumber: faceGroup.Key,
+                Panel: materialised,
+                Cards: cards,
+                PriorPasses: prior,
+                PinnedPanelId: pinnedForFace));
         }
 
         return new BoardStageTrace(
@@ -402,7 +497,8 @@ public static class TraceabilityReport
             Capabilities: descriptor.Caps,
             Sides: sides,
             PinsAvailable: pinsAvailable,
-            Error: null);
+            Error: null,
+            SelectionWarning: selectionWarning);
     }
 
     private static TraceabilityPanel Materialise(

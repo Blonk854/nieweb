@@ -76,7 +76,7 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
         // 2026-01-15 08:00:00 UTC = 1768464000 seconds since epoch.
         // Panels are 15 min apart, so the last one lands at 10:15 UTC.
         const int baseEpoch = 1768464000;
-        var panels = new List<PanelRow>(capacity: 10);
+        var panels = new List<PanelRow>(capacity: 13);
         for (var i = 0; i < 10; i++)
         {
             var isDefective = i >= 5;
@@ -96,7 +96,35 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
                 NbOfErrorObject: isDefective ? 1 : 0,
                 OperatorId: null,
                 ProductId: 1,
-                RecipeId: 1));
+                RecipeId: 1,
+                FaceNumber: 1));
+        }
+
+        // REPEAT-001 — three re-inspections of the same barcode on
+        // face 1 (oldest → newest). Used by the board-trace prior-
+        // passes smoke (Playwright + component tests).
+        const string repeatBarcode = "REPEAT-001";
+        for (var i = 0; i < 3; i++)
+        {
+            var isDefective = i < 2; // oldest two defective; latest clean
+            panels.Add(new PanelRow(
+                PanelId: 200 + i,
+                MachineId: 1,
+                LaneNumber: 1,
+                PanelBarCode: repeatBarcode,
+                PanelNumericDate: baseEpoch + 20_000 + (i * 900),
+                NbOfValidCards: 1,
+                TestTime: 6.5,
+                PanelStatus: isDefective ? 2 : 0,
+                AnomalyBr: isDefective ? 1 : 0,
+                AnomalyAr: 0,
+                HasBeenReviewed: false,
+                NbOfTestedObject: 42,
+                NbOfErrorObject: isDefective ? 1 : 0,
+                OperatorId: null,
+                ProductId: 1,
+                RecipeId: 1,
+                FaceNumber: 1));
         }
         _panels = panels;
         _testedObjects = BuildTestedObjects(panels);
@@ -202,12 +230,37 @@ public sealed class FakeAoiSource : IAoiSource, IPinLevelSource
         foreach (var panel in _panels)
         {
             if (string.Equals(panel.PanelBarCode, barcode, StringComparison.Ordinal)
-                && (best is null || panel.PanelNumericDate > best.PanelNumericDate))
+                && (best is null || panel.PanelNumericDate > best.PanelNumericDate
+                    || (panel.PanelNumericDate == best.PanelNumericDate && panel.PanelId > best.PanelId)))
             {
                 best = panel;
             }
         }
         return Task.FromResult<PanelRow?>(best);
+    }
+
+    public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        CancellationToken ct)
+        => ListPanelsByBarcodeAsync(barcode, limit: 1, ct);
+
+    public Task<IReadOnlyList<PanelRow>> ListPanelsByBarcodeAsync(
+        string barcode,
+        int limit,
+        CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+        var clamped = Math.Clamp(limit, 1, 100);
+        var matched = _panels
+            .Where(p => string.Equals(p.PanelBarCode, barcode, StringComparison.Ordinal))
+            .GroupBy(p => p.FaceNumber ?? 0)
+            .OrderBy(g => g.Key)
+            .SelectMany(g => g
+                .OrderByDescending(p => p.PanelNumericDate)
+                .ThenByDescending(p => p.PanelId)
+                .Take(clamped))
+            .ToList();
+        return Task.FromResult<IReadOnlyList<PanelRow>>(matched);
     }
 
     public Task<IReadOnlyList<CardRow>> ListCardsForPanelAsync(long panelId, CancellationToken ct)

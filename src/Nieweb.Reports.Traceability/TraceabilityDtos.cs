@@ -18,7 +18,7 @@ namespace Nieweb.Reports.Traceability;
 /// <param name="MachineName">
 /// Vision AOI machine name resolved via <see cref="IAoiSource.ListMachinesAsync"/>,
 /// or <c>null</c> if unresolved. Only populated by TC2
-/// (<see cref="TraceabilityReport.GetBoardByBarcodeAsync"/>) so the
+/// (<see cref="TraceabilityReport"/> board-by-barcode) so the
 /// Board trace summary can render "Machine: L7PSTAOI" instead of a
 /// raw numeric id.
 /// </param>
@@ -86,6 +86,22 @@ public sealed record TraceabilityTestedObject(
     bool PinsAvailable);
 
 /// <summary>
+/// Lightweight summary of one prior AOI inspection pass for the same
+/// barcode / face. Returned by TC2 board trace so the SPA can offer a
+/// pass picker without shipping full card rows for every historical
+/// inspection.
+/// </summary>
+public sealed record PanelPassSummary(
+    int PanelId,
+    int FaceNumber,
+    DateTime PanelUtc,
+    int PanelStatus,
+    int AnomalyBr,
+    int AnomalyAr,
+    int NbOfErrorObject,
+    bool HasBeenReviewed);
+
+/// <summary>
 /// One inspection side of a physical PCB on a single AOI source.
 /// A two-sided board with barcode <c>XYZ</c> yields two
 /// <see cref="BoardStageSide"/> entries per stage: face 1 and
@@ -101,10 +117,23 @@ public sealed record TraceabilityTestedObject(
 /// </param>
 /// <param name="Panel">The panel row + resolved names for this side.</param>
 /// <param name="Cards">Sub-panels attached to <see cref="Panel"/>.</param>
+/// <param name="PriorPasses">
+/// Other inspections of this face (latest-first), excluding the
+/// currently selected pass. Empty when the face has only one pass
+/// in the retained window.
+/// </param>
+/// <param name="PinnedPanelId">
+/// Set only when the caller explicitly overrode the selected pass
+/// for this face. Null when showing the default latest pass. The
+/// panel actually rendered is always
+/// <see cref="TraceabilityPanel.Panel"/>.<see cref="PanelRow.PanelId"/>.
+/// </param>
 public sealed record BoardStageSide(
     int FaceNumber,
     TraceabilityPanel Panel,
-    IReadOnlyList<CardRow> Cards);
+    IReadOnlyList<CardRow> Cards,
+    IReadOnlyList<PanelPassSummary> PriorPasses,
+    int? PinnedPanelId = null);
 
 /// <summary>
 /// Per-source stage of a cross-DB board trace (TC2). One entry per
@@ -131,7 +160,13 @@ public sealed record BoardStageSide(
 /// <param name="Error">
 /// Populated when the source threw while resolving the barcode. The
 /// other stages still return normally so a single-DB outage never
-/// crashes the whole payload.
+/// crashes the whole payload. Selection failures (stale pin) use
+/// <see cref="SelectionWarning"/> instead — do not conflate them.
+/// </param>
+/// <param name="SelectionWarning">
+/// Soft message when a pinned pass could not be honoured and the
+/// stage fell back to the latest inspection. Distinct from
+/// <see cref="Error"/>.
 /// </param>
 public sealed record BoardStageTrace(
     string SourceId,
@@ -139,11 +174,12 @@ public sealed record BoardStageTrace(
     Capabilities Capabilities,
     IReadOnlyList<BoardStageSide> Sides,
     bool PinsAvailable,
-    string? Error);
+    string? Error,
+    string? SelectionWarning = null);
 
 /// <summary>
 /// Cross-DB board trace (TC2). Returned by
-/// <see cref="TraceabilityReport.GetBoardByBarcodeAsync"/>. Contains
+/// <see cref="TraceabilityReport"/> board-by-barcode. Contains
 /// one <see cref="BoardStageTrace"/> per configured source so the
 /// SPA can render side-by-side tables — one per DB stage.
 /// </summary>
