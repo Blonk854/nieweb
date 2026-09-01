@@ -15,6 +15,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import {
     IconAdjustments,
+    IconChartDots3,
     IconChartBar,
     IconClipboardList,
     IconClock,
@@ -32,6 +33,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LANGUAGES } from "../i18n";
 import { useSessionStore } from "../state/session";
+import { useQuery } from "@tanstack/react-query";
+import { getAuthConfig } from "../api/auth";
 
 /**
  * Root layout: Mantine AppShell with a header + collapsible left navbar.
@@ -104,9 +107,17 @@ function SideNav() {
     const active = useRouterState({ select: (s) => s.location.pathname });
     const { t } = useTranslation();
     const user = useSessionStore((s) => s.user);
+    const authConfig = useQuery({
+        queryKey: ["auth", "config"],
+        queryFn: getAuthConfig,
+        enabled: Boolean(user),
+        staleTime: 5 * 60 * 1000,
+        retry: 1,
+    });
     const isAdmin = user?.roles.includes("Admin") ?? false;
     const canAuthor =
         (user?.roles.includes("Author") || user?.roles.includes("Admin")) ?? false;
+    const canOpenAnalyse = Boolean(user) && (authConfig.data?.analyseEnabled ?? false);
     // The Settings parent groups the low-frequency admin + account
     // pages so the top-level nav stays focused on reports. It renders
     // whenever *any* child would render (an admin sees all 6 admin
@@ -191,6 +202,15 @@ function SideNav() {
                 leftSection={<IconBarcode size={18} />}
                 active={active.startsWith("/traceability/board")}
             />
+            {canOpenAnalyse && (
+                <NavLink
+                    component={Link}
+                    to="/analyse"
+                    label={t("nav.analyse")}
+                    leftSection={<IconChartDots3 size={18} />}
+                    active={active.startsWith("/analyse")}
+                />
+            )}
             {canAuthor && (
                 <NavLink
                     component={Link}

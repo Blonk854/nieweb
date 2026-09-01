@@ -178,6 +178,7 @@ try
     // canonical source for tolerance intervals, MSA constants, and the
     // batch master switch.
     builder.Services.AddScoped<Nieweb.Api.Parameters.IAppParameters, Nieweb.Api.Parameters.EfAppParameters>();
+    builder.Services.AddScoped<Nieweb.Api.Licensing.ILicenseTokens, Nieweb.Api.Licensing.AppParameterLicenseTokens>();
 
     // Skip-classification config (skip.* app parameters). Backs
     // /api/admin/skip-classification and feeds the DPMO / FPY / Skip
@@ -483,6 +484,7 @@ try
     app.MapAuthEndpoints();
     app.MapOidcEndpoints();
     app.MapSourceEndpoints();
+    app.MapAnalyseEndpoints();
     app.MapReportEndpoints();
     app.MapTraceabilityEndpoints();
     app.MapSavedViewEndpoints();

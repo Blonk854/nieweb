@@ -1,0 +1,74 @@
+{
+  "source": {
+    "id": "prereflow",
+    "displayName": "Pre-reflow AOI",
+    "schemaVersion": "4.3.1",
+    "caps": "PastePrintMetrics"
+  },
+  "filter": {
+    "window": {
+      "startUtc": "2026-01-01T00:00:00+00:00",
+      "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+      "startEpochSeconds": 1767225600,
+      "endEpochSecondsExclusive": 1767312000,
+      "duration": "1.00:00:00"
+    },
+    "machineIds": null,
+    "productIds": null,
+    "onlyLastInspection": true
+  },
+  "overallYield": {
+    "totalPanels": 3,
+    "inspectedPanels": 2,
+    "goodPanels": 2,
+    "faultyPanels": 0,
+    "notInspectedPanels": 1,
+    "fpyPercent": 100
+  },
+  "overallDpmo": {
+    "testedObjectCount": 3,
+    "opportunityCount": 25,
+    "defectBitCount": 2,
+    "dpmoPpm": 80000
+  },
+  "byMachine": [
+    {
+      "machineId": 10,
+      "machineName": "AOI-10",
+      "yield": {
+        "totalPanels": 2,
+        "inspectedPanels": 2,
+        "goodPanels": 2,
+        "faultyPanels": 0,
+        "notInspectedPanels": 0,
+        "fpyPercent": 100
+      },
+      "dpmo": {
+        "testedObjectCount": 2,
+        "opportunityCount": 20,
+        "defectBitCount": 2,
+        "dpmoPpm": 100000
+      }
+    },
+    {
+      "machineId": 11,
+      "machineName": "AOI-11",
+      "yield": {
+        "totalPanels": 1,
+        "inspectedPanels": 0,
+        "goodPanels": 0,
+        "faultyPanels": 0,
+        "notInspectedPanels": 1,
+        "fpyPercent": 0
+      },
+      "dpmo": {
+        "testedObjectCount": 1,
+        "opportunityCount": 5,
+        "defectBitCount": 0,
+        "dpmoPpm": 0
+      }
+    }
+  ],
+  "dedupeAppliedInMemory": true,
+  "dedupeNote": "Source lacks IS_LAST_INSPECTION; dedupe is applied in memory by panel id."
+}

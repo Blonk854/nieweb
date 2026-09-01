@@ -104,6 +104,7 @@ function stubFetch(
                 oidcEnabled: false,
                 oidcButtonLabel: "",
                 oidcChallengePath: "",
+                analyseEnabled: true,
             },
         },
     ];
@@ -403,6 +404,7 @@ describe("LoginRoute", () => {
                     oidcEnabled: true,
                     oidcButtonLabel: "Contoso SSO",
                     oidcChallengePath: "/auth/oidc/challenge",
+                    analyseEnabled: true,
                 },
             },
         ]);

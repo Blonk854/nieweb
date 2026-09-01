@@ -46,6 +46,8 @@ import { AdminShiftsRoute } from "../routes/admin-shifts";
 import { ChangePasswordRoute } from "../routes/change-password";
 import { SettingsTimezoneRoute } from "../routes/settings-timezone";
 import { SettingsDatabasesRoute } from "../routes/settings-databases";
+import { AnalyseRoute } from "../routes/analyse";
+import { AnalyseProductDetailRoute } from "../routes/analyse-product-detail";
 import { useSessionStore } from "../state/session";
 import { redirect } from "@tanstack/react-router";
 
@@ -138,6 +140,20 @@ const traceabilityBoardRoute = createRoute({
     validateSearch: validateTraceabilityBoardSearch,
     // TC3 board trace requires an authenticated user — the underlying
     // TC2 API is `RequireAuthorization()`.
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const analyseRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/analyse",
+    component: AnalyseRoute,
+    beforeLoad: ({ location }) => requireAuthentication(location.href),
+});
+
+const analyseProductDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/analyse/product/$productId",
+    component: AnalyseProductDetailRoute,
     beforeLoad: ({ location }) => requireAuthentication(location.href),
 });
 
@@ -347,6 +363,8 @@ const routeTree = rootRoute.addChildren([
     fpyRoute,
     canvasDemoRoute,
     traceabilityBoardRoute,
+    analyseRoute,
+    analyseProductDetailRoute,
     loginRoute,
     oidcReturnRoute,
     adminUsersRoute,

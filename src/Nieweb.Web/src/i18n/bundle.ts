@@ -22,6 +22,7 @@ export type TranslationBundle = {
         skipSummary: string;
         canvasDemo: string;
         boardTrace: string;
+        analyse: string;
         adminUsers: string;
         adminAudit: string;
         adminReports: string;
@@ -38,6 +39,43 @@ export type TranslationBundle = {
         signIn: string;
         signOut: string;
         changePassword: string;
+    };
+    analyse: {
+        title: string;
+        subtitle: string;
+        sourceLabel: string;
+        sourceAutoHint: string;
+        liveSummaryTitle: string;
+        supported: string;
+        productTitle: string;
+        productOverviewCaption: string;
+        productTopCaption: string;
+        productNoRows: string;
+        productDefectPreview: string;
+        productIdLabel: string;
+        productSortLabel: string;
+        productSortDefectBits: string;
+        productSortFpy: string;
+        productSortDpmo: string;
+        productDetailsAction: string;
+        productDetailTitle: string;
+        productDetailSubtitle: string;
+        productDetailComingSoon: string;
+        productBackAction: string;
+        noCapabilityGates: string;
+        postReflowOnly: string;
+        dedupeFallbackTitle: string;
+        dedupeFallbackDefault: string;
+        kpi: {
+            totalPanels: string;
+            inspectedPanels: string;
+            goodPanels: string;
+            faultyPanels: string;
+            notInspectedPanels: string;
+            fpyPercent: string;
+        };
+        forbiddenTitle: string;
+        forbidden: string;
     };
     myReports: {
         title: string;

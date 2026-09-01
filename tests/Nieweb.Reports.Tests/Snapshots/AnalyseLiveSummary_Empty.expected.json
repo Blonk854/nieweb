@@ -1,0 +1,30 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "IsLastInspectionFilter"
+  },
+  "filter": {
+    "window": {
+      "startUtc": "2026-01-01T00:00:00+00:00",
+      "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+      "startEpochSeconds": 1767225600,
+      "endEpochSecondsExclusive": 1767312000,
+      "duration": "1.00:00:00"
+    },
+    "machineIds": null,
+    "productIds": null,
+    "onlyLastInspection": true
+  },
+  "kpi": {
+    "totalPanels": 0,
+    "inspectedPanels": 0,
+    "goodPanels": 0,
+    "faultyPanels": 0,
+    "notInspectedPanels": 0,
+    "fpyPercent": 0
+  },
+  "dedupeAppliedInMemory": false,
+  "dedupeNote": null
+}

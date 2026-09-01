@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="107 0 320 105">
+  <defs>
+  <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#BBF7D0"/>
+    <stop offset="35%" stop-color="#4ADE80"/>
+    <stop offset="70%" stop-color="#22C55E"/>
+    <stop offset="100%" stop-color="#15803D"/>
+</linearGradient>
+  </defs>
+
+  <!-- Soybean Plant -->
+  <g transform="translate(115,18)">
+    
+   <!-- Stem  -->
+<g transform="translate(17, -10)">
+  <path d="M24.24 70.96 C35.75 50.5,26 38,23 27" fill="none" stroke="url(#grad)" stroke-width="3" stroke-linecap="round" />
+</g>
+
+
+    <!-- Left Leaf -->
+    <g transform="rotate(-30, 0, -5)">
+    <path
+      d="M20 38
+         C2 30,-2 12,16 15
+         C25 17,28 28,20 38Z"
+      fill="url(#grad)"
+      opacity="0.9"/>
+      </g>
+
+    <!-- Right Leaf -->
+     <g transform="translate(17, -10)">
+    <path
+      d="M24 28
+         C42 18,56 22,52 40
+         C48 48,36 44,24 28Z"
+      fill="url(#grad)"
+      opacity="0.9"/>
+    </g>
+
+ 
+  </g>
+
+  <!-- Text -->
+  <text
+    x="195"
+    y="47"
+    font-family="Segoe UI, Inter, Arial, sans-serif"
+    font-size="30"
+    font-weight="400"
+    fill="#64748B">
+    Powered by
+  </text>
+
+  <text
+    x="195"
+    y="80"
+    font-family="Segoe UI, Inter, Arial, sans-serif"
+    font-size="30"
+    font-weight="700"
+    fill="url(#grad)">
+    BigSoy Studios
+  </text>
+</svg>

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 using Nieweb.Api.Auth;
+using Nieweb.Api.Licensing;
 using Nieweb.Data.Entities;
 
 namespace Nieweb.Api.Endpoints;
@@ -56,23 +57,37 @@ public static partial class AuthEndpoints
     /// </param>
     /// <param name="OidcButtonLabel">Human-readable label to render on the SSO button.</param>
     /// <param name="OidcChallengePath">Path the SPA should navigate to (top-level, not a fetch) to start the OIDC flow.</param>
+    /// <param name="AnalyseEnabled">
+    /// True when the Analyse license token is enabled on this host.
+    /// </param>
     public sealed record AuthConfigResponse(
         bool OidcEnabled,
         string OidcButtonLabel,
-        string OidcChallengePath);
+        string OidcChallengePath,
+        bool AnalyseEnabled);
 
-    private static IResult GetConfig(
-        Microsoft.Extensions.Options.IOptionsMonitor<Nieweb.Api.Auth.OidcOptions> oidc)
+    private static async Task<IResult> GetConfig(
+        Microsoft.Extensions.Options.IOptionsMonitor<Nieweb.Api.Auth.OidcOptions> oidc,
+        ILicenseTokens licenseTokens,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(oidc);
+        ArgumentNullException.ThrowIfNull(licenseTokens);
+
         var opts = oidc.CurrentValue;
         var enabled = opts.Enabled
             && !string.IsNullOrWhiteSpace(opts.Authority)
             && !string.IsNullOrWhiteSpace(opts.ClientId);
+
+        var analyseEnabled = await licenseTokens
+            .IsEnabledAsync(LicenseTokenNames.Analyse, cancellationToken)
+            .ConfigureAwait(false);
+
         return Results.Ok(new AuthConfigResponse(
             OidcEnabled: enabled,
             OidcButtonLabel: enabled ? opts.ButtonLabel : string.Empty,
-            OidcChallengePath: enabled ? "/auth/oidc/challenge" : string.Empty));
+            OidcChallengePath: enabled ? "/auth/oidc/challenge" : string.Empty,
+            AnalyseEnabled: analyseEnabled));
     }
 
     /// <summary>Login request body.</summary>

@@ -45,6 +45,7 @@ function makeRouter(initialPath: string) {
         "/report/pareto",
         "/report/canvas-demo",
         "/traceability/board",
+        "/analyse",
         "/admin/users",
         "/admin/audit",
         "/admin/reports",

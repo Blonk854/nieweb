@@ -83,6 +83,7 @@ export type AuthConfigResponse = {
     oidcEnabled: boolean;
     oidcButtonLabel: string;
     oidcChallengePath: string;
+    analyseEnabled: boolean;
 };
 
 /**

@@ -1,0 +1,30 @@
+{
+  "source": {
+    "id": "prereflow",
+    "displayName": "Pre-reflow AOI",
+    "schemaVersion": "4.3.1",
+    "caps": "PastePrintMetrics"
+  },
+  "filter": {
+    "window": {
+      "startUtc": "2026-01-01T00:00:00+00:00",
+      "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+      "startEpochSeconds": 1767225600,
+      "endEpochSecondsExclusive": 1767312000,
+      "duration": "1.00:00:00"
+    },
+    "machineIds": null,
+    "productIds": null,
+    "onlyLastInspection": true
+  },
+  "kpi": {
+    "totalPanels": 3,
+    "inspectedPanels": 2,
+    "goodPanels": 2,
+    "faultyPanels": 0,
+    "notInspectedPanels": 1,
+    "fpyPercent": 100
+  },
+  "dedupeAppliedInMemory": true,
+  "dedupeNote": "Source lacks IS_LAST_INSPECTION; dedupe applied in memory by (Panel_Bar_Code, Face_Number)."
+}

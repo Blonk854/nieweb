@@ -94,6 +94,18 @@ public static class AppParameterDefaults
             Value: "false",
             Description: "Global master switch for automatic treatments. Parity with Vieweb batchIsOn."),
 
+        // Analyse foundation (Phase 3 ANA-00).
+        new(
+            Key: "license.analyse.enabled",
+            ValueType: AppParameterValueTypes.Bool,
+            Value: "true",
+            Description: "Feature gate for the AOI Analyse module. true=enabled, false=hidden/forbidden."),
+        new(
+            Key: "analyse.defect_order",
+            ValueType: AppParameterValueTypes.String,
+            Value: "[\"ObjectMissing\",\"PolarityError\",\"SolderJointDefect\",\"SolderBridgeDefect\",\"OcvError\",\"ModelNotFound\",\"DeltaXOutOfRange\",\"DeltaYOutOfRange\",\"DeltaThetaOutOfRange\",\"DeltaThicknessOutOfRange\",\"PasteSurfaceAreaOutOfRange\",\"ElementSkipped\",\"ConnectorBadPinColumnSpacing\",\"ConnectorBadPinRowSpacing\",\"ConnectorPinMissing\",\"ConnectorBadPinAlignment\",\"VolumeOutOfRange\",\"BadAppearance\",\"PotentialDefectImportedFromSpi\",\"TiltError\",\"SideOverhang\",\"LengthOverhang\",\"ForeignMaterialDetected\",\"ComponentPresentButShouldNotBe\",\"LiftedLead\"]",
+            Description: "JSON array of DefectBit enum names defining Analyse defect display order. Unknown names are ignored."),
+
         // Skip-classification thresholds + repair-button map (see the
         // skip-classification domain). Consumed by DPMO / FPY / Skip
         // Summary when a skip toggle or status filter is active. Editable

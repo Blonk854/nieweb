@@ -34,6 +34,7 @@ public sealed class OidcEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.False(root.GetProperty("oidcEnabled").GetBoolean());
         Assert.Equal(string.Empty, root.GetProperty("oidcButtonLabel").GetString());
         Assert.Equal(string.Empty, root.GetProperty("oidcChallengePath").GetString());
+        Assert.True(root.GetProperty("analyseEnabled").GetBoolean());
     }
 
     [Fact]

@@ -3,8 +3,7 @@
 _Status: **IN PROGRESS** — Board Trace (§6.1) is the active slice.
 `BT3`, `BT4`, `BT9`, and the BoardViewer crosshair fix are **done**;
 `BT1` / `BT2` are **partial**; kiosk mode (`BT6`–`BT8`) is not
-started. Review, Analyse, PI-Capacity, and feedforward have **no code
-yet**._
+started. Review and Analyse have **no code yet**._
 _Depends on: `docs/tech-stack.md` (SIGNED-OFF 2026-07-20),
 `docs/phase-2.md` (**COMPLETE** 2026-07-31). Post-plan chart work
 (DPMO Trend by line, 2026-08-26) is recorded in §6.0._
@@ -25,17 +24,16 @@ exist as its own installation for anything that isn't in the Nieweb
 scope — most importantly the Data Import (iCAD) module, which is the
 tool the SMT programmers use to author new inspection programs.
 Nieweb never reads, imports, or otherwise depends on CAD-authored
-data: the AOI and SPI machines write their inspection results to the
-Superviseur DB regardless of what created the program, and Nieweb
-reads only from there.
+data: AOI machines write inspection results to the Superviseur DB and
+Nieweb reads only from there.
 
 Phase 3 priority order is now intentionally narrowed and sequenced:
 
 1. **Board Trace.** Any operator or engineer should be able to scan
    a serial number (barcode) and get a clear, complete picture of
-   what happened to that particular panel end-to-end: pre-reflow SPI
-   verdict, pre-reflow AOI defects and sanctions, post-reflow AOI
-   defects and sanctions, repair actions, final state. The
+  what happened to that particular panel end-to-end: pre-reflow AOI
+  defects and sanctions, post-reflow AOI defects and sanctions,
+  repair actions, final state. The
    `Nieweb.Reports.Traceability` package shipped in Phase 2 provides
    the plumbing; Phase 3 finishes the UI, wires it into the top-level
    navigation, makes it the default landing tile for the QA role, and
@@ -52,8 +50,9 @@ Phase 3 priority order is now intentionally narrowed and sequenced:
    broader inline / remote / repair review surface is deferred past this
    phase because it is not required for the project's current scope.
 
-SPI-specific follow-up remains explicitly deferred; it is not part of
-this Phase 3 scope.
+SPI/PI work (DBQuery-Pi, SigmaLine feedforward, PI-capacity guard, and
+SPI↔AOI mapping/correlation dashboards) is explicitly out of scope for
+this phase.
 
 Non-goals (deferred to Phase 4 or later): the SigmaLink dual-lane
 review conveyor UI (needs a Zebra printer + IO board pair we don't
@@ -76,9 +75,9 @@ own admin UI shipped in Phase 2, and Data Import stays with Sigmalink
 |---|---|---|---|
 | **Data Import (iCAD)** | ❌ **Out of scope, never consumed.** Sigmalink remains the CAD authoring tool independently of Nieweb. Nieweb reads inspection results from the Superviseur DB, not from CAD-authored files. | — | Nieweb is a data-analysis tool, not a Sigmalink replacement. |
 | **Review** | Offline review workflow under `/app/review/*`, plus OIS export where needed. We do not implement the full inline / remote / repair review surface in this phase. XML-configured layout, defect status constants, and custom messages stay in the backlog unless a concrete owner needs them. | `sigmalink-review` | The project only needs the offline review path and any required OIS export for the immediate workflow. |
-| **Analyse** (Live / Line Performance / Product / Panel / Cp-Cpk) | Five new dashboards under `/app/analyse/*` using the same tile-based `<ReportCanvas>` composition shipped in Phase 2 §7.6. Feed from **DBQuery-Pi** and **DBQuery-K** back-ends. | `sigmalink-analyse` | This becomes the second Phase 3 priority and removes the parallel Analyse WAR install (port 8082) while keeping KPI numbers aligned. |
-| **SigmaLine feedforward** | Real-time SPI → AOI hint pipeline. Feeds AOI recipes with the SPI verdict (offset X / Y / Z, volume) so the AOI can escalate suspect boards. | `sigmalink-legacy` (feedforward) + `sigmalink-analyse` (panel-side mapping) | On-line quality gain; the SPI operators already ask for this. |
-| **PI-Capacity guard** | Enforced before any DBQuery-Pi request so inspection cycle time can't be degraded. Reads `pi-conf.xml` per Pi model. | `sigmalink-legacy` | Mandatory before Analyse ships — same warning that governs every read against the production DB. |
+| **Analyse** (Live / Line Performance / Product / Panel / Cp-Cpk) | AOI-focused dashboards under `/app/analyse/*` using the same tile-based `<ReportCanvas>` composition shipped in Phase 2 §7.6. Feed from **DBQuery-K** back-end only. | `sigmalink-analyse` | This becomes the second Phase 3 priority and removes the parallel Analyse WAR install (port 8082) while keeping KPI numbers aligned. |
+| **SigmaLine feedforward** | ❌ Out of scope for this project. | — | Requires SPI/PI integration path the team has explicitly excluded. |
+| **PI-Capacity guard** | ❌ Out of scope for this project. | — | Exists to throttle DBQuery-Pi traffic, which this phase does not use. |
 | Configure | ✅ Already covered by Nieweb `/app/admin/*` (Users, Roles, Production lines, Shifts, MSA parameters, Databases, Board SVGs). | — | Nothing new required. |
 | Monitor | ✅ Already covered by Nieweb `/health/*`, `/api/admin/audit`, and OpenTelemetry. | — | Nothing new required. |
 
@@ -101,18 +100,12 @@ The remaining deferred Vieweb items are the MSA report and Process Capability da
 
 ### 2.3 Cross-cutting features
 
-- **Read-only discipline preserved.** Every new SQL statement (DBQuery-Pi,
-  DBQuery-K, MSA queries, feedforward reads) obeys the guards documented
+- **Read-only discipline preserved.** Every new SQL statement (DBQuery-K,
+  MSA queries) obeys the guards documented
   in `.github/copilot-instructions.md` — `WITH (NOLOCK)`,
   `READ UNCOMMITTED`, 30 s query timeout, `ApplicationName='Nieweb-...'`,
   time-window filter, per-query audit row. **No writes to any Superviseur
-  DB, ever.** Feedforward writes into a new internal-DB queue table, not
-  into the AOI recipe file.
-- **PI-Capacity guard as a first-class service.** Before every DBQuery-Pi
-  request, a `PiCapacityGate` check consumes a token from a per-machine
-  budget derived from `pi-conf.xml`. Overrun raises `PiCapacityExhausted`
-  and the request is either skipped (dashboard tile shows "throttled") or
-  queued (feedforward). Never blocking on the inspection thread.
+  DB, ever.**
 - **Sigmalink licence tokens.** Sigmalink gated modules by a
   `sigmalink.licence` file (see `sigmalink-legacy` skill). Nieweb
   preserves the concept in an internal `LicenseToken` table so a
@@ -127,9 +120,8 @@ The remaining deferred Vieweb items are the MSA report and Process Capability da
   Nieweb). Enforced by a parity test that scans
   `pdf_text/Sigmalink-user-guide-V1.6.5.txt` for each constant.
 - **Runtime-configurable defect ordering and panel-side mapping.**
-  `dbqueryK/defectOrders`, `dbqueryPI/defectOrders`, and
-  `panelSideMapping` (from Sigmalink's `sigmalink_configuration.xml`)
-  are exposed as admin-editable `AppParameter` rows — never hard-coded.
+  `dbqueryK/defectOrders` is exposed as an admin-editable `AppParameter`
+  row — never hard-coded.
 - **KPI numeric parity.** Nieweb Analyse, Nieweb Reports, Sigmalink
   Analyse (during coexistence), and Vieweb historical extracts must
   agree to rounding error for FPY / DPMO / Cp / Cpk / GR&R over the
@@ -158,11 +150,10 @@ The remaining deferred Vieweb items are the MSA report and Process Capability da
    true call) computed by Nieweb Review match the counts Sigmalink
    Review recorded, on the same panels, to zero difference. Any
    divergence is a blocker.
-3. **PI-Capacity guard proven under load.** A synthetic burst of 100
-   simultaneous Analyse requests against a single Pi machine stays
-   within the guard's budget, degrades gracefully (throttled tiles,
-   queued feedforward), and does not extend AOI cycle time by more
-   than 0.5 % measured on the physical line.
+3. **AOI-only Analyse scope enforced.** Analyse code paths, report
+  contracts, and UI filters are backed by AOI sources only; no
+  DBQuery-Pi, feedforward, or SPI-side mapping dependencies remain in
+  shipping code.
 4. **MSA numeric parity.** For a reference empty-panel run, the Cp,
    Cpk, EV, %EV, and GR&R values Nieweb computes match hand-computed
    values from the raw MSA DB rows to rounding error (snapshot test).
@@ -177,14 +168,14 @@ The remaining deferred Vieweb items are the MSA report and Process Capability da
    user-facing string exercised by an E2E smoke; missing-key gate in
    CI stays green.
 7. **Read-only discipline preserved.** No new code path writes to
-   any Superviseur DB. Every DBQuery-Pi / DBQuery-K / MSA / feedforward
-   read has an audit row with source tag, duration, and row count.
+  any Superviseur DB. Every DBQuery-K / MSA read has an audit row with
+  source tag, duration, and row count.
 8. **Board Trace shipped and adopted.** Nieweb Board Trace (barcode
-   → pre-reflow SPI + AOI → post-reflow AOI → repair → final state) is
+  → pre-reflow AOI → post-reflow AOI → repair → final state) is
    the default panel-lookup tool for QA and line engineers. A sampled
    week of live production has zero barcode lookups that return
-   incomplete data (missing pre-reflow step, missing post-reflow step,
-   missing repair sanction) where the underlying Superviseur DB
+  incomplete data (missing pre-reflow step, missing post-reflow step,
+  missing repair sanction) where the underlying AOI Superviseur DB
    actually has the rows. Latency budget: p95 < 500 ms on a warm
    cache, < 2 s cold. **Kiosk mode** is enabled on at least one
    shop-floor workstation and has served ≥ 100 real barcode lookups
@@ -195,7 +186,7 @@ The remaining deferred Vieweb items are the MSA report and Process Capability da
    Playwright E2E smoke covering Review inline flow, Analyse Live
    dashboard load, MSA report render, and Board Trace barcode lookup.
 10. **Docs.** This document plus one companion per absorbed module:
-    `docs/review.md`, `docs/analyse.md`, `docs/feedforward.md`. Each
+  `docs/review.md`, `docs/analyse.md`. Each
     describes the underlying data model, KPI formulas (reusing
     `aoi-quality-metrics` skill), and the Sigmalink features
     intentionally dropped.
@@ -212,11 +203,8 @@ already established in Phases 1 and 2.
 |---|---|
 | `src/Nieweb.Review/` (new) | Review-workflow domain logic. Owns the defect-status state machine, the per-role authorisation matrix (`ROLE_REVIEWER`, `ROLE_ANALYZER`, supervisor override), the layout XML schema, and the OIS export pipeline. |
 | `src/Nieweb.Web/src/review/` (new) | Review UI. Inline mode (one panel at a time, keyboard-first), offline mode (queue processing on a workstation), remote mode (browser at a QA desk), repair mode (annotates + prints Zebra label). Widget-composed so the layout XML from Sigmalink still describes it. |
-| `src/Nieweb.Analyse/` (new) | Analyse KPIs on top of `Nieweb.Reports`. Consumes DBQuery-Pi and DBQuery-K back-ends via `IPiSource` and `IKSource` capability interfaces. Uses the same tile / canvas composition as Phase 2 reports so the dashboards are savable as reports. |
-| `src/Nieweb.DataSources.Pi/` (new) | DBQuery-Pi client. Thin `Microsoft.Data.SqlClient` wrapper obeying the same read-only discipline as `SqlServerAoiSourceBase`. Requires PI-capacity guard consent before every request. |
+| `src/Nieweb.Analyse/` (new) | Analyse KPIs on top of `Nieweb.Reports`. Consumes DBQuery-K back-end via an `IKSource` capability interface. Uses the same tile / canvas composition as Phase 2 reports so the dashboards are savable as reports. |
 | `src/Nieweb.DataSources.K/` (new) | DBQuery-K client, same shape. |
-| `src/Nieweb.PiCapacity/` (new) | PI-capacity guard. Reads `pi-conf.xml` (or an internal-DB copy), maintains a per-machine token bucket, exposes `IPiCapacityGate.TryAcquire`. |
-| `src/Nieweb.Feedforward/` (new) | SigmaLine feedforward. Consumes SPI verdicts, correlates by panel side + barcode + timestamp, writes hints to an internal queue table the AOI recipes can subscribe to (no writes to the AOI DB or recipe files). |
 | `src/Nieweb.Scheduling/` (deferred from Phase 2) | Automatic-treatment scheduler on `BackgroundService`. Row-level lease, per-treatment + global switches. |
 | `src/Nieweb.Mail/` (deferred from Phase 2) | `MailKit`-backed SMTP delivery. Idempotent per `(treatmentId, runTimestamp)`. |
 | `src/Nieweb.Reports.Msa/` (deferred from Phase 2) | MSA report + `TestEmptyMasterEntity`. Cp / Cpk / EV / %EV / GR&R over the empty-panel DB. |
@@ -227,8 +215,6 @@ The internal-DB schema (`Nieweb.Data`) gains:
 - `ReviewSession` + `ReviewDefect` + `ReviewComment` + `ReviewSanction`
   + `ReviewCustomMessage` — persistence for the Review workflow.
 - `AutomaticTreatment` + `EmailRecipient` (as designed in Phase 2 §5).
-- `PiCapacityBudget` + `PiCapacityLedger` (per-machine budget + audit).
-- `FeedforwardHint` + `FeedforwardConsumption` (queue + ack).
 - `LicenseToken` (per-module feature flag).
 
 Every new entity is created via EF Core migrations (dual-provider
@@ -252,7 +238,6 @@ flowchart LR
     subgraph "Phase 3 — new modules"
       A --> REV[Nieweb.Review]
       A --> ANA[Nieweb.Analyse]
-      A --> FFW[Nieweb.Feedforward]
       A --> MSA[Nieweb.Reports.Msa]
       A --> PC[Nieweb.Reports.ProcessCapability]
       A --> SCH[Nieweb.Scheduling]
@@ -261,17 +246,13 @@ flowchart LR
 
     subgraph "Data adapters"
       R -->|IAoiSource| DS[Nieweb.DataSources.Sql]
-      ANA -->|IPiSource| PIS[Nieweb.DataSources.Pi]
       ANA -->|IKSource| KDS[Nieweb.DataSources.K]
       MSA -->|IMsaSource| MSADS[Nieweb.DataSources.Sql — MSA DB]
-      ANA --> GATE[Nieweb.PiCapacity]
-      FFW --> GATE
     end
 
     subgraph "Live SQL Server (read-only, WITH NOLOCK)"
       DS -->|SELECT| POST[HLYAOI2024 post-reflow]
       DS -->|SELECT| PRE[MEAOI pre-reflow]
-      PIS -->|SELECT| PI[DBQuery-Pi]
       KDS -->|SELECT| KDB[DBQuery-K]
       MSADS -->|SELECT| EMPTY[Empty-panel MSA DB]
     end
@@ -282,19 +263,13 @@ flowchart LR
 Key architectural principles carried over from Phase 2:
 
 - **Capability interfaces, not one god adapter.** `IAoiSource`,
-  `IPiSource`, `IKSource`, `IMsaSource`, `IPinLevelSource` are separate;
+  `IKSource`, `IMsaSource`, `IPinLevelSource` are separate;
   a data source exposes only the capabilities its backing DB
   supports (matches the CR4/CR5 asymmetry documented in
   `.github/copilot-instructions.md`).
 - **Reports are pure functions.** `(sources, filter, parameters) →
   typed DTO`. Analyse dashboards reuse the same tile registry as the
   Phase 2 `<ReportCanvas>` so they compose and export the same way.
-- **PI-Capacity guard is on the request path, not the response path.**
-  Failing acquisition of a Pi token short-circuits before any SQL is
-  issued.
-- **Feedforward is decoupled through an internal queue.** The AOI
-  side polls the queue; there is no direct connection Nieweb → AOI
-  recipe file.
 
 ---
 
@@ -312,11 +287,9 @@ Phase 2 traceability slice: `BT3`, `BT4`, and `BT9` are **done**;
 mode (`BT6`–`BT8`) are **open**. A post-plan **DPMO Trend by line** chart report landed on
 `phase-c` (§6.0) — same family as Phase 2's FPY Trend (`CR4`) but
 outside the original Phase 3 backlog. Everything else — Review,
-Analyse, SigmaLine feedforward, PI-Capacity, MSA, automatic
+Analyse, MSA, automatic
 treatments, extra locales, and the Sigmalink coexistence / retirement
-track — has **no code yet**. **PI-Capacity (§6.5) must land before
-Analyse (§6.3) ships**, or DBQuery-Pi traffic can degrade AOI
-inspection cycle time.
+track — has **no code yet**.
 
 ### 6.0 Post-Phase-2 chart reports (shipped on `phase-c`, not Phase 3 scope)
 
@@ -355,8 +328,8 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
   toggle (`?side=`), and saved-view support. *Outstanding:* the search
   box is not yet present on **every** layout, and the scanner-friendly
   auto-focus / Enter-submit behaviour is unverified.
-- `BT2` 🟡 partial — End-to-end timeline UI: pre-reflow SPI verdict → pre-reflow
-  AOI defects & sanctions → post-reflow AOI defects & sanctions →
+- `BT2` 🟡 partial — End-to-end timeline UI: pre-reflow AOI defects &
+  sanctions → post-reflow AOI defects & sanctions →
   repair actions → final panel state. Each step shows timestamp,
   machine, operator, and any defect bit-flags decoded per the
   `vit-aoi-database` skill.
@@ -365,7 +338,7 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
   bits, repair result / date / comment and operator per failed object.
   *Outstanding:* the actual **timeline presentation** — the stages are
   rendered as parallel tables, not as one chronological sequence — and
-  the SPI verdict step (needs a pre-reflow paste source).
+  chronology cues between stage events.
 - `BT3` ✅ done — Cross-DB stitch. Pre-reflow (`MEAOI`) and post-reflow
   (`HLYAOI2024`) live on different SQL Server instances with
   different schema revisions; Board Trace merges the two histories on
@@ -419,7 +392,7 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
   enumeration is possible.
 - `BT8` — Playwright E2E: (a) authenticated scan flow — known-defective
   panel barcode from a fixture, assert the timeline shows pre-reflow
-  SPI + post-reflow AOI defects + repair sanction in chronological
+  and post-reflow AOI defects + repair sanction in chronological
   order; (b) kiosk-mode scan flow — same barcode over an
   unauthenticated session, assert same timeline but with operator
   names redacted; (c) kiosk-mode negative — attempt to hit
@@ -461,76 +434,44 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
   defect / status counts match Sigmalink Review exactly (§3
   criterion 2).
 - `REV8` — Widgets ported: defect list, defect image, localization,
-  reference image, SPI image, shortcuts. Each widget lives under
+  reference image, shortcuts. Each widget lives under
   `src/Nieweb.Web/src/review/widgets/` with its own vitest. The
   reference-image widget resolves images from a configurable share
   path (e.g. `\\fileserver\reference-images\<product>\<component>.jpg`)
   or from an admin-uploaded set in Nieweb — no CAD parsing needed.
-- `REV9` — PRE_REFLOW / POST_REFLOW / SPI equipment selection so a
+- `REV9` — PRE_REFLOW / POST_REFLOW equipment selection so a
   reviewer in the pre-reflow area doesn't see post-reflow panels.
 
 ### 6.3 Analyse dashboards (M) — `sigmalink-analyse`
 
-- `ANA1` — DBQuery-Pi client (`Nieweb.DataSources.Pi`) with
-  PI-capacity guard consent on every call.
-- `ANA2` — DBQuery-K client (`Nieweb.DataSources.K`).
-- `ANA3` — **Live** dashboard: real-time counters (last 5 min /
+- `ANA1` — DBQuery-K client (`Nieweb.DataSources.K`).
+- `ANA2` — **Live** dashboard: real-time counters (last 5 min /
   hour / shift) for the top production KPIs. Tile-based so users can
   save a custom Live view.
-- `ANA4` — **Line Performance** dashboard: combined SPI+AOI yields
-  per line, feedforward status filter, per-shift comparison.
-- `ANA5` — **Product** dashboard: FPY / DPMO / defect Pareto per
+- `ANA3` — **Line Performance** dashboard: AOI yields per line with
+  per-shift comparison.
+- `ANA4` — **Product** dashboard: FPY / DPMO / defect Pareto per
   product across all lines.
-- `ANA6` — **Panel** dashboard: drill from panel barcode to SPI
-  verdict → AOI defect list → repair sanction. Uses the same
+- `ANA5` — **Panel** dashboard: drill from panel barcode to AOI defect
+  list → repair sanction. Uses the same
   `Nieweb.Reports.Traceability` back-end as Board Trace (§6.1) — the
   Panel dashboard is the analyst-oriented view (comparisons across
   boards) while Board Trace is the operator-oriented view (one
   barcode, full timeline).
-- `ANA7` — **Cp / Cpk** dashboard: histogram + radar + panels +
+- `ANA6` — **Cp / Cpk** dashboard: histogram + radar + panels +
   result tables per measure nature (Volume, Height, Area, Offset X,
   Offset Y, Theta). Reuses `aoi-quality-metrics` skill formulas.
-- `ANA8` — Panel-side mapping (SPI ↔ AOI). Admin-editable, defaults
-  seeded from Sigmalink `sigmalink_configuration.xml`.
-- `ANA9` — Correlated defects visual — the SigmaLine "same defect
-  seen at SPI and AOI" chart, refactored on top of the new tile
-  registry.
-- `ANA10` — Retirement of `VIT_Analyse.war`: after two weeks of
+- `ANA7` — Retirement of `VIT_Analyse.war`: after two weeks of
   parallel running, the Jetty install is uninstalled from the
   pilot line.
 
-### 6.4 SigmaLine feedforward (M) — `sigmalink-legacy`
+### 6.4 SigmaLine feedforward (cut) — `sigmalink-legacy`
 
-- `FFW1` — SPI verdict ingestion. Polls DBQuery-Pi (throttled by
-  PI-capacity guard) or subscribes to a Sigmalink-emitted event
-  stream during coexistence.
-- `FFW2` — Correlation on (barcode, panel side, timestamp window).
-  Emits a `FeedforwardHint` row with the SPI offsets and volume
-  verdict.
-- `FFW3` — AOI-side consumer contract: a small
-  `/api/feedforward/next?machineId={id}` endpoint that the AOI
-  program calls before each panel. Returns 200 + hint or 204.
-- `FFW4` — Hint expiry (default 5 min) and dead-hint reaping.
-- `FFW5` — Bypass switch: any operator can disable feedforward for
-  a lane in one click (audit row `feedforward.bypassed`).
-- `FFW6` — End-to-end E2E: SPI records a defect at pad P, AOI
-  receives the hint within X seconds, sanction reflects it.
-  Numeric budget for X is agreed with line engineering during
-  planning.
+Cut from scope. No SPI/PI integration is planned in this project.
 
-### 6.5 PI-Capacity guard (M) — `sigmalink-legacy`
+### 6.5 PI-Capacity guard (cut) — `sigmalink-legacy`
 
-- `PIC1` — `pi-conf.xml` parser + admin UI to override per-machine
-  budgets at runtime.
-- `PIC2` — `IPiCapacityGate` token bucket with per-machine budget,
-  refill rate, and burst tolerance derived from Sigmalink defaults.
-- `PIC3` — Integration in every DBQuery-Pi call site (Analyse,
-  Feedforward, ad-hoc reports).
-- `PIC4` — Load test: 100 simultaneous Analyse requests against one
-  Pi machine stays inside the budget and does not extend AOI cycle
-  time > 0.5 % on the physical line (§3 criterion 3).
-- `PIC5` — Dashboard tile that shows current token utilisation per
-  Pi machine so operators can see when the guard is throttling.
+Cut from scope. No DBQuery-Pi traffic is planned in this project.
 
 ### 6.6 MSA report + Process Capability (M, revives §7.7) — `aoi-quality-metrics`
 
@@ -611,9 +552,8 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
 - `TC1` — Playwright E2E smoke per absorbed module (Board Trace
   barcode lookup, Review inline verdict, Analyse Live load, MSA
   report render).
-- `TC2` — Load-test harness for the PI-capacity guard (§3 criterion 3).
-- `TC3` — Contract tests between `IAoiSource` / `IPiSource` /
-  `IKSource` / `IMsaSource` implementations and their fakes.
+- `TC3` — Contract tests between `IAoiSource` / `IKSource` /
+  `IMsaSource` implementations and their fakes.
 - `TC4` — Data-parity snapshot tests: for the same reference week,
   each Nieweb Analyse dashboard's numeric output matches a captured
   Sigmalink Analyse dump.
@@ -625,9 +565,7 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
 - `DOC2` — `docs/review.md` — state machine, XML schemas honoured,
   mode differences, OIS export contract.
 - `DOC3` — `docs/analyse.md` — dashboard-by-dashboard KPI definitions,
-  panel-side mapping, DBQuery-Pi/K back-end shapes.
-- `DOC4` — `docs/feedforward.md` — SPI-to-AOI hint contract, queue
-  schema, bypass model.
+  and DBQuery-K back-end shapes.
 - `DOC5` — Update `docs/deploy.md` with the reverse-proxy plan and
   the per-module cut-over checklists for Review + Analyse + Board
   Trace.
@@ -640,13 +578,11 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
 |---|---|---|
 | Board Trace slow / spinner-heavy on cold cache. | QA operators bounce back to whatever they used before. | §3 criterion 8 has an explicit p95 < 500 ms warm / < 2 s cold target. Materialised views + a small in-memory panel-cache warm on scan. Load test in `TC*`. |
 | Cross-DB stitch produces duplicate or misaligned events (pre-reflow row without a matching post-reflow row, or vice versa). | Board Trace timelines look wrong; loss of trust. | `BT3` explicitly matches on `(Barcode, Panel_Numeric_Date)`, and unmatched rows render as their own step rather than being silently hidden. Snapshot test on a curated fixture week. |
-| PI-capacity guard misconfigured → AOI cycle time regresses. | Direct line-stop risk. | `PIC4` load test is a **blocker** for Analyse rollout. Ship the guard first, dashboards second. Physical measurement on the line signed off by SMT engineering before cut-over. |
-| Feedforward hint arrives too late (AOI already inspected panel). | Quality benefit lost. | `FFW6` end-to-end test sets a numeric latency budget agreed with line engineering. Bypass switch (`FFW5`) is one click. |
 | Sigmalink XML layout files don't parse the same in Nieweb. | Customer must re-configure Review from scratch. | `REV6` explicitly parses the Sigmalink XML files as-is; parity test fixtures pulled from `VIT_Sigmalink/conf/`. |
 | Analyse KPI drift vs Sigmalink Analyse during coexistence. | Loss of trust; blocks retirement of Analyse WAR. | `SIG2` data-parity dashboard runs continuously; `TC4` snapshot tests fail CI on drift. |
 | MSA DB commissioning slips again. | `MSA*` items can't ship. | Land the DB-adapter shell and MSA UI in an `IsEnabled=false` state; block only the report render on real data. Keep Process Capability placeholder from Phase 2 rather than regressing. |
 | SMTP credentials still not confirmed by go-live. | Automatic treatments can't email. | File-drop delivery works without SMTP; ship `AT4` first, email later. |
-| Read-only discipline forgotten in a new DBQuery-Pi or MSA path. | Could write to a Superviseur DB. | Reference guard in `tools/db/probe-schema.ps1` is re-used; every new adapter must reuse `SqlServerAoiSourceBase` (which enforces `WITH (NOLOCK)`, isolation level, timeouts, and `ApplicationName`). Enforced by architecture test in CI. |
+| Read-only discipline forgotten in a new DBQuery-K or MSA path. | Could write to a Superviseur DB. | Reference guard in `tools/db/probe-schema.ps1` is re-used; every new adapter must reuse `SqlServerAoiSourceBase` (which enforces `WITH (NOLOCK)`, isolation level, timeouts, and `ApplicationName`). Enforced by architecture test in CI. |
 
 ---
 
@@ -656,10 +592,8 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
   IO board pair we don't have on staging, and the two design
   partners running dual-lane haven't asked us to take it over yet.
 - **Sigma Connect AMQP replacement** — Sigmalink used QPID for
-  cross-machine messaging (feedforward, event bus, remote review
-  notifications). Nieweb starts with polled HTTP endpoints
-  (`FFW3`) which cover the current use cases. Revisited when we
-  onboard a customer whose topology requires broker semantics.
+  cross-machine messaging (event bus, remote review notifications).
+  Revisited only if a customer topology requires broker semantics.
 - **Full offline review from a remote workstation** — Nieweb ships
   offline-on-workstation (`REV3`) but not the disconnected-remote
   case where a workstation has no LAN link to Nieweb for hours.
@@ -702,17 +636,10 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
    customer demands it.
 3. **Empty-panel MSA DB commissioning date.** Blocks `MSA*` from
    moving past scaffolding. Tracked with QA lead.
-4. **PI-capacity budgets per Pi model.** Sigmalink's `pi-conf.xml`
-   ships defaults, but the field engineers have made local
-   overrides. Do we import their `pi-conf.xml` verbatim per site,
-   or ship Nieweb defaults and let the admin UI override?
-5. **Feedforward latency budget.** What's the numeric target for
-   `FFW6`? Sigmalink SigmaLine did not publish one; needs line
-   engineering input.
-6. **Zebra label ZPL template.** Reuse Sigmalink's, or design a new
+4. **Zebra label ZPL template.** Reuse Sigmalink's, or design a new
    one? Reuse buys migration; new gets us the Nieweb branding on
    labels.
-7. **Sigmalink dependency freeze.** Sigmalink continues to run
+5. **Sigmalink dependency freeze.** Sigmalink continues to run
    independently for Data Import (§1). During coexistence for the
    modules Nieweb is absorbing (Review + Analyse), Sigmalink writes
    to its own HSQLDB/PostgreSQL. Do we need any coordination between
