@@ -32,20 +32,25 @@ test.describe("Analyse dashboard smoke", () => {
         await page.goto("/app/analyse");
         await expect(page.getByRole("heading", { name: "Analyse" })).toBeVisible();
 
-        // Panel card: worst-panel ranking renders once the query resolves.
+        // Panel card renders once the query resolves. The SPA queries
+        // the default window (last 24h), which holds no fixture rows
+        // (fixture is 2026-01-15), so assert the card + sort control
+        // structurally — numeric parity is covered via the API below
+        // with the explicit fixture window.
         await expect(page.getByTestId("analyse-panel-summary-card")).toBeVisible();
-        await expect(page.getByTestId("analyse-panel-row-0")).toBeVisible();
         // Panel sort control (polish pass) — defects / barcode / date.
         await expect(
             page.getByRole("radiogroup", { name: "Sort panel cards by" }),
         ).toBeVisible();
 
-        // Cp/Cpk card: per-axis capability rows render once resolved.
+        // Cp/Cpk card renders its axis rows once resolved (10 axis
+        // cards regardless of window — empty axes still render).
         await expect(page.getByTestId("analyse-cp-cpk-card")).toBeVisible();
         await expect(page.getByTestId("analyse-cp-cpk-row-0")).toBeVisible();
 
-        // Backend check: panel-summary returns the fixture's 10 panels
-        // ranked worst-first (defective panels carry defect bits).
+        // Backend check: panel-summary returns the fixture's panels
+        // (10 base + 3 REPEAT-001 re-inspections = 13) ranked
+        // worst-first (defective panels carry defect bits).
         const panelPath =
             `/api/analyse/panel-summary?sourceId=${FIXTURE_SOURCE_ID}` +
             `&startUtc=${encodeURIComponent(FIXTURE_START_UTC)}` +
@@ -60,7 +65,7 @@ test.describe("Analyse dashboard smoke", () => {
             panels: Array<{ panelId: number; barcode: string; defectBitCount: number }>;
             dedupeAppliedInMemory: boolean;
         };
-        expect(panel.totalPanels).toBe(10);
+        expect(panel.totalPanels).toBe(13);
         expect(panel.panels.length).toBeGreaterThan(0);
         expect(panel.dedupeAppliedInMemory).toBe(false);
         // Worst-first ordering: first row carries the most defect bits.
