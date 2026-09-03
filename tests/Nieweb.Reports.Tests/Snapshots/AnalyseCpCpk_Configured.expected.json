@@ -1,0 +1,160 @@
+{
+  "source": {
+    "id": "postreflow",
+    "displayName": "Post-reflow AOI",
+    "schemaVersion": "5.0",
+    "caps": "IsLastInspectionFilter"
+  },
+  "filter": {
+    "window": {
+      "startUtc": "2026-01-01T00:00:00+00:00",
+      "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+      "startEpochSeconds": 1767225600,
+      "endEpochSecondsExclusive": 1767312000,
+      "duration": "1.00:00:00"
+    },
+    "machineIds": null,
+    "productIds": null,
+    "onlyLastInspection": false,
+    "componentItx": 60,
+    "componentIty": null,
+    "componentIts": null,
+    "pasteItx": null,
+    "pasteIty": null,
+    "pasteIts": null
+  },
+  "rows": [
+    {
+      "axis": "DeltaX",
+      "opportunity": "Components",
+      "sampleCount": 5,
+      "mean": 0,
+      "stdDev": 7.905694150420948,
+      "min": -10,
+      "max": 10,
+      "toleranceInterval": 60,
+      "toleranceConfigured": true,
+      "cp": 1.2649110640673518,
+      "cpk": 1.2649110640673518
+    },
+    {
+      "axis": "DeltaY",
+      "opportunity": "Components",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaTheta",
+      "opportunity": "Components",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaThickness",
+      "opportunity": "Components",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaSurface",
+      "opportunity": "Components",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaX",
+      "opportunity": "Paste",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaY",
+      "opportunity": "Paste",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaTheta",
+      "opportunity": "Paste",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaThickness",
+      "opportunity": "Paste",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    },
+    {
+      "axis": "DeltaSurface",
+      "opportunity": "Paste",
+      "sampleCount": 0,
+      "mean": null,
+      "stdDev": 0,
+      "min": null,
+      "max": null,
+      "toleranceInterval": null,
+      "toleranceConfigured": false,
+      "cp": null,
+      "cpk": null
+    }
+  ],
+  "dedupeAppliedInMemory": false,
+  "dedupeNote": null
+}

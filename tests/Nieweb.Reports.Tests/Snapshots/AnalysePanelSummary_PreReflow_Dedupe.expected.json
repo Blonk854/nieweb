@@ -1,0 +1,79 @@
+{
+  "source": {
+    "id": "prereflow",
+    "displayName": "Pre-reflow AOI",
+    "schemaVersion": "4.3.1",
+    "caps": "PastePrintMetrics"
+  },
+  "filter": {
+    "window": {
+      "startUtc": "2026-01-01T00:00:00+00:00",
+      "endUtcExclusive": "2026-01-02T00:00:00+00:00",
+      "startEpochSeconds": 1767225600,
+      "endEpochSecondsExclusive": 1767312000,
+      "duration": "1.00:00:00"
+    },
+    "machineIds": null,
+    "productIds": null,
+    "onlyLastInspection": true
+  },
+  "overallYield": {
+    "totalPanels": 2,
+    "inspectedPanels": 2,
+    "goodPanels": 1,
+    "faultyPanels": 1,
+    "notInspectedPanels": 0,
+    "fpyPercent": 50
+  },
+  "overallDpmo": {
+    "testedObjectCount": 2,
+    "opportunityCount": 15,
+    "defectBitCount": 3,
+    "dpmoPpm": 200000
+  },
+  "totalPanels": 2,
+  "panels": [
+    {
+      "panelId": 2,
+      "barcode": "BC-1",
+      "panelUtc": "2026-01-01T00:00:20+00:00",
+      "productId": 100,
+      "productName": "Widget",
+      "machineId": 10,
+      "machineName": "AOI-10",
+      "panelStatus": 1,
+      "defectBitCount": 2,
+      "testedObjectCount": 1,
+      "topDefectBits": [
+        {
+          "bitNumber": 1,
+          "count": 1
+        },
+        {
+          "bitNumber": 2,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "panelId": 3,
+      "barcode": "BC-2",
+      "panelUtc": "2026-01-01T00:00:15+00:00",
+      "productId": 200,
+      "productName": "Gadget",
+      "machineId": 11,
+      "machineName": "AOI-11",
+      "panelStatus": -1,
+      "defectBitCount": 1,
+      "testedObjectCount": 1,
+      "topDefectBits": [
+        {
+          "bitNumber": 1,
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "dedupeAppliedInMemory": true,
+  "dedupeNote": "Source lacks IS_LAST_INSPECTION; dedupe is applied in memory by panel id."
+}
