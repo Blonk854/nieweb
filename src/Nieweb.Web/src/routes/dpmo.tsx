@@ -53,6 +53,11 @@ import {
 import { DataTable, type Column } from "../components/DataTable";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { ApiErrorAlert } from "../components/ApiErrorAlert";
+import { SavedViewsMenu } from "../components/SavedViewsMenu";
+import {
+    DPMO_L6_AUG_PRESETS,
+    L6_PART_ANALYSIS_SOURCE_ID,
+} from "../components/reportPresets/l6PartAnalysis";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { downloadWithAuth } from "../api/download";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
@@ -111,6 +116,17 @@ export function DpmoRoute() {
         queryFn: () => fetchMachines(effectiveSourceId!),
         enabled: Boolean(effectiveSourceId),
     });
+    const presetMachinesQuery = useQuery({
+        queryKey: ["machines", L6_PART_ANALYSIS_SOURCE_ID],
+        queryFn: () => fetchMachines(L6_PART_ANALYSIS_SOURCE_ID),
+    });
+    const presetContext = useMemo(
+        () => ({
+            machines: presetMachinesQuery.data ?? [],
+            timeZone,
+        }),
+        [presetMachinesQuery.data, timeZone],
+    );
     const productsQuery = useQuery({
         queryKey: ["products", effectiveSourceId],
         queryFn: () => fetchProducts(effectiveSourceId!),
@@ -162,6 +178,12 @@ export function DpmoRoute() {
     function handleReset() {
         setForm(emptyForm());
         void navigate({ to: "/report/dpmo", search: {} as DpmoSearch, replace: false });
+    }
+
+    function applySavedFilter(filter: DpmoSearch) {
+        setForm(searchToForm(filter, timeZone));
+        scrollPendingRef.current = true;
+        void navigate({ to: "/report/dpmo", search: filter, replace: false });
     }
 
     async function downloadExport(format: "csv" | "xlsx" | "pdf") {
@@ -400,6 +422,14 @@ export function DpmoRoute() {
                             >
                                 {t("dpmo.filters.print")}
                             </Button>
+                            <SavedViewsMenu<DpmoSearch>
+                                reportKey="dpmo"
+                                currentFilter={search}
+                                onApply={applySavedFilter}
+                                canSave={reportEnabled}
+                                presets={DPMO_L6_AUG_PRESETS}
+                                presetContext={presetContext}
+                            />
                         </Group>
                         <Group>
                             <Anchor

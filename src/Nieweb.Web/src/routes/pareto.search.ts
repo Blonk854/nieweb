@@ -25,6 +25,7 @@ export type ParetoAxis =
     | "ReferenceDesignator"
     | "PartNumber"
     | "Jedec"
+    | "Subpanel"
     | "Day"
     | "Shift";
 
@@ -35,6 +36,7 @@ export const PARETO_AXES: readonly ParetoAxis[] = [
     "ReferenceDesignator",
     "PartNumber",
     "Jedec",
+    "Subpanel",
     "Day",
     "Shift",
 ];

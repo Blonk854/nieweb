@@ -382,6 +382,36 @@ public sealed class ParetoReportTests
     }
 
     [Fact]
+    public async Task SubpanelAxis_GroupsRowsByCardIdOnPanel()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(machineId: 10, date: start + 10, nbTestsOnComp: 20),
+            ],
+            SeededTestedObjects =
+            [
+                Obj(10, start + 60, 90_001, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R1", partNumberName: "PN-A", cardIdOnPanel: 1),
+                Obj(10, start + 61, 90_002, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R2", partNumberName: "PN-A", cardIdOnPanel: 1),
+                Obj(10, start + 62, 90_003, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R3", partNumberName: "PN-A", cardIdOnPanel: 2),
+            ],
+        };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.Equal(2L, result.Rows[0].DefectCount);
+        Assert.Equal("2", result.Rows[1].GroupKey);
+        Assert.Equal(1L, result.Rows[1].DefectCount);
+    }
+
+    [Fact]
     public async Task GenericFilter_PartNumberNotLike_ExcludesMatchingRows()
     {
         // The Old-school filter builder can express operators the fixed
@@ -616,11 +646,12 @@ public sealed class ParetoReportTests
         int productId = 500,
         string? topology = null,
         string? partNumberName = null,
-        string? jedecName = null)
+        string? jedecName = null,
+        int cardIdOnPanel = 1)
     {
         return new TestedObjectRow(
             PanelId: 1,
-            CardIdOnPanel: 1,
+            CardIdOnPanel: cardIdOnPanel,
             ObjectId: objectId,
             ObjectTypeId: objectTypeId,
             ErrorTable: errorTable,

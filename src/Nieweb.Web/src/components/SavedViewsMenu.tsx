@@ -25,6 +25,11 @@ import {
     fetchSavedViews,
     type SavedView,
 } from "../api/savedViews";
+import type {
+    ReportPreset,
+    ReportPresetBuildContext,
+} from "./reportPresets/types";
+import { L6_PART_ANALYSIS_MACHINE_NAME } from "./reportPresets/l6PartAnalysis";
 
 /**
  * Reusable "Saved views" affordance for a report page. Renders as a
@@ -57,10 +62,22 @@ export type SavedViewsMenuProps<TFilter> = {
     /** Optional dirty-state hint. If true, the menu surfaces a clear note
      * that the current filter differs from the saved URL / last-applied view. */
     isDirty?: boolean;
+    /** Built-in filter templates (e.g. L6 August analysis). */
+    presets?: ReportPreset<TFilter>[];
+    /** Machine list + time zone used to resolve dynamic preset fields. */
+    presetContext?: ReportPresetBuildContext;
 };
 
 export function SavedViewsMenu<TFilter>(props: SavedViewsMenuProps<TFilter>) {
-    const { reportKey, currentFilter, onApply, canSave = true, isDirty = false } = props;
+    const {
+        reportKey,
+        currentFilter,
+        onApply,
+        canSave = true,
+        isDirty = false,
+        presets = [],
+        presetContext,
+    } = props;
     const { t } = useTranslation();
     const queryClient = useQueryClient();
 
@@ -173,6 +190,58 @@ export function SavedViewsMenu<TFilter>(props: SavedViewsMenuProps<TFilter>) {
                         >
                             {t("savedViews.save")}
                         </Menu.Item>
+                    )}
+
+                    {presets.length > 0 && presetContext && (
+                        <>
+                            <Menu.Divider />
+                            <Menu.Label>{t("savedViews.presets")}</Menu.Label>
+                            {presets.map((preset) => {
+                                const built = preset.build(presetContext);
+                                const label = t(preset.labelKey);
+                                const description = preset.descriptionKey
+                                    ? t(preset.descriptionKey)
+                                    : undefined;
+                                if (built === null) {
+                                    return (
+                                        <Tooltip
+                                            key={preset.id}
+                                            label={t("reportPresets.machineNotFound", {
+                                                machine: L6_PART_ANALYSIS_MACHINE_NAME,
+                                            })}
+                                        >
+                                            <span>
+                                                <Menu.Item disabled>
+                                                    <Stack gap={0}>
+                                                        <Text size="sm">{label}</Text>
+                                                        {description && (
+                                                            <Text size="xs" c="dimmed">
+                                                                {description}
+                                                            </Text>
+                                                        )}
+                                                    </Stack>
+                                                </Menu.Item>
+                                            </span>
+                                        </Tooltip>
+                                    );
+                                }
+                                return (
+                                    <Menu.Item
+                                        key={preset.id}
+                                        onClick={() => onApply(built)}
+                                    >
+                                        <Stack gap={0}>
+                                            <Text size="sm">{label}</Text>
+                                            {description && (
+                                                <Text size="xs" c="dimmed">
+                                                    {description}
+                                                </Text>
+                                            )}
+                                        </Stack>
+                                    </Menu.Item>
+                                );
+                            })}
+                        </>
                     )}
 
                     {listQuery.isPending && (

@@ -305,4 +305,33 @@ describe("SavedViewsMenu", () => {
         expect(saveItem).toBeDefined();
         expect(saveItem).toHaveAttribute("data-disabled");
     });
+
+    it("applies a built-in preset when clicked", async () => {
+        fetchSpy.mockResolvedValue([]);
+        const applied: unknown[] = [];
+        const user = userEvent.setup();
+        render(
+            <SavedViewsMenu
+                reportKey="pareto"
+                currentFilter={{}}
+                onApply={(f) => applied.push(f)}
+                presets={[
+                    {
+                        id: "test-preset",
+                        labelKey: "reportPresets.l6Aug.paretoWorstParts",
+                        build: () => ({ sourceId: "postreflow", axis: "PartNumber" }),
+                    },
+                ]}
+                presetContext={{ machines: [{ id: 1, name: "L6PSTAOI", typeName: "AOI" }], timeZone: "UTC" }}
+            />,
+            { wrapper: makeWrapper() },
+        );
+
+        await openMenu(user);
+        await screen.findByText(/Report presets/i);
+        const item = findItemByText(/L6 Aug — worst parts \(Pareto\)/);
+        expect(item).toBeDefined();
+        await user.click(item!);
+        expect(applied).toEqual([{ sourceId: "postreflow", axis: "PartNumber" }]);
+    });
 });

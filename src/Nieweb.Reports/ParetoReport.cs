@@ -629,6 +629,8 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 return GroupKey.String(obj.PartNumberName);
             case ParetoAxis.Jedec:
                 return GroupKey.String(obj.JedecName);
+            case ParetoAxis.Subpanel:
+                return GroupKey.Int(obj.CardIdOnPanel);
             case ParetoAxis.Day:
             case ParetoAxis.Shift:
             {

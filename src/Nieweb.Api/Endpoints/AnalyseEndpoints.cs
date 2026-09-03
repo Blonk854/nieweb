@@ -2,6 +2,7 @@ using System.Globalization;
 
 using Nieweb.DataSources;
 using Nieweb.Reports;
+using Nieweb.Reports.Common;
 
 namespace Nieweb.Api.Endpoints;
 
@@ -26,6 +27,8 @@ public static class AnalyseEndpoints
             .WithName("AnalyseLinePerformanceSummary");
         group.MapGet("/product-summary", GetProductSummaryAsync)
             .WithName("AnalyseProductSummary");
+        group.MapGet("/product-detail/{productId:int}", GetProductDetailAsync)
+            .WithName("AnalyseProductDetail");
 
         return routes;
     }
@@ -222,6 +225,62 @@ public static class AnalyseEndpoints
         return Results.Ok(result);
     }
 
+    private static async Task<IResult> GetProductDetailAsync(
+        int productId,
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        bool? onlyLastInspection,
+        string? bucket,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+
+        var source = FindSource(sources, sourceId);
+        if (source is null)
+        {
+            return Results.Problem(
+                title: "Unknown source id.",
+                detail: $"No AOI source is registered with id '{sourceId}'.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var parseWindow = TryParseWindow(startUtc, endUtc);
+        if (parseWindow.Error is not null)
+        {
+            return parseWindow.Error;
+        }
+        if (parseWindow.Window is null)
+        {
+            return Results.Problem(
+                title: "Invalid date window.",
+                detail: "Could not resolve a valid analysis window.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+        var window = parseWindow.Window.Value;
+
+        var parsedBucket = ParseBucket(bucket);
+        if (parsedBucket.Error is not null)
+        {
+            return parsedBucket.Error;
+        }
+
+        var filter = new AnalyseProductDetailFilter(
+            Window: window,
+            ProductId: productId,
+            Bucket: parsedBucket.Bucket,
+            MachineIds: ParseIntList(machineIds),
+            OnlyLastInspection: onlyLastInspection ?? true);
+
+        var result = await AnalyseProductDetailReport.Instance
+            .RunAsync(source, filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        return Results.Ok(result);
+    }
+
     private static IAoiSource? FindSource(IEnumerable<IAoiSource> sources, string? id)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -289,6 +348,25 @@ public static class AnalyseEndpoints
 
         value = null;
         return false;
+    }
+
+    private static (TimeBucket Bucket, IResult? Error) ParseBucket(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return (TimeBucket.Day, null);
+        }
+
+        if (Enum.TryParse<TimeBucket>(raw, ignoreCase: true, out var parsed)
+            && parsed is TimeBucket.Day or TimeBucket.Week)
+        {
+            return (parsed, null);
+        }
+
+        return (TimeBucket.Day, Results.Problem(
+            title: "Invalid bucket parameter.",
+            detail: "Use bucket=Day or bucket=Week.",
+            statusCode: StatusCodes.Status400BadRequest));
     }
 
     private static HashSet<int>? ParseIntList(string? csv)

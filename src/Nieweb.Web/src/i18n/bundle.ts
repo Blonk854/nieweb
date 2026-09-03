@@ -61,6 +61,10 @@ export type TranslationBundle = {
         productDetailTitle: string;
         productDetailSubtitle: string;
         productDetailComingSoon: string;
+        productDetailBucketLabel: string;
+        productDetailTrendTitle: string;
+        productDetailDefectBreakdownTitle: string;
+        productDetailChartAria: string;
         productBackAction: string;
         noCapabilityGates: string;
         postReflowOnly: string;
@@ -1064,6 +1068,22 @@ export type TranslationBundle = {
         deleteError: string;
         saved: string;
         deleted: string;
+        presets: string;
+    };
+    reportPresets: {
+        machineNotFound: string;
+        l6Aug: {
+            dpmoWorstParts: string;
+            dpmoWorstPartsHint: string;
+            paretoWorstParts: string;
+            paretoWorstPartsHint: string;
+            paretoRefdesTop5: string;
+            paretoRefdesTop5Hint: string;
+            paretoSubpanelCombined: string;
+            paretoSubpanelCombinedHint: string;
+            paretoSubpanelOneRefdes: string;
+            paretoSubpanelOneRefdesHint: string;
+        };
     };
     traceability: {
         board: {

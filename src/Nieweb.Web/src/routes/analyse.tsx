@@ -423,6 +423,7 @@ export function AnalyseRoute() {
                                                         component={Link}
                                                         to="/analyse/product/$productId"
                                                         params={{ productId: String(row.productId) }}
+                                                        search={{ sourceId: selectedSourceId ?? undefined }}
                                                         variant="subtle"
                                                         size="compact-xs"
                                                     >

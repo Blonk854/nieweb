@@ -64,6 +64,10 @@ import { DataTable, type Column } from "../components/DataTable";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
+import {
+    L6_PART_ANALYSIS_SOURCE_ID,
+    PARETO_L6_AUG_PRESETS,
+} from "../components/reportPresets/l6PartAnalysis";
 import { downloadCsv, rowsToCsv } from "../components/csvExport";
 import { downloadWithAuth } from "../api/download";
 import { PdfPreviewModal } from "../components/PdfPreviewModal";
@@ -117,6 +121,17 @@ export function ParetoRoute() {
         queryFn: () => fetchMachines(effectiveSourceId!),
         enabled: Boolean(effectiveSourceId),
     });
+    const presetMachinesQuery = useQuery({
+        queryKey: ["machines", L6_PART_ANALYSIS_SOURCE_ID],
+        queryFn: () => fetchMachines(L6_PART_ANALYSIS_SOURCE_ID),
+    });
+    const presetContext = useMemo(
+        () => ({
+            machines: presetMachinesQuery.data ?? [],
+            timeZone,
+        }),
+        [presetMachinesQuery.data, timeZone],
+    );
     const productsQuery = useQuery({
         queryKey: ["products", effectiveSourceId],
         queryFn: () => fetchProducts(effectiveSourceId!),
@@ -699,6 +714,8 @@ export function ParetoRoute() {
                                 currentFilter={search}
                                 onApply={applySavedFilter}
                                 canSave={reportEnabled}
+                                presets={PARETO_L6_AUG_PRESETS}
+                                presetContext={presetContext}
                             />
                         </Group>
                         <Group>

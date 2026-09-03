@@ -17,6 +17,10 @@ import { AnalyseRoute } from "./analyse";
 import { AnalyseProductDetailRoute } from "./analyse-product-detail";
 import { useSessionStore } from "../state/session";
 
+vi.mock("echarts-for-react", () => ({
+    default: () => <div data-testid="mock-echarts" />,
+}));
+
 type Stub = {
     match: (url: string, init?: RequestInit) => boolean;
     status: number;
@@ -283,6 +287,95 @@ const productSummaryPre = {
     dedupeNote: "fallback",
 };
 
+const productDetailPostDay = {
+    source: { id: "postreflow", displayName: "Post-reflow", schemaVersion: "5.0", caps: 0 },
+    filter: {
+        ...windowPayload,
+        bucket: "Day",
+        productId: 200,
+    },
+    productId: 200,
+    productName: "Gadget",
+    overallYield: {
+        totalPanels: 50,
+        inspectedPanels: 49,
+        goodPanels: 48,
+        faultyPanels: 1,
+        notInspectedPanels: 1,
+        fpyPercent: 97.959184,
+    },
+    overallDpmo: {
+        testedObjectCount: 100,
+        opportunityCount: 2000,
+        defectBitCount: 9,
+        dpmoPpm: 4500,
+    },
+    buckets: [
+        {
+            index: 0,
+            label: "2026-08-01",
+            startUtc: "2026-08-01T00:00:00Z",
+            endUtcExclusive: "2026-08-02T00:00:00Z",
+        },
+    ],
+    trend: [
+        {
+            bucketIndex: 0,
+            label: "2026-08-01",
+            yield: {
+                totalPanels: 50,
+                inspectedPanels: 49,
+                goodPanels: 48,
+                faultyPanels: 1,
+                notInspectedPanels: 1,
+                fpyPercent: 97.959184,
+            },
+            dpmo: {
+                testedObjectCount: 100,
+                opportunityCount: 2000,
+                defectBitCount: 9,
+                dpmoPpm: 4500,
+            },
+            defectBitCount: 5,
+            topDefectBits: [
+                { bitNumber: 4, count: 5 },
+            ],
+        },
+    ],
+    topDefectBits: [
+        { bitNumber: 4, count: 5 },
+    ],
+    dedupeAppliedInMemory: false,
+    dedupeNote: null,
+};
+
+const productDetailPostWeek = {
+    ...productDetailPostDay,
+    filter: {
+        ...windowPayload,
+        bucket: "Week",
+        productId: 200,
+    },
+    buckets: [
+        {
+            index: 0,
+            label: "2026-W31",
+            startUtc: "2026-07-27T00:00:00Z",
+            endUtcExclusive: "2026-08-03T00:00:00Z",
+        },
+    ],
+    trend: [
+        {
+            bucketIndex: 0,
+            label: "2026-W31",
+            yield: productDetailPostDay.trend[0].yield,
+            dpmo: productDetailPostDay.trend[0].dpmo,
+            defectBitCount: productDetailPostDay.trend[0].defectBitCount,
+            topDefectBits: productDetailPostDay.trend[0].topDefectBits,
+        },
+    ],
+};
+
 describe("AnalyseRoute", () => {
     beforeEach(async () => {
         signIn();
@@ -375,6 +468,8 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/live-summary") && u.includes("sourceId=postreflow"), status: 200, body: liveSummaryPost },
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=postreflow"), status: 200, body: linePerformancePost },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=postreflow"), status: 200, body: productSummaryPost },
+            { match: (u) => u.includes("/api/analyse/product-detail/200") && u.includes("sourceId=postreflow") && u.includes("bucket=Day"), status: 200, body: productDetailPostDay },
+            { match: (u) => u.includes("/api/analyse/product-detail/200") && u.includes("sourceId=postreflow") && u.includes("bucket=Week"), status: 200, body: productDetailPostWeek },
         ]);
 
         renderAnalyse();
@@ -385,6 +480,17 @@ describe("AnalyseRoute", () => {
 
         expect(await screen.findByRole("heading", { name: "Product detail" })).toBeInTheDocument();
         expect(await screen.findByText("Product ID: 200")).toBeInTheDocument();
+        expect(await screen.findByText("Trend by bucket")).toBeInTheDocument();
+        expect(await screen.findByRole("img", { name: "Product trend chart across buckets" })).toBeInTheDocument();
+        expect(await screen.findByTestId("analyse-product-detail-bucket")).toBeInTheDocument();
+        expect((await screen.findAllByText("b4: 5")).length).toBe(2);
+
+        await user.click(screen.getByTestId("analyse-product-detail-bucket"));
+        const weekOption = await screen.findByText("Week");
+        await user.click(weekOption);
+
+        expect(await screen.findByText("2026-W31")).toBeInTheDocument();
+        expect((await screen.findAllByText("b4: 5")).length).toBe(2);
     });
 
     it("reloads contracts when the user switches source", async () => {

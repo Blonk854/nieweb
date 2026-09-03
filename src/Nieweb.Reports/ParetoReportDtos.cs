@@ -33,6 +33,9 @@ public enum ParetoAxis
     /// <summary>One bar per <c>JEDEC</c> / package name.</summary>
     Jedec = 5,
 
+    /// <summary>One bar per <c>CARDS.Card_Number</c> / <c>TESTED_OBJECT.CardIdOnPanel</c>.</summary>
+    Subpanel = 8,
+
     /// <summary>
     /// One bar per local-calendar day of the requested window (see
     /// <see cref="ParetoFilter.SiteTimeZone"/>). Bucket keys are the
