@@ -59,7 +59,17 @@ function hasSkipBit(anomalyBr: number | null | undefined, anomalyAr: number | nu
  * `traceability.board.panelStatus.*`. Callers pass the numeric
  * status straight from the server DTO.
  */
-export function panelStatusKey(status: number | null | undefined): string {
+export type PanelStatusKey =
+    | "traceability.board.panelStatus.koOperator"
+    | "traceability.board.panelStatus.ko"
+    | "traceability.board.panelStatus.notInspected"
+    | "traceability.board.panelStatus.ok"
+    | "traceability.board.panelStatus.okOperator"
+    | "traceability.board.panelStatus.okRepaired"
+    | "traceability.board.panelStatus.unknown"
+    | "traceability.board.panelStatus.skipped";
+
+export function panelStatusKey(status: number | null | undefined): PanelStatusKey {
     switch (status) {
         case -2:
             return "traceability.board.panelStatus.koOperator";
@@ -88,7 +98,7 @@ export function panelStatusOrSkippedKey(
     status: number | null | undefined,
     anomalyBr: number | null | undefined,
     anomalyAr: number | null | undefined,
-): string {
+): PanelStatusKey {
     if (status === 0 && hasSkipBit(anomalyBr, anomalyAr)) {
         return "traceability.board.panelStatus.skipped";
     }
@@ -100,7 +110,17 @@ export function panelStatusOrSkippedKey(
  * `traceability.board.cardStatus.*`. Card_Status uses the same
  * enum as Panel_Status.
  */
-export function cardStatusKey(status: number | null | undefined): string {
+export type CardStatusKey =
+    | "traceability.board.cardStatus.koOperator"
+    | "traceability.board.cardStatus.ko"
+    | "traceability.board.cardStatus.notInspected"
+    | "traceability.board.cardStatus.ok"
+    | "traceability.board.cardStatus.okOperator"
+    | "traceability.board.cardStatus.okRepaired"
+    | "traceability.board.cardStatus.unknown"
+    | "traceability.board.cardStatus.skipped";
+
+export function cardStatusKey(status: number | null | undefined): CardStatusKey {
     switch (status) {
         case -2:
             return "traceability.board.cardStatus.koOperator";
@@ -129,7 +149,7 @@ export function cardStatusOrSkippedKey(
     status: number | null | undefined,
     anomalyBr: number | null | undefined,
     anomalyAr: number | null | undefined,
-): string {
+): CardStatusKey {
     if (status === 0 && hasSkipBit(anomalyBr, anomalyAr)) {
         return "traceability.board.cardStatus.skipped";
     }

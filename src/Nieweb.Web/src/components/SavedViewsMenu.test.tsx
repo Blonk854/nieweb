@@ -311,9 +311,9 @@ describe("SavedViewsMenu", () => {
         const applied: unknown[] = [];
         const user = userEvent.setup();
         render(
-            <SavedViewsMenu
+            <SavedViewsMenu<{ sourceId: string; axis: string }>
                 reportKey="pareto"
-                currentFilter={{}}
+                currentFilter={{ sourceId: "postreflow", axis: "PartNumber" }}
                 onApply={(f) => applied.push(f)}
                 presets={[
                     {

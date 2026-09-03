@@ -60,6 +60,30 @@ import {
     type SkipExclusion,
     type SkipStatus,
 } from "./pareto.search";
+
+/** i18n label key per Pareto axis (avoids template-literal `t()` overload issues). */
+function paretoAxisLabelKey(axis: ParetoAxis):
+    | "pareto.axis.Defect"
+    | "pareto.axis.Product"
+    | "pareto.axis.AoiMachine"
+    | "pareto.axis.ReferenceDesignator"
+    | "pareto.axis.PartNumber"
+    | "pareto.axis.Jedec"
+    | "pareto.axis.Subpanel"
+    | "pareto.axis.Day"
+    | "pareto.axis.Shift" {
+    switch (axis) {
+        case "Defect": return "pareto.axis.Defect";
+        case "Product": return "pareto.axis.Product";
+        case "AoiMachine": return "pareto.axis.AoiMachine";
+        case "ReferenceDesignator": return "pareto.axis.ReferenceDesignator";
+        case "PartNumber": return "pareto.axis.PartNumber";
+        case "Jedec": return "pareto.axis.Jedec";
+        case "Subpanel": return "pareto.axis.Subpanel";
+        case "Day": return "pareto.axis.Day";
+        case "Shift": return "pareto.axis.Shift";
+    }
+}
 import { DataTable, type Column } from "../components/DataTable";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { ApiErrorAlert } from "../components/ApiErrorAlert";
@@ -407,7 +431,7 @@ export function ParetoRoute() {
                             label={t("pareto.filters.axis")}
                             data={PARETO_AXES.map((a) => ({
                                 value: a,
-                                label: t(`pareto.axis.${a}`),
+                                label: t(paretoAxisLabelKey(a) as never),
                             }))}
                             value={form.axis}
                             onChange={(value) =>
@@ -964,7 +988,7 @@ function DrillDownMap() {
                         {t("pareto.drillMap.intro")}
                     </Text>
                     <Text size="xs">
-                        {entryAxes.map((a) => t(`pareto.axis.${a}`)).join(" · ")}
+                        {entryAxes.map((a) => t(paretoAxisLabelKey(a) as never)).join(" · ")}
                         {"  →  "}
                         {t("pareto.axis.Defect")}
                         {"  →  "}
@@ -1034,7 +1058,7 @@ function ResultsCard(props: {
                         </Text>
                         <Text>
                             <strong>{t("pareto.results.axis")}:</strong>{" "}
-                            {t(`pareto.axis.${data.axis}`)}
+                            {t(paretoAxisLabelKey(data.axis as ParetoAxis) as never)}
                         </Text>
                     </Group>
 

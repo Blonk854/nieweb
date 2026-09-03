@@ -476,9 +476,7 @@ export function AnalyseRoute() {
                                                     <Button
                                                         data-testid={`analyse-product-detail-${row.productId}`}
                                                         component={Link}
-                                                        to="/analyse/product/$productId"
-                                                        params={{ productId: String(row.productId) }}
-                                                        search={{ sourceId: selectedSourceId ?? undefined }}
+                                                        to={`/analyse/product/${row.productId}${selectedSourceId ? `?sourceId=${encodeURIComponent(selectedSourceId)}` : ""}`}
                                                         variant="subtle"
                                                         size="compact-xs"
                                                     >
@@ -587,8 +585,7 @@ export function AnalyseRoute() {
                                                 <Button
                                                     data-testid={`analyse-panel-trace-${row.panelId}`}
                                                     component={Link}
-                                                    to="/traceability/board"
-                                                    search={{ barcode: row.barcode }}
+                                                    to={`/traceability/board?barcode=${encodeURIComponent(row.barcode)}`}
                                                     variant="subtle"
                                                     size="compact-xs"
                                                 >
