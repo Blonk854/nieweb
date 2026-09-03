@@ -66,6 +66,11 @@ export type TranslationBundle = {
         productDetailDefectBreakdownTitle: string;
         productDetailChartAria: string;
         productBackAction: string;
+        panelTitle: string;
+        panelOverviewCaption: string;
+        panelNoRows: string;
+        panelBarcodeLabel: string;
+        panelOpenTraceAction: string;
         noCapabilityGates: string;
         postReflowOnly: string;
         dedupeFallbackTitle: string;

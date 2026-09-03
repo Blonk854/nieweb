@@ -22,6 +22,7 @@ import {
     fetchAnalyseContracts,
     fetchAnalyseLinePerformanceSummary,
     fetchAnalyseLiveSummary,
+    fetchAnalysePanelSummary,
     fetchAnalyseProductSummary,
 } from "../api/analyse";
 import { getAuthConfig } from "../api/auth";
@@ -115,6 +116,17 @@ export function AnalyseRoute() {
         queryKey: ["analyse", "product-summary", selectedSourceId],
         queryFn: () =>
             fetchAnalyseProductSummary({
+                sourceId: selectedSourceId ?? undefined,
+                onlyLastInspection: true,
+            }),
+        enabled: Boolean(selectedSourceId),
+        staleTime: 60 * 1000,
+    });
+
+    const panelSummary = useQuery({
+        queryKey: ["analyse", "panel-summary", selectedSourceId],
+        queryFn: () =>
+            fetchAnalysePanelSummary({
                 sourceId: selectedSourceId ?? undefined,
                 onlyLastInspection: true,
             }),
@@ -439,6 +451,96 @@ export function AnalyseRoute() {
                         {productSummary.data.dedupeAppliedInMemory && (
                             <Alert color="blue" variant="light" title={t("analyse.dedupeFallbackTitle")}>
                                 {productSummary.data.dedupeNote ?? t("analyse.dedupeFallbackDefault")}
+                            </Alert>
+                        )}
+                    </Stack>
+                </Card>
+            )}
+
+            {panelSummary.error && <ApiErrorAlert error={panelSummary.error} />}
+            {panelSummary.isPending && (
+                <Group justify="center" py="lg">
+                    <Loader size="sm" />
+                </Group>
+            )}
+
+            {panelSummary.data && (
+                <Card withBorder padding="md" radius="md" data-testid="analyse-panel-summary-card">
+                    <Stack gap="sm">
+                        <Group justify="space-between">
+                            <Text fw={600}>{t("analyse.panelTitle")}</Text>
+                            <Badge variant="light">ANA-05</Badge>
+                        </Group>
+                        <Text size="sm" c="dimmed">
+                            {t("analyse.panelOverviewCaption", {
+                                count: panelSummary.data.panels.length,
+                                total: panelSummary.data.totalPanels,
+                            })}
+                        </Text>
+                        {panelSummary.data.panels.length === 0 ? (
+                            <Text size="sm" c="dimmed">{t("analyse.panelNoRows")}</Text>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
+                                {panelSummary.data.panels.slice(0, 6).map((row, index) => (
+                                    <Card
+                                        key={row.panelId}
+                                        withBorder
+                                        padding="sm"
+                                        radius="sm"
+                                        data-testid={`analyse-panel-row-${index}`}
+                                    >
+                                        <Stack gap={6}>
+                                            <Group justify="space-between" align="flex-start">
+                                                <Stack gap={1}>
+                                                    <Text fw={700} lineClamp={1}>
+                                                        {row.barcode}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {t("analyse.panelBarcodeLabel")}: {row.barcode} · {row.productName ?? `${t("analyse.productIdLabel")} ${row.productId}`} · {row.machineName ?? row.machineId}
+                                                    </Text>
+                                                </Stack>
+                                                <Badge variant="light">#{index + 1}</Badge>
+                                            </Group>
+                                            <Group gap="md" wrap="wrap">
+                                                <Stack gap={0}>
+                                                    <Text size="xs" c="dimmed">{t("analyse.kpi.defectBits")}</Text>
+                                                    <Text fw={600}>{formatInt(row.defectBitCount)}</Text>
+                                                </Stack>
+                                                <Stack gap={0}>
+                                                    <Text size="xs" c="dimmed">{t("analyse.kpi.fpyPercent")}</Text>
+                                                    <Text fw={600}>{row.panelStatus}</Text>
+                                                </Stack>
+                                            </Group>
+                                            {row.topDefectBits.length > 0 && (
+                                                <Group gap={6}>
+                                                    <Text size="xs" c="dimmed">{t("analyse.productDefectPreview")}</Text>
+                                                    {row.topDefectBits.map((defect) => (
+                                                        <Badge key={defect.bitNumber} variant="light" size="xs" color="gray">
+                                                            b{defect.bitNumber}: {formatInt(defect.count)}
+                                                        </Badge>
+                                                    ))}
+                                                </Group>
+                                            )}
+                                            <Group justify="flex-end">
+                                                <Button
+                                                    data-testid={`analyse-panel-trace-${row.panelId}`}
+                                                    component={Link}
+                                                    to="/traceability/board"
+                                                    search={{ barcode: row.barcode }}
+                                                    variant="subtle"
+                                                    size="compact-xs"
+                                                >
+                                                    {t("analyse.panelOpenTraceAction")}
+                                                </Button>
+                                            </Group>
+                                        </Stack>
+                                    </Card>
+                                ))}
+                            </SimpleGrid>
+                        )}
+                        {panelSummary.data.dedupeAppliedInMemory && (
+                            <Alert color="blue" variant="light" title={t("analyse.dedupeFallbackTitle")}>
+                                {panelSummary.data.dedupeNote ?? t("analyse.dedupeFallbackDefault")}
                             </Alert>
                         )}
                     </Stack>

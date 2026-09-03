@@ -551,6 +551,71 @@ public sealed class AnalyseEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Fact]
+    public async Task PanelSummary_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(new Uri("/api/analyse/panel-summary", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PanelSummary_PreReflow_OnlyLastInspection_AppliesInMemoryDedupe()
+    {
+        var start = 1785542400;
+        var pre = new FakeAoiSource(
+            new SourceDescriptor(
+                "prereflow",
+                "Pre-reflow AOI",
+                "4.3.1",
+                Capabilities.PastePrintMetrics))
+        {
+            SeededPanels =
+            [
+                Panel(id: 1, machineId: 10, date: start + 10, status: -1, barcode: "BC-1", face: 0, productId: 100),
+                Panel(id: 2, machineId: 10, date: start + 20, status: 1, barcode: "BC-1", face: 0, productId: 100),
+                Panel(id: 3, machineId: 11, date: start + 15, status: -1, barcode: "BC-2", face: 0, productId: 200),
+            ],
+            SeededCards =
+            [
+                Card(panelId: 2, machineId: 10, date: start + 20, nbTestsOnComp: 10, productId: 100),
+                Card(panelId: 3, machineId: 11, date: start + 15, nbTestsOnComp: 5, productId: 200),
+            ],
+            SeededTestedObjects =
+            [
+                Obj(panelId: 2, machineId: 10, date: start + 20, objectTypeId: 0x01, errorTable: 3, errorTableAr: 3, productId: 100),
+                Obj(panelId: 3, machineId: 11, date: start + 15, objectTypeId: 0x01, errorTable: 1, errorTableAr: 1, productId: 200),
+            ],
+            SeededProducts =
+            [
+                new Product(100, "Widget", null, null),
+                new Product(200, "Gadget", null, null),
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(pre)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "analyse-panel-pre@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await authed.GetAsync(
+            "/api/analyse/panel-summary?sourceId=prereflow&startUtc=2026-08-01T00:00:00Z&endUtc=2026-08-02T00:00:00Z&onlyLastInspection=true");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+
+        Assert.True(root.GetProperty("dedupeAppliedInMemory").GetBoolean());
+        Assert.Equal(2, root.GetProperty("totalPanels").GetInt32());
+        Assert.Equal(2, root.GetProperty("panels").GetArrayLength());
+        Assert.Equal(2, root.GetProperty("panels")[0].GetProperty("panelId").GetInt32());
+        Assert.Equal(2, root.GetProperty("panels")[0].GetProperty("defectBitCount").GetInt64());
+    }
+
     private static PanelRow Panel(int id, int machineId, int date, int status, string barcode, int face, int productId = 100) =>
         new(
             PanelId: id,

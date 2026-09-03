@@ -287,6 +287,65 @@ const productSummaryPre = {
     dedupeNote: "fallback",
 };
 
+const panelSummaryPost = {
+    source: { id: "postreflow", displayName: "Post-reflow", schemaVersion: "5.0", caps: 0 },
+    filter: windowPayload,
+    overallYield: {
+        totalPanels: 120,
+        inspectedPanels: 115,
+        goodPanels: 110,
+        faultyPanels: 5,
+        notInspectedPanels: 5,
+        fpyPercent: 95.652173,
+    },
+    overallDpmo: {
+        testedObjectCount: 230,
+        opportunityCount: 4600,
+        defectBitCount: 12,
+        dpmoPpm: 2608.695652,
+    },
+    totalPanels: 2,
+    panels: [
+        {
+            panelId: 42,
+            barcode: "PANEL-42",
+            panelUtc: "2026-08-01T10:00:00Z",
+            productId: 200,
+            productName: "Gadget",
+            machineId: 10,
+            machineName: "AOI-10",
+            panelStatus: -1,
+            defectBitCount: 7,
+            testedObjectCount: 3,
+            topDefectBits: [{ bitNumber: 4, count: 5 }],
+        },
+        {
+            panelId: 43,
+            barcode: "PANEL-43",
+            panelUtc: "2026-08-01T11:00:00Z",
+            productId: 100,
+            productName: "Widget",
+            machineId: 10,
+            machineName: "AOI-10",
+            panelStatus: 1,
+            defectBitCount: 1,
+            testedObjectCount: 1,
+            topDefectBits: [{ bitNumber: 1, count: 1 }],
+        },
+    ],
+    dedupeAppliedInMemory: false,
+    dedupeNote: null,
+};
+
+const panelSummaryPre = {
+    ...panelSummaryPost,
+    source: { id: "prereflow", displayName: "Pre-reflow", schemaVersion: "4.3.1", caps: "Panels,Cards" },
+    panels: [],
+    totalPanels: 0,
+    dedupeAppliedInMemory: true,
+    dedupeNote: "fallback",
+};
+
 const productDetailPostDay = {
     source: { id: "postreflow", displayName: "Post-reflow", schemaVersion: "5.0", caps: 0 },
     filter: {
@@ -416,6 +475,7 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/live-summary") && u.includes("sourceId=postreflow"), status: 200, body: liveSummaryPost },
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=postreflow"), status: 200, body: linePerformancePost },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=postreflow"), status: 200, body: productSummaryPost },
+            { match: (u) => u.includes("/api/analyse/panel-summary") && u.includes("sourceId=postreflow"), status: 200, body: panelSummaryPost },
         ]);
 
         renderAnalyse();
@@ -425,6 +485,8 @@ describe("AnalyseRoute", () => {
         expect(await screen.findByTestId("analyse-live-summary-card")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-line-performance-card")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-product-summary-card")).toBeInTheDocument();
+        expect(await screen.findByTestId("analyse-panel-summary-card")).toBeInTheDocument();
+        expect(await screen.findByTestId("analyse-panel-row-0")).toBeInTheDocument();
         expect(await screen.findByRole("radiogroup", { name: "Sort product cards by" })).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-product-detail-200")).toBeInTheDocument();
 
@@ -468,6 +530,7 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/live-summary") && u.includes("sourceId=postreflow"), status: 200, body: liveSummaryPost },
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=postreflow"), status: 200, body: linePerformancePost },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=postreflow"), status: 200, body: productSummaryPost },
+            { match: (u) => u.includes("/api/analyse/panel-summary") && u.includes("sourceId=postreflow"), status: 200, body: panelSummaryPost },
             { match: (u) => u.includes("/api/analyse/product-detail/200") && u.includes("sourceId=postreflow") && u.includes("bucket=Day"), status: 200, body: productDetailPostDay },
             { match: (u) => u.includes("/api/analyse/product-detail/200") && u.includes("sourceId=postreflow") && u.includes("bucket=Week"), status: 200, body: productDetailPostWeek },
         ]);
@@ -536,6 +599,7 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/live-summary") && u.includes("sourceId=prereflow"), status: 200, body: liveSummaryPre },
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=prereflow"), status: 200, body: linePerformancePre },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=prereflow"), status: 200, body: productSummaryPre },
+            { match: (u) => u.includes("/api/analyse/panel-summary") && u.includes("sourceId=prereflow"), status: 200, body: panelSummaryPre },
         ]);
 
         renderAnalyse();
@@ -558,11 +622,13 @@ describe("AnalyseRoute", () => {
         const summaryCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/live-summary"));
         const linePerformanceCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/line-performance-summary"));
         const productCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/product-summary"));
+        const panelCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/panel-summary"));
 
         expect(contractCalls.length).toBe(2);
         expect(summaryCalls.length).toBe(2);
         expect(linePerformanceCalls.length).toBe(2);
         expect(productCalls.length).toBe(2);
+        expect(panelCalls.length).toBe(2);
 
         const urls = contractCalls.map((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()));
         const summaryUrls = summaryCalls.map((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()));

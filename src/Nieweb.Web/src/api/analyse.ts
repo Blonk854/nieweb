@@ -383,3 +383,76 @@ export async function fetchAnalyseProductDetail(
             : `/api/analyse/product-detail/${productId}`,
     );
 }
+
+export type AnalysePanelSummaryResult = {
+    source: {
+        id: string;
+        displayName: string;
+        schemaVersion: string;
+        caps: number | string;
+    };
+    filter: {
+        window: {
+            startUtc: string;
+            endUtcExclusive: string;
+            startEpochSeconds: number;
+            endEpochSecondsExclusive: number;
+        };
+        machineIds: number[] | null;
+        productIds: number[] | null;
+        onlyLastInspection: boolean;
+    };
+    overallYield: {
+        totalPanels: number;
+        inspectedPanels: number;
+        goodPanels: number;
+        faultyPanels: number;
+        notInspectedPanels: number;
+        fpyPercent: number;
+    };
+    overallDpmo: {
+        testedObjectCount: number;
+        opportunityCount: number;
+        defectBitCount: number;
+        dpmoPpm: number;
+    };
+    totalPanels: number;
+    panels: Array<{
+        panelId: number;
+        barcode: string;
+        panelUtc: string;
+        productId: number;
+        productName: string | null;
+        machineId: number;
+        machineName: string | null;
+        panelStatus: number;
+        defectBitCount: number;
+        testedObjectCount: number;
+        topDefectBits: Array<{ bitNumber: number; count: number }>;
+    }>;
+    dedupeAppliedInMemory: boolean;
+    dedupeNote: string | null;
+};
+
+export async function fetchAnalysePanelSummary(
+    query: AnalyseContractsQuery,
+): Promise<AnalysePanelSummaryResult> {
+    const qs = new URLSearchParams();
+    if (query.sourceId) qs.set("sourceId", query.sourceId);
+    if (query.startUtc) qs.set("startUtc", query.startUtc);
+    if (query.endUtc) qs.set("endUtc", query.endUtc);
+    if (query.machineIds && query.machineIds.length > 0) {
+        qs.set("machineIds", query.machineIds.join(","));
+    }
+    if (query.productIds && query.productIds.length > 0) {
+        qs.set("productIds", query.productIds.join(","));
+    }
+    if (query.onlyLastInspection !== undefined) {
+        qs.set("onlyLastInspection", query.onlyLastInspection ? "true" : "false");
+    }
+
+    const suffix = qs.toString();
+    return apiFetch<AnalysePanelSummaryResult>(
+        suffix ? `/api/analyse/panel-summary?${suffix}` : "/api/analyse/panel-summary",
+    );
+}

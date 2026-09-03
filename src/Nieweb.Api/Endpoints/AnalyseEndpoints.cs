@@ -29,6 +29,8 @@ public static class AnalyseEndpoints
             .WithName("AnalyseProductSummary");
         group.MapGet("/product-detail/{productId:int}", GetProductDetailAsync)
             .WithName("AnalyseProductDetail");
+        group.MapGet("/panel-summary", GetPanelSummaryAsync)
+            .WithName("AnalysePanelSummary");
 
         return routes;
     }
@@ -275,6 +277,54 @@ public static class AnalyseEndpoints
             OnlyLastInspection: onlyLastInspection ?? true);
 
         var result = await AnalyseProductDetailReport.Instance
+            .RunAsync(source, filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> GetPanelSummaryAsync(
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        string? productIds,
+        bool? onlyLastInspection,
+        IEnumerable<IAoiSource> sources,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+
+        var source = FindSource(sources, sourceId);
+        if (source is null)
+        {
+            return Results.Problem(
+                title: "Unknown source id.",
+                detail: $"No AOI source is registered with id '{sourceId}'.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var parseWindow = TryParseWindow(startUtc, endUtc);
+        if (parseWindow.Error is not null)
+        {
+            return parseWindow.Error;
+        }
+        if (parseWindow.Window is null)
+        {
+            return Results.Problem(
+                title: "Invalid date window.",
+                detail: "Could not resolve a valid analysis window.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+        var window = parseWindow.Window.Value;
+
+        var filter = new AnalyseDashboardFilter(
+            Window: window,
+            MachineIds: ParseIntList(machineIds),
+            ProductIds: ParseIntList(productIds),
+            OnlyLastInspection: onlyLastInspection ?? true);
+
+        var result = await AnalysePanelSummaryReport.Instance
             .RunAsync(source, filter, cancellationToken)
             .ConfigureAwait(false);
 
