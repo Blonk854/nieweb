@@ -3,7 +3,8 @@
 _Status: **IN PROGRESS** — Board Trace (§6.1) is the active slice.
 `BT3`, `BT4`, `BT9`, and the BoardViewer crosshair fix are **done**;
 `BT1` / `BT2` are **partial**; kiosk mode (`BT6`–`BT8`) is not
-started. Review and Analyse have **no code yet**._
+started. Analyse (§6.3, `ANA1`–`ANA6`) is **done** on `phase-c`
+(see `docs/analyse.md`); Review has **no code yet**._
 _Depends on: `docs/tech-stack.md` (SIGNED-OFF 2026-07-20),
 `docs/phase-2.md` (**COMPLETE** 2026-07-31). Post-plan chart work
 (DPMO Trend by line, 2026-08-26) is recorded in §6.0._
@@ -279,15 +280,18 @@ Legend: `M` = mandatory for Phase 3 sign-off, `S` = should-have,
 `C` = could-have (drop if slipping). Every item cites the skill that
 owns the canonical facts.
 
-**Progress snapshot (2026-08-26).** Phase 2 closed complete on
+**Progress snapshot (2026-09-03).** Phase 2 closed complete on
 2026-07-31. Phase 3 is **in progress** on the `phase-c` branch. Board
-Trace (§6.1) is the only section with substantial new code since the
-Phase 2 traceability slice: `BT3`, `BT4`, and `BT9` are **done**;
+Trace (§6.1) has `BT3`, `BT4`, and `BT9` **done**;
 `BT1` and `BT2` are **partial**; QA landing tile (`BT5`) and kiosk
 mode (`BT6`–`BT8`) are **open**. A post-plan **DPMO Trend by line** chart report landed on
 `phase-c` (§6.0) — same family as Phase 2's FPY Trend (`CR4`) but
-outside the original Phase 3 backlog. Everything else — Review,
-Analyse, MSA, automatic
+outside the original Phase 3 backlog. The full AOI-only Analyse track
+(§6.3, `ANA1`–`ANA6`) is **done** — Live, Line Performance, Product
+(+ detail drilldown), Panel, and Cp/Cpk dashboards with reports,
+endpoints, SPA cards, and E2E smoke; companion doc `docs/analyse.md`.
+Everything else — Review,
+MSA, automatic
 treatments, extra locales, and the Sigmalink coexistence / retirement
 track — has **no code yet**.
 
@@ -444,23 +448,34 @@ panel by barcode; Phase 3 wraps a first-class UI around it.
 
 ### 6.3 Analyse dashboards (M) — `sigmalink-analyse`
 
-- `ANA1` — DBQuery-K client (`Nieweb.DataSources.K`).
-- `ANA2` — **Live** dashboard: real-time counters (last 5 min /
-  hour / shift) for the top production KPIs. Tile-based so users can
-  save a custom Live view.
-- `ANA3` — **Line Performance** dashboard: AOI yields per line with
-  per-shift comparison.
-- `ANA4` — **Product** dashboard: FPY / DPMO / defect Pareto per
-  product across all lines.
-- `ANA5` — **Panel** dashboard: drill from panel barcode to AOI defect
-  list → repair sanction. Uses the same
-  `Nieweb.Reports.Traceability` back-end as Board Trace (§6.1) — the
-  Panel dashboard is the analyst-oriented view (comparisons across
-  boards) while Board Trace is the operator-oriented view (one
-  barcode, full timeline).
-- `ANA6` — **Cp / Cpk** dashboard: histogram + radar + panels +
-  result tables per measure nature (Volume, Height, Area, Offset X,
-  Offset Y, Theta). Reuses `aoi-quality-metrics` skill formulas.
+> **Status (2026-09-03).** `ANA1`–`ANA6` are **done** on `phase-c`
+> (AOI-only scope; SPI/PI excluded per §1). Companion doc:
+> `docs/analyse.md`. `ANA7` (WAR retirement) is **open** — needs the
+> two-week parallel run on the pilot line.
+
+- `ANA1` ✅ done — DBQuery-K role played by the `AnalyseEndpoints`
+  Minimal-API group (`/api/analyse/*`) over `IAoiSource`; no separate
+  `Nieweb.DataSources.K` process. Capability gates via `/contracts`.
+- `ANA2` ✅ done — **Live** dashboard: headline counters (total /
+  inspected / good / faulty / not-inspected + FPY %) over the window
+  (`AnalyseLiveSummaryReport`, `analyse-live-summary-card`).
+- `ANA3` ✅ done — **Line Performance** dashboard: overall + per-machine
+  FPY and component DPMO (`AnalyseLinePerformanceReport`).
+- `ANA4` ✅ done — **Product** dashboard: per-product FPY / DPMO /
+  defect Pareto with defects/FPY/DPMO sort, plus a Day/Week detail
+  trend with ECharts chart and per-bucket top defect bits
+  (`AnalyseProductSummaryReport`, `AnalyseProductDetailReport`,
+  `/app/analyse/product/$productId`).
+- `ANA5` ✅ done — **Panel** dashboard: worst-panel ranking (top 50 by
+  defect-bit count) with defects/barcode/date sort; each row deep-links
+  to Board Trace (`AnalysePanelSummaryReport`,
+  `analyse-panel-summary-card`). Analyst-oriented complement to Board
+  Trace, not a second implementation of it.
+- `ANA6` ✅ done — **Cp / Cpk** dashboard: per-axis × opportunity
+  capability from `TESTED_OBJECT.Delta_*` with canonical
+  `Cp = IT/6σ` / `Cpk = min(IT/2−d̄, IT/2+d̄)/3σ` (AOI-only port of the
+  legacy SPI-only module; tolerances from AppParameter, unconfigured →
+  null with badge). `AnalyseCpCpkReport`, `analyse-cp-cpk-card`.
 - `ANA7` — Retirement of `VIT_Analyse.war`: after two weeks of
   parallel running, the Jetty install is uninstalled from the
   pilot line.
