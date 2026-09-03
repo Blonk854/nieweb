@@ -46,7 +46,9 @@ export type TranslationBundle = {
         sourceLabel: string;
         sourceAutoHint: string;
         liveSummaryTitle: string;
+        linePerformanceTitle: string;
         supported: string;
+        limited: string;
         productTitle: string;
         productOverviewCaption: string;
         productTopCaption: string;
@@ -71,6 +73,11 @@ export type TranslationBundle = {
         panelNoRows: string;
         panelBarcodeLabel: string;
         panelOpenTraceAction: string;
+        panelTopCaption: string;
+        panelSortLabel: string;
+        panelSortDefectBits: string;
+        panelSortBarcode: string;
+        panelSortDate: string;
         cpCpkTitle: string;
         cpCpkOverviewCaption: string;
         cpCpkNoRows: string;
@@ -87,6 +94,8 @@ export type TranslationBundle = {
             faultyPanels: string;
             notInspectedPanels: string;
             fpyPercent: string;
+            dpmoPpm: string;
+            defectBits: string;
         };
         forbiddenTitle: string;
         forbidden: string;
@@ -1600,6 +1609,7 @@ export type TranslationBundle = {
                                     Jedec: string;
                                     Day: string;
                                     Shift: string;
+                                    Subpanel: string;
                                 };
                             };
                             numerator: {

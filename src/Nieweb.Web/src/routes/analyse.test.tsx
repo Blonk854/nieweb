@@ -541,6 +541,15 @@ describe("AnalyseRoute", () => {
         expect(await screen.findByTestId("analyse-cp-cpk-card")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-panel-row-0")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-cp-cpk-row-0")).toBeInTheDocument();
+        expect(await screen.findByRole("radiogroup", { name: "Sort panel cards by" })).toBeInTheDocument();
+
+        const panelUser = userEvent.setup();
+        const defaultTopPanel = await screen.findByTestId("analyse-panel-row-0");
+        expect(within(defaultTopPanel).getByText("PANEL-42")).toBeInTheDocument();
+
+        await panelUser.click(screen.getByRole("radio", { name: "Barcode" }));
+        const barcodeTopPanel = await screen.findByTestId("analyse-panel-row-0");
+        expect(within(barcodeTopPanel).getByText("PANEL-42")).toBeInTheDocument();
         expect(await screen.findByRole("radiogroup", { name: "Sort product cards by" })).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-product-detail-200")).toBeInTheDocument();
 

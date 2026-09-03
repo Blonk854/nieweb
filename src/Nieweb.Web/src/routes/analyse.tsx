@@ -34,6 +34,7 @@ export function AnalyseRoute() {
     const { t } = useTranslation();
     const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
     const [productSort, setProductSort] = useState<"defectBits" | "fpy" | "dpmo">("defectBits");
+    const [panelSort, setPanelSort] = useState<"defectBits" | "barcode" | "date">("defectBits");
     const integerFormatter = useMemo(() => new Intl.NumberFormat(), []);
     const decimalFormatter = useMemo(
         () =>
@@ -175,6 +176,36 @@ export function AnalyseRoute() {
         }
         return next;
     }, [productSummary.data?.products, productSort]);
+
+    const sortedPanels = useMemo(() => {
+        const rows = panelSummary.data?.panels ?? [];
+        const next = [...rows];
+        switch (panelSort) {
+            case "barcode":
+                next.sort((a, b) =>
+                    a.barcode.localeCompare(b.barcode)
+                    || b.defectBitCount - a.defectBitCount
+                    || a.panelId - b.panelId,
+                );
+                break;
+            case "date":
+                next.sort((a, b) =>
+                    b.panelUtc.localeCompare(a.panelUtc)
+                    || b.defectBitCount - a.defectBitCount
+                    || a.panelId - b.panelId,
+                );
+                break;
+            case "defectBits":
+            default:
+                next.sort((a, b) =>
+                    b.defectBitCount - a.defectBitCount
+                    || b.panelUtc.localeCompare(a.panelUtc)
+                    || a.panelId - b.panelId,
+                );
+                break;
+        }
+        return next;
+    }, [panelSummary.data?.panels, panelSort]);
 
     if (authConfig.isPending || sources.isPending) {
         return (
@@ -489,11 +520,30 @@ export function AnalyseRoute() {
                                 total: panelSummary.data.totalPanels,
                             })}
                         </Text>
+                        <Stack gap="xs">
+                            <Group justify="space-between">
+                                <Text size="sm" fw={600}>{t("analyse.panelTopCaption")}</Text>
+                                <Group gap="xs">
+                                    <Badge variant="dot">{formatInt(panelSummary.data.panels.length)}</Badge>
+                                    <SegmentedControl
+                                        data-testid="analyse-panel-sort"
+                                        size="xs"
+                                        value={panelSort}
+                                        onChange={(value) => setPanelSort(value as "defectBits" | "barcode" | "date")}
+                                        data={[
+                                            { value: "defectBits", label: t("analyse.panelSortDefectBits") },
+                                            { value: "barcode", label: t("analyse.panelSortBarcode") },
+                                            { value: "date", label: t("analyse.panelSortDate") },
+                                        ]}
+                                        aria-label={t("analyse.panelSortLabel")}
+                                    />
+                                </Group>
+                            </Group>
                         {panelSummary.data.panels.length === 0 ? (
                             <Text size="sm" c="dimmed">{t("analyse.panelNoRows")}</Text>
                         ) : (
                             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
-                                {panelSummary.data.panels.slice(0, 6).map((row, index) => (
+                                {sortedPanels.slice(0, 6).map((row, index) => (
                                     <Card
                                         key={row.panelId}
                                         withBorder
@@ -550,6 +600,7 @@ export function AnalyseRoute() {
                                 ))}
                             </SimpleGrid>
                         )}
+                        </Stack>
                         {panelSummary.data.dedupeAppliedInMemory && (
                             <Alert color="blue" variant="light" title={t("analyse.dedupeFallbackTitle")}>
                                 {panelSummary.data.dedupeNote ?? t("analyse.dedupeFallbackDefault")}
