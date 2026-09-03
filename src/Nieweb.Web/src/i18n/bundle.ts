@@ -71,6 +71,11 @@ export type TranslationBundle = {
         panelNoRows: string;
         panelBarcodeLabel: string;
         panelOpenTraceAction: string;
+        cpCpkTitle: string;
+        cpCpkOverviewCaption: string;
+        cpCpkNoRows: string;
+        cpCpkNotConfigured: string;
+        cpCpkSampleCount: string;
         noCapabilityGates: string;
         postReflowOnly: string;
         dedupeFallbackTitle: string;

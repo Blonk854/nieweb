@@ -616,6 +616,76 @@ public sealed class AnalyseEndpointsTests : IClassFixture<NiewebApiFactory>
         Assert.Equal(2, root.GetProperty("panels")[0].GetProperty("defectBitCount").GetInt64());
     }
 
+    [Fact]
+    public async Task CpCpk_WithoutToken_Returns401()
+    {
+        using var client = _factory.CreateClient();
+        using var response = await client.GetAsync(new Uri("/api/analyse/cp-cpk", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CpCpk_PostReflow_ReturnsRowsWithToleranceEcho()
+    {
+        var start = 1785542400;
+        var post = new FakeAoiSource(
+            new SourceDescriptor(
+                "postreflow",
+                "Post-reflow AOI",
+                "5.0",
+                Capabilities.IsLastInspectionFilter))
+        {
+            SeededPanels =
+            [
+                Panel(id: 1, machineId: 10, date: start + 10, status: 1, barcode: "BC-1", face: 0, productId: 100),
+            ],
+            SeededTestedObjects =
+            [
+                new TestedObjectRow(
+                    PanelId: 1,
+                    CardIdOnPanel: 1,
+                    ObjectId: start + 10,
+                    ObjectTypeId: 0x01,
+                    ErrorTable: 0,
+                    ErrorTableAr: 0,
+                    Status: 0,
+                    MachineId: 10,
+                    ProductId: 100,
+                    PanelNumericDate: start + 10,
+                    Topology: null,
+                    PartNumberName: null,
+                    JedecName: null,
+                    DeltaXUm: 3),
+            ],
+        };
+
+        await using var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureServices(services => services.AddSingleton<IAoiSource>(post)));
+
+        using var client = factory.CreateClient();
+        var token = await IssueTokenAsync(client, "analyse-cp-cpk@nieweb.test");
+
+        using var authed = factory.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var response = await authed.GetAsync(
+            "/api/analyse/cp-cpk?sourceId=postreflow&startUtc=2026-08-01T00:00:00Z&endUtc=2026-08-02T00:00:00Z&onlyLastInspection=false");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = doc.RootElement;
+
+        Assert.False(root.GetProperty("dedupeAppliedInMemory").GetBoolean());
+        // 5 axes × 2 opportunities.
+        Assert.Equal(10, root.GetProperty("rows").GetArrayLength());
+        var deltaX = root.GetProperty("rows").EnumerateArray()
+            .First(r => r.GetProperty("axis").GetString() == "DeltaX"
+                && r.GetProperty("opportunity").GetString() == "Components");
+        Assert.Equal(1, deltaX.GetProperty("sampleCount").GetInt64());
+        // Seeded tolerance defaults are 0 → not configured.
+        Assert.False(deltaX.GetProperty("toleranceConfigured").GetBoolean());
+    }
+
     private static PanelRow Panel(int id, int machineId, int date, int status, string barcode, int face, int productId = 100) =>
         new(
             PanelId: id,

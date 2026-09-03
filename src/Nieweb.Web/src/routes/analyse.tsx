@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 
 import {
     fetchAnalyseContracts,
+    fetchAnalyseCpCpk,
     fetchAnalyseLinePerformanceSummary,
     fetchAnalyseLiveSummary,
     fetchAnalysePanelSummary,
@@ -127,6 +128,17 @@ export function AnalyseRoute() {
         queryKey: ["analyse", "panel-summary", selectedSourceId],
         queryFn: () =>
             fetchAnalysePanelSummary({
+                sourceId: selectedSourceId ?? undefined,
+                onlyLastInspection: true,
+            }),
+        enabled: Boolean(selectedSourceId),
+        staleTime: 60 * 1000,
+    });
+
+    const cpCpk = useQuery({
+        queryKey: ["analyse", "cp-cpk", selectedSourceId],
+        queryFn: () =>
+            fetchAnalyseCpCpk({
                 sourceId: selectedSourceId ?? undefined,
                 onlyLastInspection: true,
             }),
@@ -541,6 +553,79 @@ export function AnalyseRoute() {
                         {panelSummary.data.dedupeAppliedInMemory && (
                             <Alert color="blue" variant="light" title={t("analyse.dedupeFallbackTitle")}>
                                 {panelSummary.data.dedupeNote ?? t("analyse.dedupeFallbackDefault")}
+                            </Alert>
+                        )}
+                    </Stack>
+                </Card>
+            )}
+
+            {cpCpk.error && <ApiErrorAlert error={cpCpk.error} />}
+            {cpCpk.isPending && (
+                <Group justify="center" py="lg">
+                    <Loader size="sm" />
+                </Group>
+            )}
+
+            {cpCpk.data && (
+                <Card withBorder padding="md" radius="md" data-testid="analyse-cp-cpk-card">
+                    <Stack gap="sm">
+                        <Group justify="space-between">
+                            <Text fw={600}>{t("analyse.cpCpkTitle")}</Text>
+                            <Badge variant="light">ANA-06</Badge>
+                        </Group>
+                        <Text size="sm" c="dimmed">
+                            {t("analyse.cpCpkOverviewCaption", {
+                                count: cpCpk.data.rows.length,
+                            })}
+                        </Text>
+                        {cpCpk.data.rows.length === 0 ? (
+                            <Text size="sm" c="dimmed">{t("analyse.cpCpkNoRows")}</Text>
+                        ) : (
+                            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="sm">
+                                {cpCpk.data.rows.map((row, index) => (
+                                    <Card
+                                        key={`${row.opportunity}-${row.axis}`}
+                                        withBorder
+                                        padding="sm"
+                                        radius="sm"
+                                        data-testid={`analyse-cp-cpk-row-${index}`}
+                                    >
+                                        <Stack gap={6}>
+                                            <Group justify="space-between" align="flex-start">
+                                                <Stack gap={1}>
+                                                    <Text fw={700} lineClamp={1}>
+                                                        {row.opportunity} · {row.axis}
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        {t("analyse.cpCpkSampleCount")}: {formatInt(row.sampleCount)}
+                                                    </Text>
+                                                </Stack>
+                                                {!row.toleranceConfigured && (
+                                                    <Badge variant="light" color="yellow">{t("analyse.cpCpkNotConfigured")}</Badge>
+                                                )}
+                                            </Group>
+                                            <Group gap="md" wrap="wrap">
+                                                <Stack gap={0}>
+                                                    <Text size="xs" c="dimmed">Cp</Text>
+                                                    <Text fw={600}>{row.cp === null ? "—" : formatDecimal(row.cp)}</Text>
+                                                </Stack>
+                                                <Stack gap={0}>
+                                                    <Text size="xs" c="dimmed">Cpk</Text>
+                                                    <Text fw={600}>{row.cpk === null ? "—" : formatDecimal(row.cpk)}</Text>
+                                                </Stack>
+                                                <Stack gap={0}>
+                                                    <Text size="xs" c="dimmed">σ</Text>
+                                                    <Text fw={600}>{formatDecimal(row.stdDev)}</Text>
+                                                </Stack>
+                                            </Group>
+                                        </Stack>
+                                    </Card>
+                                ))}
+                            </SimpleGrid>
+                        )}
+                        {cpCpk.data.dedupeAppliedInMemory && (
+                            <Alert color="blue" variant="light" title={t("analyse.dedupeFallbackTitle")}>
+                                {cpCpk.data.dedupeNote ?? t("analyse.dedupeFallbackDefault")}
                             </Alert>
                         )}
                     </Stack>

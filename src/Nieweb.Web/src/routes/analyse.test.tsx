@@ -346,6 +346,57 @@ const panelSummaryPre = {
     dedupeNote: "fallback",
 };
 
+const cpCpkPost = {
+    source: { id: "postreflow", displayName: "Post-reflow", schemaVersion: "5.0", caps: 0 },
+    filter: {
+        ...windowPayload,
+        componentItx: null,
+        componentIty: null,
+        componentIts: null,
+        pasteItx: null,
+        pasteIty: null,
+        pasteIts: null,
+    },
+    rows: [
+        {
+            axis: "DeltaX",
+            opportunity: "Components",
+            sampleCount: 5,
+            mean: 0,
+            stdDev: 7.905694,
+            min: -10,
+            max: 10,
+            toleranceInterval: 60,
+            toleranceConfigured: true,
+            cp: 1.264911,
+            cpk: 1.264911,
+        },
+        {
+            axis: "DeltaY",
+            opportunity: "Components",
+            sampleCount: 0,
+            mean: null,
+            stdDev: 0,
+            min: null,
+            max: null,
+            toleranceInterval: null,
+            toleranceConfigured: false,
+            cp: null,
+            cpk: null,
+        },
+    ],
+    dedupeAppliedInMemory: false,
+    dedupeNote: null,
+};
+
+const cpCpkPre = {
+    ...cpCpkPost,
+    source: { id: "prereflow", displayName: "Pre-reflow", schemaVersion: "4.3.1", caps: "Panels,Cards" },
+    rows: [],
+    dedupeAppliedInMemory: true,
+    dedupeNote: "fallback",
+};
+
 const productDetailPostDay = {
     source: { id: "postreflow", displayName: "Post-reflow", schemaVersion: "5.0", caps: 0 },
     filter: {
@@ -476,6 +527,7 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=postreflow"), status: 200, body: linePerformancePost },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=postreflow"), status: 200, body: productSummaryPost },
             { match: (u) => u.includes("/api/analyse/panel-summary") && u.includes("sourceId=postreflow"), status: 200, body: panelSummaryPost },
+            { match: (u) => u.includes("/api/analyse/cp-cpk") && u.includes("sourceId=postreflow"), status: 200, body: cpCpkPost },
         ]);
 
         renderAnalyse();
@@ -486,7 +538,9 @@ describe("AnalyseRoute", () => {
         expect(await screen.findByTestId("analyse-line-performance-card")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-product-summary-card")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-panel-summary-card")).toBeInTheDocument();
+        expect(await screen.findByTestId("analyse-cp-cpk-card")).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-panel-row-0")).toBeInTheDocument();
+        expect(await screen.findByTestId("analyse-cp-cpk-row-0")).toBeInTheDocument();
         expect(await screen.findByRole("radiogroup", { name: "Sort product cards by" })).toBeInTheDocument();
         expect(await screen.findByTestId("analyse-product-detail-200")).toBeInTheDocument();
 
@@ -531,6 +585,7 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=postreflow"), status: 200, body: linePerformancePost },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=postreflow"), status: 200, body: productSummaryPost },
             { match: (u) => u.includes("/api/analyse/panel-summary") && u.includes("sourceId=postreflow"), status: 200, body: panelSummaryPost },
+            { match: (u) => u.includes("/api/analyse/cp-cpk") && u.includes("sourceId=postreflow"), status: 200, body: cpCpkPost },
             { match: (u) => u.includes("/api/analyse/product-detail/200") && u.includes("sourceId=postreflow") && u.includes("bucket=Day"), status: 200, body: productDetailPostDay },
             { match: (u) => u.includes("/api/analyse/product-detail/200") && u.includes("sourceId=postreflow") && u.includes("bucket=Week"), status: 200, body: productDetailPostWeek },
         ]);
@@ -600,6 +655,7 @@ describe("AnalyseRoute", () => {
             { match: (u) => u.includes("/api/analyse/line-performance-summary") && u.includes("sourceId=prereflow"), status: 200, body: linePerformancePre },
             { match: (u) => u.includes("/api/analyse/product-summary") && u.includes("sourceId=prereflow"), status: 200, body: productSummaryPre },
             { match: (u) => u.includes("/api/analyse/panel-summary") && u.includes("sourceId=prereflow"), status: 200, body: panelSummaryPre },
+            { match: (u) => u.includes("/api/analyse/cp-cpk") && u.includes("sourceId=prereflow"), status: 200, body: cpCpkPre },
         ]);
 
         renderAnalyse();
@@ -623,12 +679,14 @@ describe("AnalyseRoute", () => {
         const linePerformanceCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/line-performance-summary"));
         const productCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/product-summary"));
         const panelCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/panel-summary"));
+        const cpCpkCalls = fetchMock.mock.calls.filter((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()).includes("/api/analyse/cp-cpk"));
 
         expect(contractCalls.length).toBe(2);
         expect(summaryCalls.length).toBe(2);
         expect(linePerformanceCalls.length).toBe(2);
         expect(productCalls.length).toBe(2);
         expect(panelCalls.length).toBe(2);
+        expect(cpCpkCalls.length).toBe(2);
 
         const urls = contractCalls.map((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()));
         const summaryUrls = summaryCalls.map((c) => (typeof c[0] === "string" ? c[0] : c[0].toString()));

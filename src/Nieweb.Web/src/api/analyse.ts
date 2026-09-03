@@ -456,3 +456,67 @@ export async function fetchAnalysePanelSummary(
         suffix ? `/api/analyse/panel-summary?${suffix}` : "/api/analyse/panel-summary",
     );
 }
+
+export type AnalyseCpCpkResult = {
+    source: {
+        id: string;
+        displayName: string;
+        schemaVersion: string;
+        caps: number | string;
+    };
+    filter: {
+        window: {
+            startUtc: string;
+            endUtcExclusive: string;
+            startEpochSeconds: number;
+            endEpochSecondsExclusive: number;
+        };
+        machineIds: number[] | null;
+        productIds: number[] | null;
+        onlyLastInspection: boolean;
+        componentItx: number | null;
+        componentIty: number | null;
+        componentIts: number | null;
+        pasteItx: number | null;
+        pasteIty: number | null;
+        pasteIts: number | null;
+    };
+    rows: Array<{
+        axis: string;
+        opportunity: string;
+        sampleCount: number;
+        mean: number;
+        stdDev: number;
+        min: number;
+        max: number;
+        toleranceInterval: number | null;
+        toleranceConfigured: boolean;
+        cp: number | null;
+        cpk: number | null;
+    }>;
+    dedupeAppliedInMemory: boolean;
+    dedupeNote: string | null;
+};
+
+export async function fetchAnalyseCpCpk(
+    query: AnalyseContractsQuery,
+): Promise<AnalyseCpCpkResult> {
+    const qs = new URLSearchParams();
+    if (query.sourceId) qs.set("sourceId", query.sourceId);
+    if (query.startUtc) qs.set("startUtc", query.startUtc);
+    if (query.endUtc) qs.set("endUtc", query.endUtc);
+    if (query.machineIds && query.machineIds.length > 0) {
+        qs.set("machineIds", query.machineIds.join(","));
+    }
+    if (query.productIds && query.productIds.length > 0) {
+        qs.set("productIds", query.productIds.join(","));
+    }
+    if (query.onlyLastInspection !== undefined) {
+        qs.set("onlyLastInspection", query.onlyLastInspection ? "true" : "false");
+    }
+
+    const suffix = qs.toString();
+    return apiFetch<AnalyseCpCpkResult>(
+        suffix ? `/api/analyse/cp-cpk?${suffix}` : "/api/analyse/cp-cpk",
+    );
+}

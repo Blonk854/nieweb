@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using Nieweb.Api.Parameters;
 using Nieweb.DataSources;
 using Nieweb.Reports;
 using Nieweb.Reports.Common;
@@ -31,6 +32,8 @@ public static class AnalyseEndpoints
             .WithName("AnalyseProductDetail");
         group.MapGet("/panel-summary", GetPanelSummaryAsync)
             .WithName("AnalysePanelSummary");
+        group.MapGet("/cp-cpk", GetCpCpkAsync)
+            .WithName("AnalyseCpCpk");
 
         return routes;
     }
@@ -329,6 +332,97 @@ public static class AnalyseEndpoints
             .ConfigureAwait(false);
 
         return Results.Ok(result);
+    }
+
+    private static async Task<IResult> GetCpCpkAsync(
+        string? sourceId,
+        string? startUtc,
+        string? endUtc,
+        string? machineIds,
+        string? productIds,
+        bool? onlyLastInspection,
+        IEnumerable<IAoiSource> sources,
+        IAppParameters parameters,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(sources);
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        var source = FindSource(sources, sourceId);
+        if (source is null)
+        {
+            return Results.Problem(
+                title: "Unknown source id.",
+                detail: $"No AOI source is registered with id '{sourceId}'.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        var parseWindow = TryParseWindow(startUtc, endUtc);
+        if (parseWindow.Error is not null)
+        {
+            return parseWindow.Error;
+        }
+        if (parseWindow.Window is null)
+        {
+            return Results.Problem(
+                title: "Invalid date window.",
+                detail: "Could not resolve a valid analysis window.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+        var window = parseWindow.Window.Value;
+
+        // Tolerance intervals are stored in mm (X/Y) / mm² (Surface);
+        // Delta samples are µm / unitless ratio. Convert to full-interval
+        // µm so Cp = IT/(6σ) uses matching units. Surface passes through
+        // (unit mismatch documented; caller must tune accordingly).
+        // 0 / missing = not configured → report renders null Cp/Cpk.
+        var filter = new AnalyseCpCpkFilter(
+            Window: window,
+            MachineIds: ParseIntList(machineIds),
+            ProductIds: ParseIntList(productIds),
+            OnlyLastInspection: onlyLastInspection ?? true,
+            ComponentItx: await ReadToleranceUmAsync(parameters, "tolerance.component.itx", 1000d, cancellationToken).ConfigureAwait(false),
+            ComponentIty: await ReadToleranceUmAsync(parameters, "tolerance.component.ity", 1000d, cancellationToken).ConfigureAwait(false),
+            ComponentIts: await ReadToleranceUmAsync(parameters, "tolerance.component.its", 1d, cancellationToken).ConfigureAwait(false),
+            PasteItx: await ReadToleranceUmAsync(parameters, "tolerance.paste.itx", 1000d, cancellationToken).ConfigureAwait(false),
+            PasteIty: await ReadToleranceUmAsync(parameters, "tolerance.paste.ity", 1000d, cancellationToken).ConfigureAwait(false),
+            PasteIts: await ReadToleranceUmAsync(parameters, "tolerance.paste.its", 1d, cancellationToken).ConfigureAwait(false));
+
+        var result = await AnalyseCpCpkReport.Instance
+            .RunAsync(source, filter, cancellationToken)
+            .ConfigureAwait(false);
+
+        return Results.Ok(result);
+    }
+
+    private static async Task<double?> ReadToleranceUmAsync(
+        IAppParameters parameters,
+        string key,
+        double umPerUnit,
+        CancellationToken ct)
+    {
+        var row = await parameters.GetAsync(key, ct).ConfigureAwait(false);
+        if (row is null)
+        {
+            return null;
+        }
+
+        decimal raw;
+        try
+        {
+            raw = row.AsDecimal();
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+
+        if (raw <= 0m)
+        {
+            return null;
+        }
+
+        return (double)raw * umPerUnit;
     }
 
     private static IAoiSource? FindSource(IEnumerable<IAoiSource> sources, string? id)
