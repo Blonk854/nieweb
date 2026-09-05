@@ -5,6 +5,7 @@ import type {
     ParetoAxis,
     ParetoNumerator,
     ParetoOpportunity,
+    ParetoWeight,
 } from "../routes/pareto.search";
 
 /** One bar of a Pareto chart. Mirrors `Nieweb.Reports.ParetoRow`. */
@@ -19,6 +20,7 @@ export type ParetoRow = {
     defectSharePercent: number;
     cumulativePercent: number;
     isVitalFew: boolean;
+    opportunitiesApplicable: boolean;
 };
 
 /** DPMO-flavoured overall KPI. Mirrors `Nieweb.Reports.DpmoKpi`. */
@@ -56,13 +58,14 @@ export type ParetoResult = {
     axis: ParetoAxis;
     numerator: ParetoNumerator;
     opportunity: ParetoOpportunity;
-    weight: "Count";
+    weight: ParetoWeight;
     appliedFilters: ParetoAppliedFilters;
     overall: DpmoKpi;
     rows: ParetoRow[];
     othersBucket: ParetoRow | null;
     skipExclusion: "Raw" | "Clean";
     skipExcludedCards: number;
+    vitalFewThresholdPercent: number;
 };
 
 /**
@@ -73,6 +76,23 @@ export type ParetoResult = {
 export function runParetoReport(search: ParetoSearch): Promise<ParetoResult> {
     const qs = new URLSearchParams(toApiQuery(search)).toString();
     return apiFetch<ParetoResult>(`/api/reports/pareto?${qs}`);
+}
+
+export type ParetoFromTileRequest = {
+    sourceId: string;
+    startUtc: string;
+    endUtc: string;
+    machineIds?: number[];
+    productIds?: number[];
+    configJson: string;
+};
+
+export function runParetoFromTile(body: ParetoFromTileRequest): Promise<ParetoResult> {
+    return apiFetch<ParetoResult>("/api/reports/pareto/from-tile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+    });
 }
 
 /**

@@ -6,14 +6,11 @@ namespace Nieweb.Pdf;
 
 /// <summary>
 /// Renders a <see cref="ParetoResult"/> to a self-contained SVG string
-/// (bars + cumulative-percent line + dashed vital-few threshold) that
-/// mirrors the SPA's ECharts Pareto chart. QuestPDF embeds it natively
-/// via <c>IContainer.Svg(string)</c>, so the PDF export carries the same
-/// visual the browser shows — no rasterisation and no client round-trip.
+/// (bars +, in count mode, a cumulative-percent line and dashed
+/// vital-few threshold) that mirrors the SPA's ECharts Pareto chart.
 /// </summary>
 internal static class ParetoChartSvg
 {
-    // Palette mirrors src/Nieweb.Web/src/charts/paretoColors.ts.
     private const string VitalFew = "#c92a2a";
     private const string TrivialMany = "#868e96";
     private const string OthersColor = "#495057";
@@ -22,7 +19,6 @@ internal static class ParetoChartSvg
     private const string GridColor = "#e9ecef";
     private const string TextColor = "#495057";
 
-    // Canvas geometry (viewBox units).
     private const double W = 960;
     private const double H = 300;
     private const double PlotLeft = 54;
@@ -30,29 +26,28 @@ internal static class ParetoChartSvg
     private const double PlotTop = 34;
     private const double PlotBottom = 228;
 
-    private readonly record struct Bar(string Label, long Count, double Cumulative, string Color);
+    private readonly record struct Bar(string Label, double Magnitude, double Cumulative, string Color);
 
-    /// <summary>
-    /// Build the SVG markup for <paramref name="result"/>. Bars use the
-    /// server-supplied order (descending defect count); the cumulative
-    /// line rides the right-hand 0..100% axis. The dashed threshold is
-    /// only drawn when <paramref name="vitalFewThresholdPercent"/> is a
-    /// proper interior value (0 &lt; t &lt; 100).
-    /// </summary>
     public static string Build(ParetoResult result, double vitalFewThresholdPercent)
     {
+        var showCumulative = ParetoPresentation.ShowCumulative(result.Weight);
+        var showVitalFew = ParetoPresentation.ShowVitalFew(result.Weight);
         var bars = new List<Bar>(result.Rows.Count + 1);
         foreach (var r in result.Rows)
         {
             bars.Add(new Bar(
                 LabelOf(r, result.Axis),
-                r.DefectCount,
+                ParetoPresentation.BarMagnitude(result.Weight, r),
                 r.CumulativePercent,
-                r.IsVitalFew ? VitalFew : TrivialMany));
+                showVitalFew && r.IsVitalFew ? VitalFew : TrivialMany));
         }
         if (result.OthersBucket is { } others)
         {
-            bars.Add(new Bar("Others", others.DefectCount, others.CumulativePercent, OthersColor));
+            bars.Add(new Bar(
+                "Others",
+                ParetoPresentation.BarMagnitude(result.Weight, others),
+                others.CumulativePercent,
+                OthersColor));
         }
 
         var sb = new StringBuilder(4096);
@@ -71,19 +66,18 @@ internal static class ParetoChartSvg
         double slot = plotWidth / count;
         double barWidth = slot * 0.62;
 
-        long maxCount = 1;
+        double maxMagnitude = 1;
         foreach (var b in bars)
         {
-            if (b.Count > maxCount)
+            if (b.Magnitude > maxMagnitude)
             {
-                maxCount = b.Count;
+                maxMagnitude = b.Magnitude;
             }
         }
 
-        double YCount(double v) => PlotBottom - (v / maxCount) * plotHeight;
+        double YMag(double v) => PlotBottom - (v / maxMagnitude) * plotHeight;
         double YPct(double p) => PlotBottom - (p / 100.0) * plotHeight;
 
-        // Horizontal gridlines with dual labels (left = defect count, right = %).
         for (int g = 0; g <= 4; g++)
         {
             double frac = g / 4.0;
@@ -91,60 +85,64 @@ internal static class ParetoChartSvg
             sb.Append(CultureInfo.InvariantCulture,
                 $"<line x1=\"{F(PlotLeft)}\" y1=\"{F(y)}\" x2=\"{F(PlotRight)}\" y2=\"{F(y)}\" stroke=\"{GridColor}\" stroke-width=\"0.75\"/>");
             sb.Append(CultureInfo.InvariantCulture,
-                $"<text x=\"{F(PlotLeft - 5)}\" y=\"{F(y + 3)}\" text-anchor=\"end\" font-size=\"9\" fill=\"{TextColor}\">{F0(maxCount * frac)}</text>");
-            sb.Append(CultureInfo.InvariantCulture,
-                $"<text x=\"{F(PlotRight + 5)}\" y=\"{F(y + 3)}\" text-anchor=\"start\" font-size=\"9\" fill=\"{TextColor}\">{F0(100 * frac)}%</text>");
+                $"<text x=\"{F(PlotLeft - 5)}\" y=\"{F(y + 3)}\" text-anchor=\"end\" font-size=\"9\" fill=\"{TextColor}\">{F0(maxMagnitude * frac)}</text>");
+            if (showCumulative)
+            {
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"<text x=\"{F(PlotRight + 5)}\" y=\"{F(y + 3)}\" text-anchor=\"start\" font-size=\"9\" fill=\"{TextColor}\">{F0(100 * frac)}%</text>");
+            }
         }
 
-        // Axis frame.
         sb.Append(Line(PlotLeft, PlotTop, PlotLeft, PlotBottom, AxisColor, 1));
-        sb.Append(Line(PlotRight, PlotTop, PlotRight, PlotBottom, AxisColor, 1));
+        if (showCumulative)
+        {
+            sb.Append(Line(PlotRight, PlotTop, PlotRight, PlotBottom, AxisColor, 1));
+        }
         sb.Append(Line(PlotLeft, PlotBottom, PlotRight, PlotBottom, AxisColor, 1));
 
-        // Bars.
         for (int i = 0; i < count; i++)
         {
             var b = bars[i];
             double x = PlotLeft + (i * slot) + ((slot - barWidth) / 2.0);
-            double top = YCount(b.Count);
+            double top = YMag(b.Magnitude);
             double height = PlotBottom - top;
             sb.Append(CultureInfo.InvariantCulture,
                 $"<rect x=\"{F(x)}\" y=\"{F(top)}\" width=\"{F(barWidth)}\" height=\"{F(height)}\" fill=\"{b.Color}\"/>");
         }
 
-        // Dashed vital-few threshold on the cumulative axis.
-        if (vitalFewThresholdPercent > 0 && vitalFewThresholdPercent < 100)
+        if (showCumulative)
         {
-            double ty = YPct(vitalFewThresholdPercent);
-            sb.Append(CultureInfo.InvariantCulture,
-                $"<line x1=\"{F(PlotLeft)}\" y1=\"{F(ty)}\" x2=\"{F(PlotRight)}\" y2=\"{F(ty)}\" stroke=\"{VitalFew}\" stroke-width=\"1\" stroke-dasharray=\"5 4\"/>");
-            sb.Append(CultureInfo.InvariantCulture,
-                $"<text x=\"{F(PlotRight - 4)}\" y=\"{F(ty - 4)}\" text-anchor=\"end\" font-size=\"9\" fill=\"{VitalFew}\">{F0(vitalFewThresholdPercent)}%</text>");
-        }
-
-        // Cumulative-percent polyline.
-        var points = new StringBuilder(count * 12);
-        for (int i = 0; i < count; i++)
-        {
-            double cx = PlotLeft + (i * slot) + (slot / 2.0);
-            double cy = YPct(bars[i].Cumulative);
-            if (i > 0)
+            if (vitalFewThresholdPercent > 0 && vitalFewThresholdPercent < 100)
             {
-                points.Append(' ');
+                double ty = YPct(vitalFewThresholdPercent);
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"<line x1=\"{F(PlotLeft)}\" y1=\"{F(ty)}\" x2=\"{F(PlotRight)}\" y2=\"{F(ty)}\" stroke=\"{VitalFew}\" stroke-width=\"1\" stroke-dasharray=\"5 4\"/>");
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"<text x=\"{F(PlotRight - 4)}\" y=\"{F(ty - 4)}\" text-anchor=\"end\" font-size=\"9\" fill=\"{VitalFew}\">{F0(vitalFewThresholdPercent)}%</text>");
             }
-            points.Append(CultureInfo.InvariantCulture, $"{F(cx)},{F(cy)}");
-        }
-        sb.Append(CultureInfo.InvariantCulture,
-            $"<polyline points=\"{points}\" fill=\"none\" stroke=\"{CumulativeColor}\" stroke-width=\"1.5\"/>");
-        for (int i = 0; i < count; i++)
-        {
-            double cx = PlotLeft + (i * slot) + (slot / 2.0);
-            double cy = YPct(bars[i].Cumulative);
+
+            var points = new StringBuilder(count * 12);
+            for (int i = 0; i < count; i++)
+            {
+                double cx = PlotLeft + (i * slot) + (slot / 2.0);
+                double cy = YPct(bars[i].Cumulative);
+                if (i > 0)
+                {
+                    points.Append(' ');
+                }
+                points.Append(CultureInfo.InvariantCulture, $"{F(cx)},{F(cy)}");
+            }
             sb.Append(CultureInfo.InvariantCulture,
-                $"<circle cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"2.5\" fill=\"{CumulativeColor}\"/>");
+                $"<polyline points=\"{points}\" fill=\"none\" stroke=\"{CumulativeColor}\" stroke-width=\"1.5\"/>");
+            for (int i = 0; i < count; i++)
+            {
+                double cx = PlotLeft + (i * slot) + (slot / 2.0);
+                double cy = YPct(bars[i].Cumulative);
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"<circle cx=\"{F(cx)}\" cy=\"{F(cy)}\" r=\"2.5\" fill=\"{CumulativeColor}\"/>");
+            }
         }
 
-        // X-axis category labels — rotate when crowded, thin when very dense.
         int maxLen = 0;
         foreach (var b in bars)
         {
@@ -176,14 +174,17 @@ internal static class ParetoChartSvg
             }
         }
 
-        // Legend.
+        var seriesCaption = ParetoPresentation.LeftAxisCaption(result.Weight);
         sb.Append(CultureInfo.InvariantCulture,
-            $"<rect x=\"{F(PlotLeft)}\" y=\"12\" width=\"10\" height=\"10\" fill=\"{VitalFew}\"/>");
+            $"<rect x=\"{F(PlotLeft)}\" y=\"12\" width=\"10\" height=\"10\" fill=\"{(showVitalFew ? VitalFew : TrivialMany)}\"/>");
         sb.Append(CultureInfo.InvariantCulture,
-            $"<text x=\"{F(PlotLeft + 14)}\" y=\"21\" font-size=\"9\" fill=\"{TextColor}\">Defects</text>");
-        sb.Append(Line(PlotLeft + 66, 17, PlotLeft + 86, 17, CumulativeColor, 1.5));
-        sb.Append(CultureInfo.InvariantCulture,
-            $"<text x=\"{F(PlotLeft + 90)}\" y=\"21\" font-size=\"9\" fill=\"{TextColor}\">Cumulative %</text>");
+            $"<text x=\"{F(PlotLeft + 14)}\" y=\"21\" font-size=\"9\" fill=\"{TextColor}\">{Escape(seriesCaption)}</text>");
+        if (showCumulative)
+        {
+            sb.Append(Line(PlotLeft + 66, 17, PlotLeft + 86, 17, CumulativeColor, 1.5));
+            sb.Append(CultureInfo.InvariantCulture,
+                $"<text x=\"{F(PlotLeft + 90)}\" y=\"21\" font-size=\"9\" fill=\"{TextColor}\">Cumulative %</text>");
+        }
 
         sb.Append("</svg>");
         return sb.ToString();

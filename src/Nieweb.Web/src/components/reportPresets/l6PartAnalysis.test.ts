@@ -47,13 +47,14 @@ describe("L6 part-analysis presets", () => {
         expect(built!.startUtc).toMatch(/^2026-08-01/);
     });
 
-    it("builds Pareto subpanel preset", () => {
+    it("builds Pareto worst-parts preset with Clean + Real", () => {
         const built = PARETO_L6_AUG_PRESETS.find(
-            (p) => p.id === "l6-aug-pareto-subpanel-combined",
+            (p) => p.id === "l6-aug-pareto-worst-parts",
         )!.build(ctx);
         expect(built).toMatchObject({
-            axis: "Subpanel",
+            axis: "PartNumber",
             skipExclusion: "Clean",
+            numerator: "Real",
             machineIds: [99],
         });
     });

@@ -68,6 +68,12 @@ public static class ParetoPdfRenderer
             col.Item().Text($"Ranked rows ({result.Rows.Count}{(result.OthersBucket is null ? "" : " + Others")})")
                .SemiBold().FontSize(11);
             col.Item().Element(c => ComposeRows(c, result));
+            if (!ParetoReport.OpportunitiesApplicableForAxis(result.Axis))
+            {
+                col.Item().Text(
+                    "N/A: opportunity counts and DPMO are not measured per reference designator, part number, or JEDEC. Overall DPMO still uses card test counts.")
+                    .FontSize(8).Italic().FontColor(Colors.Grey.Darken1);
+            }
         });
     }
 
@@ -92,6 +98,8 @@ public static class ParetoPdfRenderer
 
     private static void ComposeRows(IContainer container, ParetoResult result)
     {
+        var showCumulative = ParetoPresentation.ShowCumulative(result.Weight);
+        const string na = "—";
         container.Table(t =>
         {
             t.ColumnsDefinition(c =>
@@ -102,8 +110,11 @@ public static class ParetoPdfRenderer
                 c.ConstantColumn(80);
                 c.ConstantColumn(70);
                 c.ConstantColumn(70);
-                c.ConstantColumn(75);
-                c.ConstantColumn(30);
+                if (showCumulative)
+                {
+                    c.ConstantColumn(75);
+                    c.ConstantColumn(30);
+                }
             });
             PanelYieldPdfRenderer.HeaderCell(t, "#");
             PanelYieldPdfRenderer.HeaderCell(t, "Group");
@@ -111,33 +122,44 @@ public static class ParetoPdfRenderer
             PanelYieldPdfRenderer.HeaderCell(t, "Opportunities");
             PanelYieldPdfRenderer.HeaderCell(t, "DPMO");
             PanelYieldPdfRenderer.HeaderCell(t, "Defect %");
-            PanelYieldPdfRenderer.HeaderCell(t, "Cumulative %");
-            PanelYieldPdfRenderer.HeaderCell(t, "★");
+            if (showCumulative)
+            {
+                PanelYieldPdfRenderer.HeaderCell(t, "Cumulative %");
+                PanelYieldPdfRenderer.HeaderCell(t, "★");
+            }
 
             var rank = 1;
             foreach (var row in result.Rows)
             {
-                PanelYieldPdfRenderer.Cell(t, rank++.ToString(CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, row.GroupName ?? row.GroupKey ?? string.Empty);
-                PanelYieldPdfRenderer.Cell(t, row.DefectCount.ToString("N0", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, row.OpportunityCount.ToString("N0", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, row.DpmoPpm.ToString("0.####", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, row.DefectSharePercent.ToString("0.00", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, row.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, row.IsVitalFew ? "★" : string.Empty);
+                WritePdfDataRow(t, rank++.ToString(CultureInfo.InvariantCulture), row, showCumulative, na);
             }
 
             if (result.OthersBucket is { } others)
             {
-                PanelYieldPdfRenderer.Cell(t, "—");
-                PanelYieldPdfRenderer.Cell(t, "Others");
-                PanelYieldPdfRenderer.Cell(t, others.DefectCount.ToString("N0", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, others.OpportunityCount.ToString("N0", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, others.DpmoPpm.ToString("0.####", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, others.DefectSharePercent.ToString("0.00", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, others.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
-                PanelYieldPdfRenderer.Cell(t, string.Empty);
+                WritePdfDataRow(t, "—", others, showCumulative, na);
             }
         });
+    }
+
+    private static void WritePdfDataRow(
+        TableDescriptor t,
+        string rank,
+        ParetoRow row,
+        bool showCumulative,
+        string na)
+    {
+        PanelYieldPdfRenderer.Cell(t, rank);
+        PanelYieldPdfRenderer.Cell(t, row.GroupName ?? row.GroupKey ?? string.Empty);
+        PanelYieldPdfRenderer.Cell(t, row.DefectCount.ToString("N0", CultureInfo.InvariantCulture));
+        PanelYieldPdfRenderer.Cell(t, row.OpportunitiesApplicable
+            ? row.OpportunityCount.ToString("N0", CultureInfo.InvariantCulture)
+            : na);
+        PanelYieldPdfRenderer.Cell(t, ParetoPresentation.DpmoCell(row, na));
+        PanelYieldPdfRenderer.Cell(t, row.DefectSharePercent.ToString("0.00", CultureInfo.InvariantCulture));
+        if (showCumulative)
+        {
+            PanelYieldPdfRenderer.Cell(t, row.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
+            PanelYieldPdfRenderer.Cell(t, row.IsVitalFew ? "★" : string.Empty);
+        }
     }
 }

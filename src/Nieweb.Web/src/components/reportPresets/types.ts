@@ -19,11 +19,7 @@ export type ReportPresetLabelKey =
     | "reportPresets.l6Aug.paretoWorstParts"
     | "reportPresets.l6Aug.paretoWorstPartsHint"
     | "reportPresets.l6Aug.paretoRefdesTop5"
-    | "reportPresets.l6Aug.paretoRefdesTop5Hint"
-    | "reportPresets.l6Aug.paretoSubpanelCombined"
-    | "reportPresets.l6Aug.paretoSubpanelCombinedHint"
-    | "reportPresets.l6Aug.paretoSubpanelOneRefdes"
-    | "reportPresets.l6Aug.paretoSubpanelOneRefdesHint";
+    | "reportPresets.l6Aug.paretoRefdesTop5Hint";
 
 export type ReportPreset<TFilter> = {
     id: string;

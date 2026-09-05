@@ -460,42 +460,6 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         await factory!.DisposeAsync();
     }
 
-    [Fact]
-    public async Task Pareto_SubpanelAxis_GroupsRowsByCardIdOnPanel()
-    {
-        var fake = new FakeAoiSource(_postDescriptor)
-        {
-            SeededCards =
-            [
-                Card(10, WindowStartEpoch + 10, nbTestsOnComp: 20),
-            ],
-            SeededTestedObjects =
-            [
-                Obj(10, WindowStartEpoch + 60, 90_001, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R1", partNumberName: "PN-A", cardIdOnPanel: 1),
-                Obj(10, WindowStartEpoch + 61, 90_002, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R2", partNumberName: "PN-A", cardIdOnPanel: 1),
-                Obj(10, WindowStartEpoch + 62, 90_003, ComponentType, BitObjectMissing, BitObjectMissing, topology: "R3", partNumberName: "PN-A", cardIdOnPanel: 2),
-            ],
-        };
-
-        var (authed, factory) = await AuthedClientAsync("pareto-subpanel@nieweb.test", fake);
-
-        using var response = await authed.GetAsync(
-            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel", UriKind.Relative));
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var payload = await response.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
-        Assert.NotNull(payload);
-        Assert.Equal(ParetoAxis.Subpanel, payload!.Axis);
-        Assert.Equal(2, payload.Rows.Count);
-        Assert.Equal("1", payload.Rows[0].GroupKey);
-        Assert.Equal(2L, payload.Rows[0].DefectCount);
-        Assert.Equal("2", payload.Rows[1].GroupKey);
-        Assert.Equal(1L, payload.Rows[1].DefectCount);
-
-        authed.Dispose();
-        await factory!.DisposeAsync();
-    }
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -869,7 +833,7 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(3, lines.Length); // header + 2 product rows, no OTHERS
         Assert.Equal(
-            "SourceId,SourceName,WindowStartUtc,WindowEndUtc,Axis,Numerator,Opportunity,Weight,Rank,GroupKey,GroupName,DefectCount,WeightedScore,OpportunityCount,OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew",
+            "SourceId,SourceName,WindowStartUtc,WindowEndUtc,Axis,Numerator,Opportunity,Weight,Rank,GroupKey,GroupName,DefectCount,WeightedScore,OpportunityCount,OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew,OpportunitiesApplicable",
             lines[0]);
         // Rank 1 = Product A (higher DefectCount despite lower DPMO).
         Assert.Contains(",Product,Real,All,Count,1,100,Product A,10,10,100,", lines[1], StringComparison.Ordinal);

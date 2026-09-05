@@ -26,14 +26,15 @@ public sealed class ParetoChartSvgTests
     private static ParetoResult Result(
         IReadOnlyList<ParetoRow> rows,
         ParetoRow? others = null,
-        ParetoAxis axis = ParetoAxis.Defect) =>
+        ParetoAxis axis = ParetoAxis.Defect,
+        ParetoWeight weight = ParetoWeight.Count) =>
         new(
             Source,
             Window,
             axis,
             DpmoNumerator.Real,
             DpmoOpportunity.All,
-            ParetoWeight.Count,
+            weight,
             NoFilters,
             new DpmoKpi(300, 300, 100, 333_333),
             rows,
@@ -45,7 +46,7 @@ public sealed class ParetoChartSvgTests
         long defects,
         double cumulative,
         bool vitalFew) =>
-        new(key, name, defects, defects, 100, 33.3, 0, 0, cumulative, vitalFew);
+        new(key, name, defects, defects, 100, 33.3, 0, 0, cumulative, vitalFew, true);
 
     private static int Count(string haystack, string needle)
     {
@@ -134,5 +135,20 @@ public sealed class ParetoChartSvgTests
         Assert.DoesNotContain("<rect", svg, StringComparison.Ordinal);
         Assert.DoesNotContain("<polyline", svg, StringComparison.Ordinal);
         Assert.EndsWith("</svg>", svg, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_DpmoWeight_OmitsCumulativeLineAndThreshold()
+    {
+        var result = Result(
+            [Row("1", "Missing", 50, 100, vitalFew: true)],
+            weight: ParetoWeight.Dpmo);
+
+        var svg = ParetoChartSvg.Build(result, vitalFewThresholdPercent: 80);
+
+        Assert.DoesNotContain("<polyline", svg, StringComparison.Ordinal);
+        Assert.DoesNotContain("stroke-dasharray", svg, StringComparison.Ordinal);
+        Assert.DoesNotContain("Cumulative %", svg, StringComparison.Ordinal);
+        Assert.Contains(">DPMO<", svg, StringComparison.Ordinal);
     }
 }

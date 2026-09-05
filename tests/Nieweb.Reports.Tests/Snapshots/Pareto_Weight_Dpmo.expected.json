@@ -41,7 +41,8 @@
       "dpmoPpm": 250000,
       "defectSharePercent": 33.333333333333336,
       "cumulativePercent": 33.333333333333336,
-      "isVitalFew": true
+      "isVitalFew": true,
+      "opportunitiesApplicable": true
     },
     {
       "groupKey": "100",
@@ -53,10 +54,12 @@
       "dpmoPpm": 100000,
       "defectSharePercent": 66.66666666666667,
       "cumulativePercent": 100,
-      "isVitalFew": true
+      "isVitalFew": true,
+      "opportunitiesApplicable": true
     }
   ],
   "othersBucket": null,
   "skipExclusion": "Raw",
-  "skipExcludedCards": 0
+  "skipExcludedCards": 0,
+  "vitalFewThresholdPercent": 80
 }

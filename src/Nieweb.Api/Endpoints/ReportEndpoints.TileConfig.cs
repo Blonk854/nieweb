@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Text.Json;
 
+using Nieweb.DataSources;
 using Nieweb.Filters;
 using Nieweb.Reports;
 
@@ -95,41 +96,109 @@ public static partial class ReportEndpoints
     }
 
     /// <summary>
-    /// Parses a per-tile Vieweb-style generic operator filter from a
-    /// tile's <c>ConfigJson</c> <c>filters</c> array. Each element is
-    /// <c>{ field, operator, values: [] }</c> using the canonical
-    /// <see cref="FilterField"/> / <see cref="FilterOperator"/> enum
-    /// names (case-insensitive). The whole request is validated with
-    /// <see cref="FilterValidator"/>; a malformed or structurally
-    /// invalid filter yields <c>null</c> (no filter) so one bad clause
-    /// never blanks a report. Returns <c>null</c> when the tile carries
-    /// no <c>filters</c> array.
+    /// Builds the <see cref="ParetoFilter"/> used by both saved-report
+    /// Pareto export and <c>POST /api/reports/pareto/from-tile</c>.
     /// </summary>
-    internal static FilterRequest? ParseTileFilters(string? configJson)
+    internal static (ParetoFilter? Filter, string? Error) TryBuildParetoTileFilter(
+        DateRange window,
+        IReadOnlyCollection<int>? machineIds,
+        IReadOnlyCollection<int>? productIds,
+        string? configJson)
     {
-        var root = TryParseObject(configJson);
-        if (root is not { } obj
-            || !obj.TryGetProperty("filters", out var filtersEl)
-            || filtersEl.ValueKind != JsonValueKind.Array)
+        var cfg = ParseParetoTileConfig(configJson);
+        var axis = cfg.Axis is ParetoAxis.Shift or ParetoAxis.Day ? ParetoAxis.Defect : cfg.Axis;
+        if (!TryParseTileFilters(configJson, out var filters, out var error))
         {
-            return null;
+            return (null, error);
+        }
+
+        return (new ParetoFilter(
+            Window: window,
+            Axis: axis,
+            Numerator: cfg.Numerator,
+            Opportunity: cfg.Opportunity,
+            Weight: cfg.Weight,
+            TopN: cfg.TopN,
+            IncludeOthersBucket: true,
+            VitalFewThresholdPercent: cfg.VitalFewThresholdPercent,
+            IncludeObsoleteBits: false,
+            MachineIds: machineIds,
+            ProductIds: productIds,
+            DefectBits: null,
+            Topologies: null,
+            PartNumbers: null,
+            JedecNames: null,
+            SiteTimeZone: null,
+            Shifts: null,
+            Filters: filters), null);
+    }
+
+    /// <summary>
+    /// Strict parser for a tile's <c>filters</c> array. Missing or empty
+    /// arrays succeed with <c>filters = null</c>. Any malformed clause or
+    /// validator failure returns an error; clauses are never dropped.
+    /// </summary>
+    internal static bool TryParseTileFilters(string? configJson, out FilterRequest? filters, out string? error)
+    {
+        filters = null;
+        error = null;
+        var root = TryParseObject(configJson);
+        if (root is not { } obj || !obj.TryGetProperty("filters", out var filtersEl))
+        {
+            return true;
+        }
+
+        if (filtersEl.ValueKind != JsonValueKind.Array)
+        {
+            error = "filters must be an array";
+            return false;
         }
 
         var clauses = ImmutableArray.CreateBuilder<FilterClause>();
+        var index = 0;
         foreach (var el in filtersEl.EnumerateArray())
         {
-            if (el.ValueKind != JsonValueKind.Object
-                || !el.TryGetProperty("field", out var fEl) || fEl.ValueKind != JsonValueKind.String
-                || !el.TryGetProperty("operator", out var oEl) || oEl.ValueKind != JsonValueKind.String
-                || !Enum.TryParse<FilterField>(fEl.GetString(), ignoreCase: true, out var field) || !Enum.IsDefined(field)
-                || !Enum.TryParse<FilterOperator>(oEl.GetString(), ignoreCase: true, out var op) || !Enum.IsDefined(op))
+            if (el.ValueKind != JsonValueKind.Object)
             {
-                continue;
+                error = $"filters[{index}]: clause must be an object";
+                return false;
+            }
+
+            if (!el.TryGetProperty("field", out var fEl) || fEl.ValueKind != JsonValueKind.String)
+            {
+                error = $"filters[{index}]: missing field";
+                return false;
+            }
+
+            if (!el.TryGetProperty("operator", out var oEl) || oEl.ValueKind != JsonValueKind.String)
+            {
+                error = $"filters[{index}]: missing operator";
+                return false;
+            }
+
+            var fieldName = fEl.GetString();
+            var opName = oEl.GetString();
+            if (!Enum.TryParse<FilterField>(fieldName, ignoreCase: true, out var field) || !Enum.IsDefined(field))
+            {
+                error = $"filters[{index}]: unknown field '{fieldName}'";
+                return false;
+            }
+
+            if (!Enum.TryParse<FilterOperator>(opName, ignoreCase: true, out var op) || !Enum.IsDefined(op))
+            {
+                error = $"filters[{index}]: unknown operator '{opName}'";
+                return false;
             }
 
             var values = ImmutableArray.CreateBuilder<string>();
-            if (el.TryGetProperty("values", out var vEl) && vEl.ValueKind == JsonValueKind.Array)
+            if (el.TryGetProperty("values", out var vEl))
             {
+                if (vEl.ValueKind != JsonValueKind.Array)
+                {
+                    error = $"filters[{index}]: values must be an array";
+                    return false;
+                }
+
                 foreach (var v in vEl.EnumerateArray())
                 {
                     switch (v.ValueKind)
@@ -140,20 +209,32 @@ public static partial class ReportEndpoints
                         case JsonValueKind.Number:
                             values.Add(v.GetRawText());
                             break;
+                        default:
+                            error = $"filters[{index}]: values must be strings or numbers";
+                            return false;
                     }
                 }
             }
 
             clauses.Add(new FilterClause(field, op, values.ToImmutable()));
+            index++;
         }
 
         if (clauses.Count == 0)
         {
-            return null;
+            return true;
         }
 
         var request = new FilterRequest(clauses.ToImmutable());
-        return FilterValidator.Validate(request).IsValid ? request : null;
+        var validation = FilterValidator.Validate(request);
+        if (!validation.IsValid)
+        {
+            error = string.Join("; ", validation.Errors.Select(e => e.Key + ": " + e.Message));
+            return false;
+        }
+
+        filters = request;
+        return true;
     }
 
     private static JsonElement? TryParseObject(string? configJson)

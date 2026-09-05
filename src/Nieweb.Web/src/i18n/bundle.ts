@@ -537,13 +537,18 @@ export type TranslationBundle = {
             opportunityCount: string;
             dpmoPpm: string;
             defectSharePercent: string;
+            opportunitySharePercent: string;
             cumulativePercent: string;
             isVitalFew: string;
+            notApplicable: string;
+            opportunitiesUnavailable: string;
         };
         chart: {
             seriesDefects: string;
             seriesCumulative: string;
             yLeftDefects: string;
+            yLeftDpmo: string;
+            yLeftPpm: string;
             yRightCumulative: string;
             vitalFew: string;
             defectCount: string;
@@ -1098,10 +1103,6 @@ export type TranslationBundle = {
             paretoWorstPartsHint: string;
             paretoRefdesTop5: string;
             paretoRefdesTop5Hint: string;
-            paretoSubpanelCombined: string;
-            paretoSubpanelCombinedHint: string;
-            paretoSubpanelOneRefdes: string;
-            paretoSubpanelOneRefdesHint: string;
         };
     };
     traceability: {
@@ -1609,7 +1610,6 @@ export type TranslationBundle = {
                                     Jedec: string;
                                     Day: string;
                                     Shift: string;
-                                    Subpanel: string;
                                 };
                             };
                             numerator: {

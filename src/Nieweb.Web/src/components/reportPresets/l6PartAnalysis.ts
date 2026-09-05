@@ -105,38 +105,4 @@ export const PARETO_L6_AUG_PRESETS: ReportPreset<ParetoSearch>[] = [
             };
         },
     },
-    {
-        id: "l6-aug-pareto-subpanel-combined",
-        labelKey: "reportPresets.l6Aug.paretoSubpanelCombined",
-        descriptionKey: "reportPresets.l6Aug.paretoSubpanelCombinedHint",
-        build(ctx) {
-            const base = l6BaseWindow(ctx);
-            if (!base) return null;
-            return {
-                ...base,
-                axis: "Subpanel",
-                numerator: "Real",
-                opportunity: "Components",
-                skipExclusion: "Clean",
-                weight: "Count",
-            };
-        },
-    },
-    {
-        id: "l6-aug-pareto-subpanel-one-refdes",
-        labelKey: "reportPresets.l6Aug.paretoSubpanelOneRefdes",
-        descriptionKey: "reportPresets.l6Aug.paretoSubpanelOneRefdesHint",
-        build(ctx) {
-            const base = l6BaseWindow(ctx);
-            if (!base) return null;
-            return {
-                ...base,
-                axis: "Subpanel",
-                numerator: "Real",
-                opportunity: "Components",
-                skipExclusion: "Clean",
-                weight: "Count",
-            };
-        },
-    },
 ];
