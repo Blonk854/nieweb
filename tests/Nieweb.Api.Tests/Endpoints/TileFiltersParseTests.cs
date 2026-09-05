@@ -6,21 +6,24 @@ using Xunit;
 namespace Nieweb.Api.Tests.Endpoints;
 
 /// <summary>
-/// Unit tests for <see cref="ReportEndpoints.ParseTileFilters"/> — the
-/// server-side parser for the per-tile Vieweb-style generic operator
-/// filter carried in a tile's <c>ConfigJson</c> <c>filters</c> array.
-/// The JSON shape must match the SPA writer in
-/// <c>src/Nieweb.Web/src/api/filters.ts</c>.
+/// Unit tests for <see cref="ReportEndpoints.TryParseTileFilters"/>.
 /// </summary>
 public sealed class TileFiltersParseTests
 {
     [Fact]
-    public void NoFiltersArray_ReturnsNull()
+    public void NoFiltersArray_SucceedsWithNull()
     {
-        Assert.Null(ReportEndpoints.ParseTileFilters(null));
-        Assert.Null(ReportEndpoints.ParseTileFilters(""));
-        Assert.Null(ReportEndpoints.ParseTileFilters("{}"));
-        Assert.Null(ReportEndpoints.ParseTileFilters("{\"axis\":\"Defect\"}"));
+        Assert.True(ReportEndpoints.TryParseTileFilters(null, out var a, out var e1));
+        Assert.Null(a);
+        Assert.Null(e1);
+        Assert.True(ReportEndpoints.TryParseTileFilters("", out var b, out _));
+        Assert.Null(b);
+        Assert.True(ReportEndpoints.TryParseTileFilters("{}", out var c, out _));
+        Assert.Null(c);
+        Assert.True(ReportEndpoints.TryParseTileFilters("{\"axis\":\"Defect\"}", out var d, out _));
+        Assert.Null(d);
+        Assert.True(ReportEndpoints.TryParseTileFilters("{\"filters\":[]}", out var e, out _));
+        Assert.Null(e);
     }
 
     [Fact]
@@ -33,8 +36,8 @@ public sealed class TileFiltersParseTests
             ] }
             """;
 
-        var request = ReportEndpoints.ParseTileFilters(json);
-
+        Assert.True(ReportEndpoints.TryParseTileFilters(json, out var request, out var error));
+        Assert.Null(error);
         Assert.NotNull(request);
         Assert.Equal(2, request!.Clauses.Length);
 
@@ -56,8 +59,7 @@ public sealed class TileFiltersParseTests
             { "filters": [ { "field": "partnumber", "operator": "notlike", "values": ["x"] } ] }
             """;
 
-        var request = ReportEndpoints.ParseTileFilters(json);
-
+        Assert.True(ReportEndpoints.TryParseTileFilters(json, out var request, out _));
         Assert.NotNull(request);
         Assert.Equal(FilterField.PartNumber, request!.Clauses[0].Field);
         Assert.Equal(FilterOperator.NotLike, request.Clauses[0].Operator);
@@ -66,42 +68,40 @@ public sealed class TileFiltersParseTests
     [Fact]
     public void NumericValuesAreAccepted()
     {
-        // BoardNumber is an integer field; JSON numbers are read verbatim.
         const string json = """
             { "filters": [ { "field": "BoardNumber", "operator": "Between", "values": [1, 10] } ] }
             """;
 
-        var request = ReportEndpoints.ParseTileFilters(json);
-
-        Assert.NotNull(request);
+        Assert.True(ReportEndpoints.TryParseTileFilters(json, out var request, out _));
         Assert.Equal(["1", "10"], request!.Clauses[0].Values);
     }
 
     [Fact]
-    public void StructurallyInvalidRequest_ReturnsNull()
+    public void StructurallyInvalidRequest_ReturnsError()
     {
-        // "Like" is not allowed on the Defect field (set-membership only),
-        // so FilterValidator rejects it and the parser returns null.
         const string json = """
             { "filters": [ { "field": "Defect", "operator": "Like", "values": ["x"] } ] }
             """;
 
-        Assert.Null(ReportEndpoints.ParseTileFilters(json));
+        Assert.False(ReportEndpoints.TryParseTileFilters(json, out var request, out var error));
+        Assert.Null(request);
+        Assert.False(string.IsNullOrWhiteSpace(error));
     }
 
     [Fact]
-    public void WrongArity_ReturnsNull()
+    public void WrongArity_ReturnsError()
     {
-        // Between requires exactly two values.
         const string json = """
             { "filters": [ { "field": "BoardNumber", "operator": "Between", "values": [1] } ] }
             """;
 
-        Assert.Null(ReportEndpoints.ParseTileFilters(json));
+        Assert.False(ReportEndpoints.TryParseTileFilters(json, out var request, out var error));
+        Assert.Null(request);
+        Assert.False(string.IsNullOrWhiteSpace(error));
     }
 
     [Fact]
-    public void UnknownFieldClauseIsSkipped_RemainingKept()
+    public void UnknownField_ReturnsError()
     {
         const string json = """
             { "filters": [
@@ -110,10 +110,34 @@ public sealed class TileFiltersParseTests
             ] }
             """;
 
-        var request = ReportEndpoints.ParseTileFilters(json);
+        Assert.False(ReportEndpoints.TryParseTileFilters(json, out var request, out var error));
+        Assert.Null(request);
+        Assert.Contains("filters[0]", error, StringComparison.Ordinal);
+        Assert.Contains("NotAField", error, StringComparison.Ordinal);
+    }
 
-        Assert.NotNull(request);
-        Assert.Single(request!.Clauses);
-        Assert.Equal(FilterField.Package, request.Clauses[0].Field);
+    [Fact]
+    public void FiltersNotArray_ReturnsError()
+    {
+        Assert.False(ReportEndpoints.TryParseTileFilters(
+            """{ "filters": "nope" }""", out var request, out var error));
+        Assert.Null(request);
+        Assert.Equal("filters must be an array", error);
+    }
+
+    [Fact]
+    public void UnknownOperator_ReturnsError()
+    {
+        const string json = """
+            { "filters": [
+                { "field": "PartNumber", "operator": "NotLike", "values": ["PN-B"] },
+                { "field": "PartNumber", "operator": "Lke", "values": ["x"] }
+            ] }
+            """;
+
+        Assert.False(ReportEndpoints.TryParseTileFilters(json, out var request, out var error));
+        Assert.Null(request);
+        Assert.Contains("filters[1]", error, StringComparison.Ordinal);
+        Assert.Contains("Lke", error, StringComparison.Ordinal);
     }
 }

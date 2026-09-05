@@ -205,7 +205,7 @@ public static partial class ReportEndpoints
         return sections;
     }
 
-    private static async Task<PanelYieldResult> RunPanelYieldForTileAsync(
+    private static async Task<object> RunPanelYieldForTileAsync(
         IAoiSource source,
         PanelYieldFilter shared,
         string? configJson,
@@ -213,14 +213,16 @@ public static partial class ReportEndpoints
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
-        // The only per-tile knob for panel-yield is OnlyLastInspection.
-        // When the tile does not set it, inherit the report-level value
-        // from the shared filter so behaviour is unchanged.
+        if (!TryParseTileFilters(configJson, out var tileFilters, out var filterError))
+        {
+            return new ReportPdfRenderer.TileFilterError("Invalid tile filter: " + filterError);
+        }
+
         var onlyLast = ParsePanelYieldOnlyLastInspection(configJson) ?? shared.OnlyLastInspection;
         var filter = shared with
         {
             OnlyLastInspection = onlyLast,
-            Filters = ParseTileFilters(configJson),
+            Filters = tileFilters,
         };
 
         LogRunning(logger, source.Descriptor.Id, filter.Window.StartUtc, filter.Window.EndUtcExclusive);
@@ -229,7 +231,7 @@ public static partial class ReportEndpoints
             .ConfigureAwait(false);
     }
 
-    private static async Task<ParetoResult> RunParetoForTileAsync(
+    private static async Task<object> RunParetoForTileAsync(
         IAoiSource source,
         PanelYieldFilter shared,
         string? machineIds,
@@ -239,39 +241,17 @@ public static partial class ReportEndpoints
         ILogger<ReportsMarker> logger,
         CancellationToken cancellationToken)
     {
-        // Analytic shape (axis / numerator / opportunity / weight /
-        // top-N / vital-few) comes from the tile's own ConfigJson so the
-        // exported chart matches what the author configured on screen.
-        // Missing / malformed config falls back to the canonical default
-        // (see ParetoTileDefault). The report-level window and machine /
-        // product narrowing still come from the shared export filters.
-        var cfg = ParseParetoTileConfig(configJson);
-        // Time-bucketing axes (Day / Shift) need a site time zone / shift
-        // schedule that a saved tile cannot carry; the SPA no longer offers
-        // them for tiles, but guard here so an older persisted config falls
-        // back to the defect axis instead of throwing (ParetoReport requires
-        // Shifts for the Shift axis).
-        var axis = cfg.Axis is ParetoAxis.Shift or ParetoAxis.Day ? ParetoAxis.Defect : cfg.Axis;
-        var filter = new ParetoFilter(
-            Window: shared.Window,
-            Axis: axis,
-            Numerator: cfg.Numerator,
-            Opportunity: cfg.Opportunity,
-            Weight: cfg.Weight,
-            TopN: cfg.TopN,
-            IncludeOthersBucket: true,
-            VitalFewThresholdPercent: cfg.VitalFewThresholdPercent,
-            IncludeObsoleteBits: false,
-            MachineIds: ParseIntList(machineIds),
-            ProductIds: ParseIntList(productIds),
-            DefectBits: null,
-            Topologies: null,
-            PartNumbers: null,
-            JedecNames: null,
-            SiteTimeZone: null,
-            Shifts: null,
-            Filters: ParseTileFilters(configJson));
+        var built = TryBuildParetoTileFilter(
+            shared.Window,
+            ParseIntList(machineIds),
+            ParseIntList(productIds),
+            configJson);
+        if (built.Error is not null)
+        {
+            return new ReportPdfRenderer.TileFilterError("Invalid tile filter: " + built.Error);
+        }
 
+        var filter = built.Filter!;
         LogRunningPareto(
             logger, source.Descriptor.Id, filter.Axis, filter.Numerator,
             filter.Window.StartUtc, filter.Window.EndUtcExclusive);
@@ -383,7 +363,7 @@ public static partial class ReportEndpoints
             cover.Cell(row, 1).Value = i + 1;
             cover.Cell(row, 2).Value = section.Title;
             cover.Cell(row, 3).Value = section.TileType;
-            cover.Cell(row, 4).Value = section.Result is null ? "unsupported (skipped)" : "rendered";
+            cover.Cell(row, 4).Value = ReportPdfRenderer.CoverStatus(section.Result);
         }
         cover.Columns("A:D").AdjustToContents();
 
@@ -406,6 +386,10 @@ public static partial class ReportEndpoints
                     break;
                 case ReportPdfRenderer.CommentTileResult comment:
                     WriteCommentSheet(sheet, comment);
+                    break;
+                case ReportPdfRenderer.TileFilterError filterError:
+                    sheet.Cell("A3").Value = filterError.Message;
+                    sheet.Cell("A3").Style.Font.Italic = true;
                     break;
                 default:
                     sheet.Cell("A3").Value = "Unsupported tile type '" + section.TileType + "' - please open a Nieweb issue.";
@@ -511,12 +495,22 @@ public static partial class ReportEndpoints
             sheet.Cell(r, 1).Value = row.GroupKey ?? string.Empty;
             sheet.Cell(r, 2).Value = row.GroupName ?? string.Empty;
             sheet.Cell(r, 3).Value = row.DefectCount;
-            sheet.Cell(r, 4).Value = row.DpmoPpm;
-            sheet.Cell(r, 4).Style.NumberFormat.Format = "0.####";
+            if (row.OpportunitiesApplicable)
+            {
+                sheet.Cell(r, 4).Value = row.DpmoPpm;
+                sheet.Cell(r, 4).Style.NumberFormat.Format = "0.####";
+            }
+            else
+            {
+                sheet.Cell(r, 4).Value = "N/A";
+            }
             sheet.Cell(r, 5).Value = row.DefectSharePercent;
             sheet.Cell(r, 5).Style.NumberFormat.Format = "0.####";
-            sheet.Cell(r, 6).Value = row.CumulativePercent;
-            sheet.Cell(r, 6).Style.NumberFormat.Format = "0.####";
+            if (ParetoPresentation.ShowCumulative(result.Weight))
+            {
+                sheet.Cell(r, 6).Value = row.CumulativePercent;
+                sheet.Cell(r, 6).Style.NumberFormat.Format = "0.####";
+            }
             r++;
         }
         if (result.OthersBucket is { } others)
@@ -524,12 +518,22 @@ public static partial class ReportEndpoints
             sheet.Cell(r, 1).Value = others.GroupKey ?? "others";
             sheet.Cell(r, 2).Value = others.GroupName ?? "Others";
             sheet.Cell(r, 3).Value = others.DefectCount;
-            sheet.Cell(r, 4).Value = others.DpmoPpm;
-            sheet.Cell(r, 4).Style.NumberFormat.Format = "0.####";
+            if (others.OpportunitiesApplicable)
+            {
+                sheet.Cell(r, 4).Value = others.DpmoPpm;
+                sheet.Cell(r, 4).Style.NumberFormat.Format = "0.####";
+            }
+            else
+            {
+                sheet.Cell(r, 4).Value = "N/A";
+            }
             sheet.Cell(r, 5).Value = others.DefectSharePercent;
             sheet.Cell(r, 5).Style.NumberFormat.Format = "0.####";
-            sheet.Cell(r, 6).Value = others.CumulativePercent;
-            sheet.Cell(r, 6).Style.NumberFormat.Format = "0.####";
+            if (ParetoPresentation.ShowCumulative(result.Weight))
+            {
+                sheet.Cell(r, 6).Value = others.CumulativePercent;
+                sheet.Cell(r, 6).Style.NumberFormat.Format = "0.####";
+            }
         }
     }
 
@@ -666,6 +670,9 @@ public static partial class ReportEndpoints
                 case ReportPdfRenderer.CommentTileResult comment:
                     WriteCommentCsv(writer, comment);
                     break;
+                case ReportPdfRenderer.TileFilterError filterError:
+                    writer.WriteLine("# " + filterError.Message);
+                    break;
                 default:
                     writer.WriteLine("# unsupported tile type '" + section.TileType + "' - skipped");
                     break;
@@ -703,12 +710,12 @@ public static partial class ReportEndpoints
         foreach (var row in result.Rows)
         {
             writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{CsvEscape(row.GroupKey)},{CsvEscape(row.GroupName)},{row.DefectCount},{row.DpmoPpm:0.####},{row.DefectSharePercent:0.####},{row.CumulativePercent:0.####}"));
+                $"{CsvEscape(row.GroupKey)},{CsvEscape(row.GroupName)},{row.DefectCount},{ParetoPresentation.DpmoCell(row, "N/A")},{row.DefectSharePercent:0.####},{(ParetoPresentation.ShowCumulative(result.Weight) ? row.CumulativePercent.ToString("0.####", CultureInfo.InvariantCulture) : "")}"));
         }
         if (result.OthersBucket is { } others)
         {
             writer.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{CsvEscape(others.GroupKey ?? "others")},{CsvEscape(others.GroupName ?? "Others")},{others.DefectCount},{others.DpmoPpm:0.####},{others.DefectSharePercent:0.####},{others.CumulativePercent:0.####}"));
+                $"{CsvEscape(others.GroupKey ?? "others")},{CsvEscape(others.GroupName ?? "Others")},{others.DefectCount},{ParetoPresentation.DpmoCell(others, "N/A")},{others.DefectSharePercent:0.####},{(ParetoPresentation.ShowCumulative(result.Weight) ? others.CumulativePercent.ToString("0.####", CultureInfo.InvariantCulture) : "")}"));
         }
     }
 

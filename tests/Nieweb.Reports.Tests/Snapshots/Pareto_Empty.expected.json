@@ -33,5 +33,6 @@
   "rows": [],
   "othersBucket": null,
   "skipExclusion": "Raw",
-  "skipExcludedCards": 0
+  "skipExcludedCards": 0,
+  "vitalFewThresholdPercent": 80
 }

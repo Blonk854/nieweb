@@ -39,9 +39,11 @@ namespace Nieweb.Reports;
 /// (opportunity share, DPMO) and the <see cref="ParetoWeight.Dpmo"/> /
 /// <see cref="ParetoWeight.Ppm"/> weights use the card-derived
 /// denominator on the card-derivable axes (AOI machine, product,
-/// defect, day, shift); object-level axes (reference designator, part
-/// number, JEDEC) have no card denominator on a defect-only table, so
-/// their rate is suppressed (0) pending LIBRARY placement counts.
+/// defect, day, shift). Object-level axes (reference designator, part
+/// number, JEDEC) have no card denominator on a defect-only table;
+/// those rows carry <see cref="ParetoRow.OpportunitiesApplicable"/>
+/// false, and a requested DPMO/PPM weight is applied as
+/// <see cref="ParetoWeight.Count"/>.
 /// </para>
 /// <para>
 /// Because the report is stateless, drill-down is expressed by the
@@ -403,8 +405,10 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 ? 0d
                 : 1_000_000d * defectsOverall / opportunitiesOverall);
 
+        var appliedWeight = AppliedWeight(filter);
         var (visibleRows, othersBucket) = BuildRows(
             filter,
+            appliedWeight,
             defectsOverall,
             opportunitiesOverall,
             defectsByGroup,
@@ -421,17 +425,33 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             Axis: filter.Axis,
             Numerator: filter.Numerator,
             Opportunity: filter.Opportunity,
-            Weight: filter.Weight,
+            Weight: appliedWeight,
             AppliedFilters: EchoAppliedFilters(filter),
             Overall: overallKpi,
             Rows: visibleRows,
             OthersBucket: othersBucket,
             SkipExclusion: filter.SkipExclusion,
-            SkipExcludedCards: skipExcludedCards);
+            SkipExcludedCards: skipExcludedCards,
+            VitalFewThresholdPercent: filter.VitalFewThresholdPercent);
     }
+
+    public static bool OpportunitiesApplicableForAxis(ParetoAxis axis) => axis switch
+    {
+        ParetoAxis.AoiMachine or ParetoAxis.Product or ParetoAxis.Day
+            or ParetoAxis.Shift or ParetoAxis.Defect => true,
+        ParetoAxis.ReferenceDesignator or ParetoAxis.PartNumber or ParetoAxis.Jedec => false,
+        _ => false,
+    };
+
+    internal static ParetoWeight AppliedWeight(ParetoFilter filter) =>
+        !OpportunitiesApplicableForAxis(filter.Axis)
+            && (filter.Weight is ParetoWeight.Dpmo or ParetoWeight.Ppm)
+            ? ParetoWeight.Count
+            : filter.Weight;
 
     private static (IReadOnlyList<ParetoRow> Rows, ParetoRow? Others) BuildRows(
         ParetoFilter filter,
+        ParetoWeight appliedWeight,
         long totalDefects,
         long totalOpportunities,
         Dictionary<GroupKey, long> defectsByGroup,
@@ -442,10 +462,11 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         Dictionary<int, string?>? machineNames,
         Dictionary<int, string?>? productNames)
     {
+        var opportunitiesApplicable = OpportunitiesApplicableForAxis(filter.Axis);
+
         // Per-group opportunity denominator, resolved by axis from the
         // card pass. Object-level axes (reference designator / part /
-        // JEDEC) have no card-derived denominator, so they report 0 and
-        // the rate is suppressed.
+        // JEDEC) have no card-derived denominator.
         long OpportunityForGroup(GroupKey key) => filter.Axis switch
         {
             ParetoAxis.AoiMachine =>
@@ -454,6 +475,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 key.IntValue is int pid && opportunitiesByProduct!.TryGetValue(pid, out var p) ? p : 0,
             ParetoAxis.Day or ParetoAxis.Shift =>
                 key.StringValue is string lbl && opportunitiesByBucket!.TryGetValue(lbl, out var b) ? b : 0,
+            ParetoAxis.Defect => totalOpportunities,
             _ => 0,
         };
 
@@ -494,7 +516,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         // GroupKey for stable snapshots.
         unranked.Sort((a, b) =>
         {
-            var byScore = ScoreFor(filter.Weight, b).CompareTo(ScoreFor(filter.Weight, a));
+            var byScore = ScoreFor(appliedWeight, b).CompareTo(ScoreFor(appliedWeight, a));
             return byScore != 0 ? byScore : StringComparer.Ordinal.Compare(a.Key, b.Key);
         });
 
@@ -541,13 +563,14 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 GroupKey: u.Key,
                 GroupName: u.Name,
                 DefectCount: u.DefectCount,
-                WeightedScore: ScoreFor(filter.Weight, u),
+                WeightedScore: ScoreFor(appliedWeight, u),
                 OpportunityCount: u.OpportunityCount,
                 OpportunitySharePercent: oppSharePct,
                 DpmoPpm: dpmo,
                 DefectSharePercent: defectSharePct,
                 CumulativePercent: cumulativePct,
-                IsVitalFew: isVitalFew));
+                IsVitalFew: isVitalFew,
+                OpportunitiesApplicable: opportunitiesApplicable));
         }
 
         // Step 5: Others bucket.
@@ -561,6 +584,12 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 othersDefects += u.DefectCount;
                 othersOpps += u.OpportunityCount;
             }
+            // Defect rows each carry the overall card denominator; summing
+            // them would count it N times. Others is one residual bucket.
+            if (filter.Axis == ParetoAxis.Defect)
+            {
+                othersOpps = totalOpportunities;
+            }
             var othersDefectSharePct = totalDefects == 0 ? 0d : 100d * othersDefects / totalDefects;
             var othersOppSharePct = totalOpportunities == 0 ? 0d : 100d * othersOpps / totalOpportunities;
             var othersDpmo = othersOpps == 0 ? 0d : 1_000_000d * othersDefects / othersOpps;
@@ -570,13 +599,14 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 GroupKey: null,
                 GroupName: "Others",
                 DefectCount: othersDefects,
-                WeightedScore: ScoreFor(filter.Weight, new Unranked(null, null, othersDefects, othersOpps)),
+                WeightedScore: ScoreFor(appliedWeight, new Unranked(null, null, othersDefects, othersOpps)),
                 OpportunityCount: othersOpps,
                 OpportunitySharePercent: othersOppSharePct,
                 DpmoPpm: othersDpmo,
                 DefectSharePercent: othersDefectSharePct,
                 CumulativePercent: 100d,
-                IsVitalFew: false);
+                IsVitalFew: false,
+                OpportunitiesApplicable: opportunitiesApplicable);
         }
 
         return (rows, others);

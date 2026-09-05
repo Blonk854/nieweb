@@ -44,6 +44,7 @@ import {
     PARETO_AXES,
     PARETO_NUMERATORS,
     PARETO_OPPORTUNITIES,
+    PARETO_OBJECT_LEVEL_AXES,
     PARETO_WEIGHTS,
     SKIP_EXCLUSIONS,
     SKIP_STATUS_VALUES,
@@ -61,6 +62,8 @@ import {
     type SkipStatus,
 } from "./pareto.search";
 import { DataTable, type Column } from "../components/DataTable";
+import { formatApplicableMetric } from "../charts/formatApplicableMetric";
+import { paretoBarPresentation } from "../charts/paretoBarPresentation";
 import { MultiSelectField } from "../components/MultiSelectField";
 import { ApiErrorAlert } from "../components/ApiErrorAlert";
 import { SavedViewsMenu } from "../components/SavedViewsMenu";
@@ -72,6 +75,28 @@ import {
     wallClockToInstantIso,
 } from "../i18n/zoneConverters";
 import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
+
+/** i18n label key per Pareto axis (avoids template-literal `t()` overload issues). */
+function paretoAxisLabelKey(axis: ParetoAxis):
+    | "pareto.axis.Defect"
+    | "pareto.axis.Product"
+    | "pareto.axis.AoiMachine"
+    | "pareto.axis.ReferenceDesignator"
+    | "pareto.axis.PartNumber"
+    | "pareto.axis.Jedec"
+    | "pareto.axis.Day"
+    | "pareto.axis.Shift" {
+    switch (axis) {
+        case "Defect": return "pareto.axis.Defect";
+        case "Product": return "pareto.axis.Product";
+        case "AoiMachine": return "pareto.axis.AoiMachine";
+        case "ReferenceDesignator": return "pareto.axis.ReferenceDesignator";
+        case "PartNumber": return "pareto.axis.PartNumber";
+        case "Jedec": return "pareto.axis.Jedec";
+        case "Day": return "pareto.axis.Day";
+        case "Shift": return "pareto.axis.Shift";
+    }
+}
 
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when
@@ -396,10 +421,16 @@ export function ParetoRoute() {
                             }))}
                             value={form.axis}
                             onChange={(value) =>
-                                setForm((prev) => ({
-                                    ...prev,
-                                    axis: (value ?? "Defect") as ParetoAxis,
-                                }))
+                                setForm((prev) => {
+                                    const axis = (value ?? "Defect") as ParetoAxis;
+                                    return {
+                                        ...prev,
+                                        axis,
+                                        weight: PARETO_OBJECT_LEVEL_AXES.has(axis)
+                                            ? "Count"
+                                            : prev.weight,
+                                    };
+                                })
                             }
                             required
                             allowDeselect={false}
@@ -501,6 +532,7 @@ export function ParetoRoute() {
                                 label: t(`pareto.weight.${w}`),
                             }))}
                             value={form.weight}
+                            disabled={PARETO_OBJECT_LEVEL_AXES.has(form.axis)}
                             onChange={(value) =>
                                 setForm((prev) => ({
                                     ...prev,
@@ -984,8 +1016,6 @@ function ResultsCard(props: {
         data,
         error,
         source,
-        axis,
-        vitalFewThresholdPercent,
         onBarClick,
     } = props;
 
@@ -1046,15 +1076,30 @@ function ResultsCard(props: {
                                     <ParetoChart
                                         rows={data.rows}
                                         othersBucket={data.othersBucket}
-                                        axis={axis}
-                                        vitalFewThresholdPercent={vitalFewThresholdPercent}
+                                        axis={data.axis}
+                                        weight={data.weight}
+                                        vitalFewThresholdPercent={
+                                            data.vitalFewThresholdPercent
+                                        }
                                         onBarClick={
-                                            DRILLABLE_AXES.has(axis) ? onBarClick : undefined
+                                            DRILLABLE_AXES.has(data.axis)
+                                                ? onBarClick
+                                                : undefined
                                         }
                                     />
                                 </Suspense>
                             </div>
-                            <ParetoTable rows={data.rows} othersBucket={data.othersBucket} />
+                            <ParetoTable
+                                rows={data.rows}
+                                othersBucket={data.othersBucket}
+                                axis={data.axis}
+                                weight={data.weight}
+                            />
+                            {PARETO_OBJECT_LEVEL_AXES.has(data.axis) ? (
+                                <Text size="xs" c="dimmed">
+                                    {t("pareto.results.opportunitiesUnavailable")}
+                                </Text>
+                            ) : null}
                         </>
                     )}
                 </Stack>
@@ -1081,17 +1126,23 @@ function formatWindow(startIso: string, endIso: string): string {
 function ParetoTable({
     rows,
     othersBucket,
+    axis,
+    weight,
 }: {
     rows: ParetoRow[];
     othersBucket: ParetoRow | null;
+    axis: ParetoAxis;
+    weight: ParetoWeight;
 }) {
     const { t } = useTranslation();
+    const presentation = paretoBarPresentation(weight);
+    const na = t("pareto.results.notApplicable");
     const allRows = useMemo<ParetoRow[]>(
         () => (othersBucket ? [...rows, othersBucket] : rows),
         [rows, othersBucket],
     );
-    const columns = useMemo<Column<ParetoRow>[]>(
-        () => [
+    const columns = useMemo<Column<ParetoRow>[]>(() => {
+        const cols: Column<ParetoRow>[] = [
             {
                 key: "groupName",
                 header: t("pareto.results.groupName"),
@@ -1107,13 +1158,25 @@ function ParetoTable({
             {
                 key: "opportunityCount",
                 header: t("pareto.results.opportunityCount"),
-                accessor: (r) => r.opportunityCount,
+                accessor: (r) =>
+                    formatApplicableMetric(
+                        r.opportunitiesApplicable,
+                        r.opportunityCount,
+                        (n) => String(n),
+                        na,
+                    ),
                 align: "right",
             },
             {
                 key: "dpmoPpm",
                 header: t("pareto.results.dpmoPpm"),
-                accessor: (r) => Math.round(r.dpmoPpm),
+                accessor: (r) =>
+                    formatApplicableMetric(
+                        r.opportunitiesApplicable,
+                        r.dpmoPpm,
+                        (n) => String(Math.round(n)),
+                        na,
+                    ),
                 align: "right",
             },
             {
@@ -1124,23 +1187,41 @@ function ParetoTable({
                 csvFormatter: (v) => (typeof v === "number" ? v.toFixed(2) : ""),
                 align: "right",
             },
-            {
-                key: "cumulativePercent",
-                header: t("pareto.results.cumulativePercent"),
-                accessor: (r) => r.cumulativePercent,
-                formatter: (v) => (typeof v === "number" ? `${v.toFixed(1)}%` : ""),
-                csvFormatter: (v) => (typeof v === "number" ? v.toFixed(2) : ""),
+        ];
+        if (axis !== "Defect") {
+            cols.splice(3, 0, {
+                key: "opportunitySharePercent",
+                header: t("pareto.results.opportunitySharePercent"),
+                accessor: (r) =>
+                    formatApplicableMetric(
+                        r.opportunitiesApplicable,
+                        r.opportunitySharePercent,
+                        (n) => `${n.toFixed(1)}%`,
+                        na,
+                    ),
                 align: "right",
-            },
-            {
-                key: "isVitalFew",
-                header: t("pareto.results.isVitalFew"),
-                accessor: (r) => (r.isVitalFew ? "yes" : "no"),
-                align: "center",
-            },
-        ],
-        [t],
-    );
+            });
+        }
+        if (presentation.showCumulative) {
+            cols.push(
+                {
+                    key: "cumulativePercent",
+                    header: t("pareto.results.cumulativePercent"),
+                    accessor: (r) => r.cumulativePercent,
+                    formatter: (v) => (typeof v === "number" ? `${v.toFixed(1)}%` : ""),
+                    csvFormatter: (v) => (typeof v === "number" ? v.toFixed(2) : ""),
+                    align: "right",
+                },
+                {
+                    key: "isVitalFew",
+                    header: t("pareto.results.isVitalFew"),
+                    accessor: (r) => (r.isVitalFew ? "yes" : "no"),
+                    align: "center",
+                },
+            );
+        }
+        return cols;
+    }, [t, na, axis, presentation.showCumulative]);
 
     return (
         <DataTable

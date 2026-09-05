@@ -41,7 +41,8 @@
       "dpmoPpm": 230769.23076923078,
       "defectSharePercent": 54.54545454545455,
       "cumulativePercent": 54.54545454545455,
-      "isVitalFew": true
+      "isVitalFew": true,
+      "opportunitiesApplicable": true
     },
     {
       "groupKey": "2",
@@ -53,7 +54,8 @@
       "dpmoPpm": 115384.61538461539,
       "defectSharePercent": 27.272727272727273,
       "cumulativePercent": 81.81818181818181,
-      "isVitalFew": true
+      "isVitalFew": true,
+      "opportunitiesApplicable": true
     },
     {
       "groupKey": "3",
@@ -65,10 +67,12 @@
       "dpmoPpm": 76923.07692307692,
       "defectSharePercent": 18.181818181818183,
       "cumulativePercent": 100,
-      "isVitalFew": false
+      "isVitalFew": false,
+      "opportunitiesApplicable": true
     }
   ],
   "othersBucket": null,
   "skipExclusion": "Raw",
-  "skipExcludedCards": 0
+  "skipExcludedCards": 0,
+  "vitalFewThresholdPercent": 80
 }

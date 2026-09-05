@@ -1,73 +1,55 @@
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense } from "react";
 import { Alert, Card, Group, Loader, Stack, Text, Title } from "@mantine/core";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { runParetoReport } from "../../../api/pareto";
-import type { ParetoSearch } from "../../../routes/pareto.search";
-import { parseParetoTileConfig } from "../../reportConfig/tileConfig";
+import { runParetoFromTile } from "../../../api/pareto";
+import type { CanvasFilters } from "../FilterContext";
 import type { TileProps } from "./registry";
 import {
     canvasFiltersReady,
     useCanvasFilters,
 } from "../FilterContext";
 
-// See PanelYieldTile.tsx for the lazy-chart rationale — echarts is
-// ~1.1 MB gzipped and we only pull the chunk once a real user asks
-// for a Pareto tile.
 const ParetoChart = lazy(() =>
     import("../../../charts/ParetoChart").then((m) => ({
         default: m.ParetoChart,
     })),
 );
 
-/**
- * Pareto tile for `<ReportCanvas>`.
- *
- * Uses the same defaults as the stand-alone `/report/pareto` route
- * (axis=Defect, numerator=Real, opportunity=Components,
- * weight=Count, topN=10) — the boss-approved "DPMO real defects"
- * view. The tile's own per-tile config (`configJson`) overrides that
- * analytic shape; canvas-level source / window / narrowing filters
- * are read from `useCanvasFilters()` and forwarded to the API.
- */
+export function paretoTileQueryKey(
+    filters: CanvasFilters,
+    configJson: string,
+): readonly unknown[] {
+    return [
+        "canvas",
+        "pareto",
+        filters.sourceId,
+        filters.startUtc,
+        filters.endUtc,
+        filters.machineIds,
+        filters.productIds,
+        configJson,
+    ];
+}
+
 export function ParetoTile({ config }: TileProps) {
     const { t } = useTranslation();
     const { filters } = useCanvasFilters();
     const ready = canvasFiltersReady(filters);
-
-    const cfg = useMemo(() => parseParetoTileConfig(config), [config]);
-
-    const search: ParetoSearch = {
-        sourceId: filters.sourceId,
-        startUtc: filters.startUtc,
-        endUtc: filters.endUtc,
-        machineIds: filters.machineIds,
-        productIds: filters.productIds,
-        axis: cfg.axis,
-        numerator: cfg.numerator,
-        opportunity: cfg.opportunity,
-        weight: cfg.weight,
-        topN: cfg.topN,
-        vitalFewThreshold: cfg.vitalFewThreshold,
-    };
+    const configJson = config ?? "{}";
 
     const reportQuery = useQuery({
-        queryKey: [
-            "canvas",
-            "pareto",
-            filters.sourceId,
-            filters.startUtc,
-            filters.endUtc,
-            filters.machineIds?.join(",") ?? "",
-            filters.productIds?.join(",") ?? "",
-            cfg.axis,
-            cfg.numerator,
-            cfg.opportunity,
-            cfg.weight,
-            cfg.topN ?? "",
-        ],
-        queryFn: () => runParetoReport(search),
+        queryKey: paretoTileQueryKey(filters, configJson),
+        queryFn: () =>
+            runParetoFromTile({
+                sourceId: filters.sourceId!,
+                startUtc: filters.startUtc!,
+                endUtc: filters.endUtc!,
+                machineIds: filters.machineIds,
+                productIds: filters.productIds,
+                configJson,
+            }),
         enabled: ready,
     });
 
@@ -152,6 +134,8 @@ export function ParetoTile({ config }: TileProps) {
                             rows={result.rows}
                             othersBucket={result.othersBucket}
                             axis={result.axis}
+                            weight={result.weight}
+                            vitalFewThresholdPercent={result.vitalFewThresholdPercent}
                             height={260}
                         />
                     </Suspense>

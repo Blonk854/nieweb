@@ -30,6 +30,14 @@ describe("validateParetoSearch", () => {
         });
     });
 
+    it("snaps DPMO/PPM to Count on object-level axes", () => {
+        expect(validateParetoSearch({ axis: "PartNumber", weight: "Dpmo" }).weight).toBe(
+            "Count",
+        );
+        expect(validateParetoSearch({ axis: "Jedec", weight: "Ppm" }).weight).toBe("Count");
+        expect(validateParetoSearch({ axis: "Product", weight: "Dpmo" }).weight).toBe("Dpmo");
+    });
+
     it("parses canonical enum names case-insensitively", () => {
         const s = validateParetoSearch({
             axis: "product",

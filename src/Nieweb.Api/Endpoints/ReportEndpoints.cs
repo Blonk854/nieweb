@@ -92,6 +92,9 @@ public static partial class ReportEndpoints
         group.MapGet("/pareto", RunParetoAsync)
             .WithName("ReportsPareto");
 
+        group.MapPost("/pareto/from-tile", RunParetoFromTileAsync)
+            .WithName("ReportsParetoFromTile");
+
         group.MapGet("/pareto/export.csv", ExportParetoCsvAsync)
             .WithName("ReportsParetoExportCsv");
 

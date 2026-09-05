@@ -96,8 +96,10 @@ public enum ParetoWeight
     /// <summary>
     /// Bar height = <c>1e6 · defect count / opportunity count</c>
     /// (defects per million opportunities). Rate-view ranking; the
-    /// sort order flips relative to <see cref="Count"/>. Buckets with
-    /// zero opportunities emit <c>0</c>.
+    /// sort order flips relative to <see cref="Count"/>. On axes with
+    /// no per-group denominator the report applies <see cref="Count"/>
+    /// instead and echoes that applied weight. A true zero denominator
+    /// on a supported axis still emits <c>0</c>.
     /// </summary>
     Dpmo = 1,
 
@@ -256,9 +258,13 @@ public sealed record ParetoFilter(
 /// sorted descending by this value.
 /// </param>
 /// <param name="OpportunityCount">
-/// Number of opportunities (tested-object rows) in this bucket
-/// after the opportunity filter. This is the "volume" every SMT
-/// engineer needs to see next to the defect count.
+/// Card-derived opportunity count for this bucket
+/// (<see cref="Nieweb.DataSources.CardRow.NbOfTestsOnComp"/> /
+/// <see cref="Nieweb.DataSources.CardRow.NbOfTestsOnPads"/>) when
+/// <see cref="OpportunitiesApplicable"/> is true. Zero means a real
+/// empty denominator on a supported axis. When applicability is
+/// false the number is compatibility padding (typically 0) and must
+/// not be presented as a measured value.
 /// </param>
 /// <param name="OpportunitySharePercent">
 /// <c>100 · OpportunityCount / TotalOpportunities</c>. Answers
@@ -287,6 +293,13 @@ public sealed record ParetoFilter(
 /// first row that crosses it, so the boundary bar is always
 /// included).
 /// </param>
+/// <param name="OpportunitiesApplicable">
+/// Whether <see cref="OpportunityCount"/> and <see cref="DpmoPpm"/>
+/// are a measured per-group denominator. False for reference
+/// designator, part number, and JEDEC (no card-derived per-group
+/// count). True for machine, product, day, shift, and defect
+/// (defect uses the overall card denominator).
+/// </param>
 public sealed record ParetoRow(
     string? GroupKey,
     string? GroupName,
@@ -297,7 +310,8 @@ public sealed record ParetoRow(
     double DpmoPpm,
     double DefectSharePercent,
     double CumulativePercent,
-    bool IsVitalFew);
+    bool IsVitalFew,
+    bool OpportunitiesApplicable);
 
 /// <summary>
 /// Result of running <see cref="ParetoReport"/>. Rows are sorted
@@ -335,6 +349,10 @@ public sealed record ParetoRow(
 /// <see cref="ParetoFilter.SkipStatuses"/> narrowing). Zero when no skip
 /// filtering was requested.
 /// </param>
+/// <param name="VitalFewThresholdPercent">
+/// Echo of <see cref="ParetoFilter.VitalFewThresholdPercent"/> actually
+/// used to flag <see cref="ParetoRow.IsVitalFew"/>.
+/// </param>
 public sealed record ParetoResult(
     SourceDescriptor Source,
     DateRange Window,
@@ -347,7 +365,8 @@ public sealed record ParetoResult(
     IReadOnlyList<ParetoRow> Rows,
     ParetoRow? OthersBucket,
     SkipExclusion SkipExclusion = SkipExclusion.Raw,
-    long SkipExcludedCards = 0);
+    long SkipExcludedCards = 0,
+    double VitalFewThresholdPercent = 80.0);
 
 /// <summary>
 /// Echo of every narrowing filter <see cref="ParetoReport"/> honoured

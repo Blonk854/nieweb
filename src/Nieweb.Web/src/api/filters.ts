@@ -3,7 +3,7 @@
  * `src/Nieweb.Filters/*`). Drives the Old-school per-entity filter
  * builder and is persisted verbatim inside a tile's `configJson`
  * `filters` array, which the server parses in
- * `ReportEndpoints.TileConfig.cs` (`ParseTileFilters`). Enum string
+ * `ReportEndpoints.TileConfig.cs` (`TryParseTileFilters`). Enum string
  * values MUST match the backend `FilterField` / `FilterOperator`
  * member names exactly (the server parses them case-insensitively).
  *

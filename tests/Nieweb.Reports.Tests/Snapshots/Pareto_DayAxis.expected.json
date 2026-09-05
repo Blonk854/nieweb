@@ -41,7 +41,8 @@
       "dpmoPpm": 50000,
       "defectSharePercent": 71.42857142857143,
       "cumulativePercent": 71.42857142857143,
-      "isVitalFew": true
+      "isVitalFew": true,
+      "opportunitiesApplicable": true
     },
     {
       "groupKey": "2026-03-02",
@@ -53,10 +54,12 @@
       "dpmoPpm": 20000,
       "defectSharePercent": 28.571428571428573,
       "cumulativePercent": 100,
-      "isVitalFew": true
+      "isVitalFew": true,
+      "opportunitiesApplicable": true
     }
   ],
   "othersBucket": null,
   "skipExclusion": "Raw",
-  "skipExcludedCards": 0
+  "skipExcludedCards": 0,
+  "vitalFewThresholdPercent": 80
 }

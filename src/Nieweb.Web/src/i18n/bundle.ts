@@ -476,13 +476,18 @@ export type TranslationBundle = {
             opportunityCount: string;
             dpmoPpm: string;
             defectSharePercent: string;
+            opportunitySharePercent: string;
             cumulativePercent: string;
             isVitalFew: string;
+            notApplicable: string;
+            opportunitiesUnavailable: string;
         };
         chart: {
             seriesDefects: string;
             seriesCumulative: string;
             yLeftDefects: string;
+            yLeftDpmo: string;
+            yLeftPpm: string;
             yRightCumulative: string;
             vitalFew: string;
             defectCount: string;

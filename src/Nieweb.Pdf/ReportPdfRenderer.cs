@@ -49,6 +49,13 @@ public static class ReportPdfRenderer
     public sealed record CommentTileResult(string? Markdown);
 
     /// <summary>
+    /// A tile whose persisted <c>filters</c> array could not be parsed
+    /// or failed <c>FilterValidator</c>. The export still succeeds; this
+    /// section renders the message instead of a data table.
+    /// </summary>
+    public sealed record TileFilterError(string Message);
+
+    /// <summary>
     /// Write a full multi-tile report PDF into <paramref name="destination"/>.
     /// The <paramref name="sections"/> list is rendered in-order; an
     /// empty list still produces the cover so users get a valid PDF
@@ -146,12 +153,14 @@ public static class ReportPdfRenderer
                     cd.ConstantColumn(28);   // #
                     cd.RelativeColumn(4);    // Title
                     cd.RelativeColumn(3);    // Tile type
+                    cd.RelativeColumn(3);    // Status
                 });
                 table.Header(h =>
                 {
                     h.Cell().Element(HeaderCell).Text("#");
                     h.Cell().Element(HeaderCell).Text("Tile title");
                     h.Cell().Element(HeaderCell).Text("Type");
+                    h.Cell().Element(HeaderCell).Text("Status");
                 });
                 for (var i = 0; i < sections.Count; i++)
                 {
@@ -159,6 +168,7 @@ public static class ReportPdfRenderer
                     table.Cell().Element(BodyCell).Text((i + 1).ToString(CultureInfo.InvariantCulture));
                     table.Cell().Element(BodyCell).Text(s.Title);
                     table.Cell().Element(BodyCell).Text(s.TileType);
+                    table.Cell().Element(BodyCell).Text(CoverStatus(s.Result));
                 }
             });
         });
@@ -209,6 +219,10 @@ public static class ReportPdfRenderer
                     break;
                 case CommentTileResult comment:
                     col.Item().Element(c => ComposeComment(c, comment));
+                    break;
+                case TileFilterError filterError:
+                    col.Item().Text(filterError.Message)
+                        .FontSize(9).Italic().FontColor(Colors.Red.Darken1);
                     break;
                 default:
                     col.Item().Text(string.Create(CultureInfo.InvariantCulture,
@@ -311,28 +325,40 @@ public static class ReportPdfRenderer
                     cd.RelativeColumn(4);   // Group
                     cd.RelativeColumn(1);   // Count
                     cd.RelativeColumn(1);   // Share %
-                    cd.RelativeColumn(1);   // Cumul %
+                    if (ParetoPresentation.ShowCumulative(result.Weight))
+                    {
+                        cd.RelativeColumn(1);   // Cumul %
+                    }
                 });
                 table.Header(h =>
                 {
                     h.Cell().Element(HeaderCell).Text("Group");
                     HeaderCellRight(h.Cell()).Text("Count");
                     HeaderCellRight(h.Cell()).Text("Share %");
-                    HeaderCellRight(h.Cell()).Text("Cumul %");
+                    if (ParetoPresentation.ShowCumulative(result.Weight))
+                    {
+                        HeaderCellRight(h.Cell()).Text("Cumul %");
+                    }
                 });
                 foreach (var r in result.Rows)
                 {
                     table.Cell().Element(BodyCell).Text(r.GroupName ?? r.GroupKey ?? "-");
                     BodyCellRight(table.Cell()).Text(Long(r.DefectCount));
                     BodyCellRight(table.Cell()).Text(r.DefectSharePercent.ToString("0.00", CultureInfo.InvariantCulture));
-                    BodyCellRight(table.Cell()).Text(r.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
+                    if (ParetoPresentation.ShowCumulative(result.Weight))
+                    {
+                        BodyCellRight(table.Cell()).Text(r.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
+                    }
                 }
                 if (result.OthersBucket is { } others)
                 {
                     table.Cell().Element(BodyCell).Text(others.GroupName ?? "Others");
                     BodyCellRight(table.Cell()).Text(Long(others.DefectCount));
                     BodyCellRight(table.Cell()).Text(others.DefectSharePercent.ToString("0.00", CultureInfo.InvariantCulture));
-                    BodyCellRight(table.Cell()).Text(others.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
+                    if (ParetoPresentation.ShowCumulative(result.Weight))
+                    {
+                        BodyCellRight(table.Cell()).Text(others.CumulativePercent.ToString("0.00", CultureInfo.InvariantCulture));
+                    }
                 }
             });
         });
@@ -380,6 +406,13 @@ public static class ReportPdfRenderer
             col.Item().Text(value).SemiBold().FontSize(12);
         });
     }
+
+    public static string CoverStatus(object? result) => result switch
+    {
+        null => "unsupported (skipped)",
+        TileFilterError => "invalid filter",
+        _ => "rendered",
+    };
 
     // NOTE: border-first, then padding. This keeps the bottom border a
     // full-width row rule (drawn on the whole cell, not the padded box).

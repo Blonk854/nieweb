@@ -832,7 +832,7 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         var lines = csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(3, lines.Length); // header + 2 product rows, no OTHERS
         Assert.Equal(
-            "SourceId,SourceName,WindowStartUtc,WindowEndUtc,Axis,Numerator,Opportunity,Weight,Rank,GroupKey,GroupName,DefectCount,WeightedScore,OpportunityCount,OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew",
+            "SourceId,SourceName,WindowStartUtc,WindowEndUtc,Axis,Numerator,Opportunity,Weight,Rank,GroupKey,GroupName,DefectCount,WeightedScore,OpportunityCount,OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew,OpportunitiesApplicable",
             lines[0]);
         // Rank 1 = Product A (higher DefectCount despite lower DPMO).
         Assert.Contains(",Product,Real,All,Count,1,100,Product A,10,10,100,", lines[1], StringComparison.Ordinal);

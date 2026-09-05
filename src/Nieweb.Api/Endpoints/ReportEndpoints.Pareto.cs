@@ -159,6 +159,78 @@ public static partial class ReportEndpoints
         }
     }
 
+    /// <summary>Body for <c>POST /api/reports/pareto/from-tile</c>.</summary>
+    public sealed record ParetoFromTileRequest(
+        string? SourceId,
+        string? StartUtc,
+        string? EndUtc,
+        int[]? MachineIds,
+        int[]? ProductIds,
+        string? ConfigJson);
+
+    private static async Task<IResult> RunParetoFromTileAsync(
+        ParetoFromTileRequest? body,
+        IEnumerable<IAoiSource> sources,
+        IReportResultCache resultCache,
+        ILogger<ReportsMarker> logger,
+        CancellationToken cancellationToken)
+    {
+        if (body is null)
+        {
+            return Results.Problem(
+                title: "Invalid tile filter: request body is required",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var builtBase = TryBuildBaseRequest(body.SourceId, body.StartUtc, body.EndUtc, sources);
+        if (builtBase.Error is not null)
+        {
+            return builtBase.Error;
+        }
+
+        var built = TryBuildParetoTileFilter(
+            builtBase.Window,
+            body.MachineIds,
+            body.ProductIds,
+            body.ConfigJson);
+        if (built.Error is not null)
+        {
+            return Results.Problem(
+                title: "Invalid tile filter: " + built.Error,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var filter = built.Filter!;
+        LogRunningPareto(
+            logger,
+            builtBase.Source!.Descriptor.Id,
+            filter.Axis,
+            filter.Numerator,
+            filter.Window.StartUtc,
+            filter.Window.EndUtcExclusive);
+
+        try
+        {
+            var result = await ParetoReport.Instance
+                .RunAsync(builtBase.Source, filter, cancellationToken)
+                .ConfigureAwait(false);
+            resultCache.Store(ParetoReport.Instance, builtBase.Source, filter, result);
+            return Results.Ok(result);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.Problem(
+                title: "Invalid Pareto filter: " + ex.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.Problem(
+                title: "Invalid Pareto filter: " + ex.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+    }
+
     private static (IAoiSource? Source, ParetoFilter? Filter, IResult? Error) TryBuildParetoRequest(
         string? sourceId,
         string? startUtc,
@@ -496,7 +568,7 @@ public static partial class ReportEndpoints
         var sb = new StringBuilder(1024);
         sb.Append("SourceId,SourceName,WindowStartUtc,WindowEndUtc,Axis,Numerator,Opportunity,Weight,")
           .Append("Rank,GroupKey,GroupName,DefectCount,WeightedScore,OpportunityCount,")
-          .Append("OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew\r\n");
+          .Append("OpportunitySharePercent,DpmoPpm,DefectSharePercent,CumulativePercent,IsVitalFew,OpportunitiesApplicable\r\n");
         await FlushAsync(writer, sb, ct).ConfigureAwait(false);
 
         var sourceId = CsvEscape(result.Source.Id);
@@ -512,7 +584,7 @@ public static partial class ReportEndpoints
         foreach (var row in result.Rows)
         {
             AppendParetoRow(sb, sourceId, sourceName, startIso, endIso, axis, numerator, opportunity, weight,
-                rank.ToString(CultureInfo.InvariantCulture), row.GroupKey, row.GroupName, row);
+                rank.ToString(CultureInfo.InvariantCulture), row.GroupKey, row.GroupName, result.Axis, row);
             await FlushAsync(writer, sb, ct).ConfigureAwait(false);
             rank++;
         }
@@ -521,7 +593,7 @@ public static partial class ReportEndpoints
         {
             AppendParetoRow(sb, sourceId, sourceName, startIso, endIso, axis, numerator, opportunity, weight,
                 "OTHERS", result.OthersBucket.GroupKey ?? "OTHERS", result.OthersBucket.GroupName ?? "Others",
-                result.OthersBucket);
+                result.Axis, result.OthersBucket);
             await FlushAsync(writer, sb, ct).ConfigureAwait(false);
         }
 
@@ -533,7 +605,7 @@ public static partial class ReportEndpoints
         StringBuilder sb,
         string sourceId, string sourceName, string startIso, string endIso,
         string axis, string numerator, string opportunity, string weight,
-        string rank, string? groupKey, string? groupName, ParetoRow row)
+        string rank, string? groupKey, string? groupName, ParetoAxis resultAxis, ParetoRow row)
     {
         sb.Append(sourceId).Append(',')
           .Append(sourceName).Append(',')
@@ -548,12 +620,13 @@ public static partial class ReportEndpoints
           .Append(CsvEscape(groupName)).Append(',')
           .Append(row.DefectCount.ToString(CultureInfo.InvariantCulture)).Append(',')
           .Append(row.WeightedScore.ToString("0.####", CultureInfo.InvariantCulture)).Append(',')
-          .Append(row.OpportunityCount.ToString(CultureInfo.InvariantCulture)).Append(',')
-          .Append(row.OpportunitySharePercent.ToString("0.####", CultureInfo.InvariantCulture)).Append(',')
-          .Append(row.DpmoPpm.ToString("0.####", CultureInfo.InvariantCulture)).Append(',')
+          .Append(ParetoPresentation.OpportunityCountCell(row)).Append(',')
+          .Append(ParetoPresentation.OpportunityShareCell(resultAxis, row)).Append(',')
+          .Append(ParetoPresentation.DpmoCell(row)).Append(',')
           .Append(row.DefectSharePercent.ToString("0.####", CultureInfo.InvariantCulture)).Append(',')
           .Append(row.CumulativePercent.ToString("0.####", CultureInfo.InvariantCulture)).Append(',')
-          .Append(row.IsVitalFew ? "true" : "false").Append("\r\n");
+          .Append(row.IsVitalFew ? "true" : "false").Append(',')
+          .Append(row.OpportunitiesApplicable ? "true" : "false").Append("\r\n");
     }
 
     /// <summary>
@@ -748,7 +821,7 @@ public static partial class ReportEndpoints
             "Rank", "GroupKey", "GroupName",
             "DefectCount", "WeightedScore",
             "OpportunityCount", "OpportunitySharePercent",
-            "DpmoPpm", "DefectSharePercent", "CumulativePercent", "IsVitalFew",
+            "DpmoPpm", "DefectSharePercent", "CumulativePercent", "IsVitalFew", "OpportunitiesApplicable",
         ];
         for (var i = 0; i < headers.Length; i++)
         {
@@ -761,7 +834,7 @@ public static partial class ReportEndpoints
         foreach (var row in result.Rows)
         {
             WriteParetoWorkbookRow(rows, r, rank.ToString(CultureInfo.InvariantCulture),
-                row.GroupKey ?? string.Empty, row.GroupName ?? string.Empty, row);
+                row.GroupKey ?? string.Empty, row.GroupName ?? string.Empty, result.Axis, row);
             r++;
             rank++;
         }
@@ -771,6 +844,7 @@ public static partial class ReportEndpoints
             WriteParetoWorkbookRow(rows, r, "OTHERS",
                 result.OthersBucket.GroupKey ?? "OTHERS",
                 result.OthersBucket.GroupName ?? "Others",
+                result.Axis,
                 result.OthersBucket);
             r++;
         }
@@ -793,7 +867,7 @@ public static partial class ReportEndpoints
     }
 
     private static void WriteParetoWorkbookRow(
-        IXLWorksheet sheet, int row, string rank, string groupKey, string groupName, ParetoRow data)
+        IXLWorksheet sheet, int row, string rank, string groupKey, string groupName, ParetoAxis axis, ParetoRow data)
     {
         sheet.Cell(row, 1).Value = rank;
         sheet.Cell(row, 2).Value = groupKey;
@@ -801,15 +875,28 @@ public static partial class ReportEndpoints
         sheet.Cell(row, 4).Value = data.DefectCount;
         sheet.Cell(row, 5).Value = data.WeightedScore;
         sheet.Cell(row, 5).Style.NumberFormat.Format = "0.####";
-        sheet.Cell(row, 6).Value = data.OpportunityCount;
-        sheet.Cell(row, 7).Value = data.OpportunitySharePercent;
-        sheet.Cell(row, 7).Style.NumberFormat.Format = "0.####";
-        sheet.Cell(row, 8).Value = data.DpmoPpm;
-        sheet.Cell(row, 8).Style.NumberFormat.Format = "0.####";
+        WriteOptionalNumber(sheet.Cell(row, 6), data.OpportunitiesApplicable, data.OpportunityCount);
+        WriteOptionalNumber(sheet.Cell(row, 7), data.OpportunitiesApplicable && ParetoPresentation.ShowOpportunityShare(axis), data.OpportunitySharePercent, "0.####");
+        WriteOptionalNumber(sheet.Cell(row, 8), data.OpportunitiesApplicable, data.DpmoPpm, "0.####");
         sheet.Cell(row, 9).Value = data.DefectSharePercent;
         sheet.Cell(row, 9).Style.NumberFormat.Format = "0.####";
         sheet.Cell(row, 10).Value = data.CumulativePercent;
         sheet.Cell(row, 10).Style.NumberFormat.Format = "0.####";
         sheet.Cell(row, 11).Value = data.IsVitalFew;
+        sheet.Cell(row, 12).Value = data.OpportunitiesApplicable;
+    }
+
+    private static void WriteOptionalNumber(IXLCell cell, bool applicable, double value, string? format = null)
+    {
+        if (!applicable)
+        {
+            cell.Value = string.Empty;
+            return;
+        }
+        cell.Value = value;
+        if (format is not null)
+        {
+            cell.Style.NumberFormat.Format = format;
+        }
     }
 }

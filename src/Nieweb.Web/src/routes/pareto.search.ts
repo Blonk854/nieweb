@@ -63,6 +63,12 @@ export type ParetoWeight = "Count" | "Dpmo" | "Ppm";
 
 export const PARETO_WEIGHTS: readonly ParetoWeight[] = ["Count", "Dpmo", "Ppm"];
 
+export const PARETO_OBJECT_LEVEL_AXES: ReadonlySet<ParetoAxis> = new Set<ParetoAxis>([
+    "ReferenceDesignator",
+    "PartNumber",
+    "Jedec",
+]);
+
 /**
  * URL-serialisable filter state for the Pareto report. Every field is
  * URL-encoded via TanStack Router's search-params (see
@@ -179,17 +185,22 @@ export function toApiQuery(search: ParetoSearch): Record<string, string> {
  * malformed enum values are dropped.
  */
 export function validateParetoSearch(raw: Record<string, unknown>): ParetoSearch {
+    const axis = toEnumOrUndef<ParetoAxis>(raw.axis, PARETO_AXES);
+    let weight = toEnumOrUndef<ParetoWeight>(raw.weight, PARETO_WEIGHTS);
+    if (axis && PARETO_OBJECT_LEVEL_AXES.has(axis) && (weight === "Dpmo" || weight === "Ppm")) {
+        weight = "Count";
+    }
     return {
         sourceId: toStringOrUndef(raw.sourceId),
         startUtc: toStringOrUndef(raw.startUtc),
         endUtc: toStringOrUndef(raw.endUtc),
-        axis: toEnumOrUndef<ParetoAxis>(raw.axis, PARETO_AXES),
+        axis,
         numerator: toEnumOrUndef<ParetoNumerator>(raw.numerator, PARETO_NUMERATORS),
         opportunity: toEnumOrUndef<ParetoOpportunity>(
             raw.opportunity,
             PARETO_OPPORTUNITIES,
         ),
-        weight: toEnumOrUndef<ParetoWeight>(raw.weight, PARETO_WEIGHTS),
+        weight,
         siteTimeZone: toStringOrUndef(raw.siteTimeZone),
         shifts: toStringArray(raw.shifts),
         topN: toPositiveIntOrUndef(raw.topN),
@@ -318,19 +329,6 @@ export const PARETO_DRILL_NEXT_AXIS: Partial<Record<ParetoAxis, ParetoAxis>> = {
     // ReferenceDesignator: terminal (no next axis).
     // Day / Shift: not drillable (no next axis).
 };
-
-/**
- * Object-level axes have no card-derived opportunity denominator, so the
- * per-group DPMO is 0 and a rate weight (Dpmo / Ppm) would rank the bars
- * by key instead of magnitude — no longer a Pareto. When a drill lands
- * on one of these we force the volume scale so the chart stays sorted by
- * defect count.
- */
-export const PARETO_OBJECT_LEVEL_AXES: ReadonlySet<ParetoAxis> = new Set<ParetoAxis>([
-    "ReferenceDesignator",
-    "PartNumber",
-    "Jedec",
-]);
 
 /**
  * Drill into a clicked Pareto bar. Adds the clicked bucket to the
