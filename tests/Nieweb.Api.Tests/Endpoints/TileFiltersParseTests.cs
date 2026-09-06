@@ -1,5 +1,6 @@
 using Nieweb.Api.Endpoints;
 using Nieweb.Filters;
+using Nieweb.Reports;
 
 using Xunit;
 
@@ -139,5 +140,12 @@ public sealed class TileFiltersParseTests
         Assert.Null(request);
         Assert.Contains("filters[1]", error, StringComparison.Ordinal);
         Assert.Contains("Lke", error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ParseParetoTileConfig_RetainsSubpanelAxis()
+    {
+        var cfg = ReportEndpoints.ParseParetoTileConfig("""{"axis":"Subpanel"}""");
+        Assert.Equal(ParetoAxis.Subpanel, cfg.Axis);
     }
 }

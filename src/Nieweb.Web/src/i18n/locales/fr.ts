@@ -391,7 +391,7 @@ export const fr: TranslationBundle = {
     pareto: {
         title: "Pareto",
         subtitle:
-            "Classer les défauts, produits, machines ou boîtiers qui expliquent l'essentiel des pertes.",
+            "Classer les défauts, produits, machines, boîtiers ou sous-panneaux qui expliquent l'essentiel des pertes.",
         axis: {
             Defect: "Défaut",
             Product: "Produit",
@@ -401,6 +401,7 @@ export const fr: TranslationBundle = {
             Jedec: "JEDEC / boîtier",
             Day: "Jour",
             Shift: "Équipe",
+            Subpanel: "Sous-panneau",
         },
         numerator: {
             Aoi: "AOI (avant revue)",
@@ -513,6 +514,7 @@ export const fr: TranslationBundle = {
                 Jedec: "JEDEC / boîtier",
                 Day: "Jour",
                 Shift: "Équipe",
+                Subpanel: "Sous-panneau",
             },
         },
         drillMap: {
@@ -520,7 +522,8 @@ export const fr: TranslationBundle = {
             intro:
                 "Cliquez sur une barre pour explorer — chaque clic filtre sur l'élément cliqué et avance l'axe d'un cran :",
             endLabel: "fin",
-            notDrillable: "Les barres Jour et Équipe ne sont pas explorables.",
+            notDrillable:
+                "Les barres Jour et Équipe ne sont pas explorables. Sous-panneau est la dernière étape.",
         },
     },
     skipSummary: {
@@ -1567,6 +1570,7 @@ export const fr: TranslationBundle = {
                                     Jedec: "Boîtier (JEDEC)",
                                     Day: "Jour",
                                     Shift: "Équipe",
+                                    Subpanel: "Sous-panneau",
                                 },
                             },
                             numerator: {

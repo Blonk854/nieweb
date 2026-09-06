@@ -50,6 +50,7 @@ import {
     SKIP_STATUS_VALUES,
     pickDefaultSourceId,
     paretoDrillInto,
+    toApiQuery,
     withoutDefectBit,
     withoutNumericFilter,
     withoutStringFilter,
@@ -76,28 +77,6 @@ import {
 } from "../i18n/zoneConverters";
 import { resolveTimeZone, usePreferencesStore } from "../state/preferences";
 
-/** i18n label key per Pareto axis (avoids template-literal `t()` overload issues). */
-function paretoAxisLabelKey(axis: ParetoAxis):
-    | "pareto.axis.Defect"
-    | "pareto.axis.Product"
-    | "pareto.axis.AoiMachine"
-    | "pareto.axis.ReferenceDesignator"
-    | "pareto.axis.PartNumber"
-    | "pareto.axis.Jedec"
-    | "pareto.axis.Day"
-    | "pareto.axis.Shift" {
-    switch (axis) {
-        case "Defect": return "pareto.axis.Defect";
-        case "Product": return "pareto.axis.Product";
-        case "AoiMachine": return "pareto.axis.AoiMachine";
-        case "ReferenceDesignator": return "pareto.axis.ReferenceDesignator";
-        case "PartNumber": return "pareto.axis.PartNumber";
-        case "Jedec": return "pareto.axis.Jedec";
-        case "Day": return "pareto.axis.Day";
-        case "Shift": return "pareto.axis.Shift";
-    }
-}
-
 // Chart is loaded on-demand (echarts is ~1.1 MB gzipped). Splitting it
 // out keeps the initial bundle small; the chunk is only fetched when
 // a user actually runs a Pareto report.
@@ -111,12 +90,10 @@ const ParetoChart = lazy(() =>
  * filter is complete, a bar + cumulative-percent chart plus a table
  * of the underlying rows.
  *
- * URL-first design: every filter lives in the search params (see
- * `router.ts::paretoRoute.validateSearch`) so the whole report is
- * shareable / bookmarkable / drill-in-reversible via the browser
- * back button. Clicking a bar on the Defect axis appends the bit to
- * `defectBits` and re-fetches — the user typically then switches
- * axis to Product / PartNumber to see which parts contain that bit.
+ * URL-first design: every filter lives in the search params so the
+ * whole report is shareable, bookmarkable, and drill-reversible via
+ * the browser back button. Clicking a bar narrows by that bucket and
+ * advances the axis along the guided drill map.
  */
 export function ParetoRoute() {
     const { t } = useTranslation();
@@ -134,6 +111,17 @@ export function ParetoRoute() {
     );
 
     const [form, setForm] = useState<FormState>(() => searchToForm(search, timeZone));
+
+    // URL is the source of truth for committed report state. Sync the
+    // form when search changes through Back/Forward, drill, chips, or
+    // saved views — not when the user is only editing local controls.
+    const searchFingerprint = JSON.stringify(toApiQuery(search));
+    useEffect(() => {
+        setForm(searchToForm(search, timeZone));
+        // Fingerprint is a stable serialisation of `search`; form edits
+        // do not change the URL until Run / drill / chips commit.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchFingerprint, timeZone]);
 
     const effectiveSourceId = form.sourceId ?? pickDefaultSourceId(sources);
 
@@ -295,12 +283,10 @@ export function ParetoRoute() {
         });
     }
 
-    // Chart bar click = drill-down. On the Defect axis we append the
-    // clicked bit and stay; on a category axis (Product / AOI machine /
-    // reference designator / part number / JEDEC) we add the clicked
-    // bucket to the matching narrowing filter and advance to the Defect
-    // axis so the user immediately sees the defect breakdown inside that
-    // bucket. Day / Shift bars and the Others bucket are not drillable.
+    // Chart bar click = drill-down. Category axes add the clicked
+    // bucket to the matching narrowing filter and advance along
+    // PARETO_DRILL_NEXT_AXIS. Day / Shift bars and the Others bucket
+    // are not drillable; Subpanel is the terminal step.
     function handleBarClick(row: ParetoRow) {
         if (!row.groupKey) return;
         const next = paretoDrillInto(search, row.groupKey);
@@ -321,6 +307,7 @@ export function ParetoRoute() {
             topologies: next.topologies ?? [],
             partNumbers: next.partNumbers ?? [],
             jedecNames: next.jedecNames ?? [],
+            cardNumbers: next.cardNumbers ?? [],
         }));
         void navigate({ to: "/report/pareto", search: next, replace: false });
     }
@@ -331,7 +318,7 @@ export function ParetoRoute() {
         void navigate({ to: "/report/pareto", search: next, replace: false });
     }
 
-    function removeNumericFilter(key: "productIds" | "machineIds", value: number) {
+    function removeNumericFilter(key: "productIds" | "machineIds" | "cardNumbers", value: number) {
         const next = withoutNumericFilter(search, key, value);
         setForm((prev) => ({ ...prev, [key]: next[key] ?? [] }));
         void navigate({ to: "/report/pareto", search: next, replace: false });
@@ -415,6 +402,7 @@ export function ParetoRoute() {
                         />
                         <Select
                             label={t("pareto.filters.axis")}
+                            data-testid="pareto-axis"
                             data={PARETO_AXES.map((a) => ({
                                 value: a,
                                 label: t(`pareto.axis.${a}`),
@@ -527,6 +515,7 @@ export function ParetoRoute() {
                             label={t("pareto.filters.weight")}
                             description={t("pareto.filters.weightHint")}
                             inputWrapperOrder={["label", "input", "description", "error"]}
+                            data-testid="pareto-weight"
                             data={PARETO_WEIGHTS.map((w) => ({
                                 value: w,
                                 label: t(`pareto.weight.${w}`),
@@ -669,6 +658,12 @@ export function ParetoRoute() {
                                 label: `${t("pareto.axis.Jedec")}: ${v}`,
                                 color: "grape",
                                 onRemove: () => removeStringFilter("jedecNames", v),
+                            })),
+                            ...(search.cardNumbers ?? []).map((id) => ({
+                                key: `c-${id}`,
+                                label: `${t("pareto.axis.Subpanel")}: ${id}`,
+                                color: "blue",
+                                onRemove: () => removeNumericFilter("cardNumbers", id),
                             })),
                         ];
                         if (chips.length === 0) return null;
@@ -859,6 +854,7 @@ type FormState = {
     topologies: string[];
     partNumbers: string[];
     jedecNames: string[];
+    cardNumbers: number[];
     skipExclusion: SkipExclusion;
     skipStatuses: SkipStatus[];
     excludeNogo: boolean;
@@ -881,6 +877,7 @@ function emptyForm(): FormState {
         topologies: [],
         partNumbers: [],
         jedecNames: [],
+        cardNumbers: [],
         skipExclusion: "Raw",
         skipStatuses: [],
         excludeNogo: false,
@@ -904,6 +901,7 @@ function searchToForm(s: ParetoSearch, timeZone: string): FormState {
         topologies: s.topologies ?? [],
         partNumbers: s.partNumbers ?? [],
         jedecNames: s.jedecNames ?? [],
+        cardNumbers: s.cardNumbers ?? [],
         skipExclusion: s.skipExclusion ?? "Raw",
         skipStatuses: s.skipStatuses ?? [],
         excludeNogo: s.excludeNogo ?? false,
@@ -931,6 +929,7 @@ function formToSearch(f: FormState, timeZone: string): ParetoSearch {
         topologies: f.topologies.length > 0 ? f.topologies : undefined,
         partNumbers: f.partNumbers.length > 0 ? f.partNumbers : undefined,
         jedecNames: f.jedecNames.length > 0 ? f.jedecNames : undefined,
+        cardNumbers: f.cardNumbers.length > 0 ? f.cardNumbers : undefined,
         skipExclusion: f.skipExclusion === "Clean" ? "Clean" : undefined,
         skipStatuses: f.skipStatuses.length > 0 ? f.skipStatuses : undefined,
         excludeNogo: f.excludeNogo ? true : undefined,
@@ -942,15 +941,14 @@ function formToSearch(f: FormState, timeZone: string): ParetoSearch {
 // ---------------------------------------------------------------
 
 // Axes whose bars support click-to-drill. Day / Shift bars map to a
-// time bucket, not a narrowing filter, so they stay non-interactive.
+// time bucket, not a narrowing filter. Subpanel is the terminal step.
 const DRILLABLE_AXES: ReadonlySet<ParetoAxis> = new Set<ParetoAxis>([
     "Defect",
     "Product",
     "AoiMachine",
     "PartNumber",
     "Jedec",
-    // ReferenceDesignator is the terminal drill step — its bars are not
-    // clickable (nothing finer to drill into).
+    "ReferenceDesignator",
 ]);
 
 /**
@@ -985,7 +983,9 @@ function DrillDownMap() {
                         {"  →  "}
                         {t("pareto.axis.PartNumber")}
                         {"  →  "}
-                        {t("pareto.axis.ReferenceDesignator")} ({t("pareto.drillMap.endLabel")})
+                        {t("pareto.axis.ReferenceDesignator")}
+                        {"  →  "}
+                        {t("pareto.axis.Subpanel")} ({t("pareto.drillMap.endLabel")})
                     </Text>
                     <Text size="xs" c="dimmed">
                         {t("pareto.drillMap.notDrillable")}

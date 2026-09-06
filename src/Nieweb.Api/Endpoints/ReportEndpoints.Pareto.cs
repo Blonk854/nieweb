@@ -31,7 +31,7 @@ public static partial class ReportEndpoints
     /// Group-by axis. Accepts kebab-case
     /// (<c>defect</c>, <c>product</c>, <c>aoi-machine</c>,
     /// <c>reference-designator</c>, <c>part-number</c>, <c>jedec</c>,
-    /// <c>day</c>, <c>shift</c>) or the raw <see cref="ParetoAxis"/>
+    /// <c>day</c>, <c>shift</c>, <c>subpanel</c>) or the raw <see cref="ParetoAxis"/>
     /// member name. <c>shift</c> requires <paramref name="shifts"/>.
     /// </param>
     /// <param name="numerator">One of <c>real</c> (default), <c>aoi</c>, <c>dummy</c>.</param>
@@ -63,6 +63,11 @@ public static partial class ReportEndpoints
     /// <param name="topologies">CSV list of <c>TESTED_OBJECT.Topology</c> values.</param>
     /// <param name="partNumbers">CSV list of <c>PART_NUMBER</c> names.</param>
     /// <param name="jedecNames">CSV list of <c>JEDEC</c> names.</param>
+    /// <param name="cardNumbers">
+    /// CSV int list of within-panel slots (<c>CARDS.Card_Number</c>).
+    /// Scopes both the card opportunity pass and the tested-object
+    /// defect pass. Zero is a valid slot.
+    /// </param>
     /// <param name="siteTimeZone">
     /// IANA (e.g. <c>Europe/Paris</c>) or Windows (e.g.
     /// <c>Romance Standard Time</c>) time-zone identifier used to
@@ -100,6 +105,7 @@ public static partial class ReportEndpoints
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? cardNumbers,
         string? siteTimeZone,
         string? shifts,
         string? skipExclusion,
@@ -114,7 +120,7 @@ public static partial class ReportEndpoints
             sourceId, startUtc, endUtc, axis, numerator, opportunity, weight,
             topN, includeOthers, vitalFewThreshold, includeObsoleteBits,
             machineIds, productIds,
-            defectBits, topologies, partNumbers, jedecNames,
+            defectBits, topologies, partNumbers, jedecNames, cardNumbers,
             siteTimeZone, shifts,
             skipExclusion, skipStatuses,
             excludeNogo,
@@ -249,6 +255,7 @@ public static partial class ReportEndpoints
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? cardNumbers,
         string? siteTimeZone,
         string? shifts,
         string? skipExclusion,
@@ -342,6 +349,7 @@ public static partial class ReportEndpoints
             Topologies: ParseStringList(topologies),
             PartNumbers: ParseStringList(partNumbers),
             JedecNames: ParseStringList(jedecNames),
+            CardNumbers: ParseIntList(cardNumbers),
             SiteTimeZone: siteTz,
             Shifts: shiftDef,
             Filters: null,
@@ -464,6 +472,7 @@ public static partial class ReportEndpoints
     /// <param name="topologies">CSV string list.</param>
     /// <param name="partNumbers">CSV string list.</param>
     /// <param name="jedecNames">CSV string list.</param>
+    /// <param name="cardNumbers">CSV int list of within-panel slots.</param>
     /// <param name="siteTimeZone">IANA or Windows time-zone id for Day/Shift bucketing (default UTC).</param>
     /// <param name="shifts">CSV of HH:MM shift start times (required when axis=shift).</param>
     /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
@@ -492,6 +501,7 @@ public static partial class ReportEndpoints
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? cardNumbers,
         string? siteTimeZone,
         string? shifts,
         string? skipExclusion,
@@ -508,7 +518,7 @@ public static partial class ReportEndpoints
             sourceId, startUtc, endUtc, axis, numerator, opportunity, weight,
             topN, includeOthers, vitalFewThreshold, includeObsoleteBits,
             machineIds, productIds,
-            defectBits, topologies, partNumbers, jedecNames,
+            defectBits, topologies, partNumbers, jedecNames, cardNumbers,
             siteTimeZone, shifts,
             skipExclusion, skipStatuses,
             excludeNogo,
@@ -656,6 +666,7 @@ public static partial class ReportEndpoints
     /// <param name="topologies">CSV string list.</param>
     /// <param name="partNumbers">CSV string list.</param>
     /// <param name="jedecNames">CSV string list.</param>
+    /// <param name="cardNumbers">CSV int list of within-panel slots.</param>
     /// <param name="siteTimeZone">IANA or Windows time-zone id for Day/Shift bucketing (default UTC).</param>
     /// <param name="shifts">CSV of HH:MM shift start times (required when axis=shift).</param>
     /// <param name="skipExclusion">Skip handling: <c>raw</c> (default) or <c>clean</c>.</param>
@@ -684,6 +695,7 @@ public static partial class ReportEndpoints
         string? topologies,
         string? partNumbers,
         string? jedecNames,
+        string? cardNumbers,
         string? siteTimeZone,
         string? shifts,
         string? skipExclusion,
@@ -700,7 +712,7 @@ public static partial class ReportEndpoints
             sourceId, startUtc, endUtc, axis, numerator, opportunity, weight,
             topN, includeOthers, vitalFewThreshold, includeObsoleteBits,
             machineIds, productIds,
-            defectBits, topologies, partNumbers, jedecNames,
+            defectBits, topologies, partNumbers, jedecNames, cardNumbers,
             siteTimeZone, shifts,
             skipExclusion, skipStatuses,
             excludeNogo,
@@ -812,6 +824,7 @@ public static partial class ReportEndpoints
         AppendFilterRow(filters, ref frow, "Topologies", string.Join(",", result.AppliedFilters.Topologies));
         AppendFilterRow(filters, ref frow, "PartNumbers", string.Join(",", result.AppliedFilters.PartNumbers));
         AppendFilterRow(filters, ref frow, "JedecNames", string.Join(",", result.AppliedFilters.JedecNames));
+        AppendFilterRow(filters, ref frow, "CardNumbers", string.Join(",", result.AppliedFilters.CardNumbers));
         filters.Columns("A:B").AdjustToContents();
 
         // ---- Rows sheet ----

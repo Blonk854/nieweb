@@ -90,6 +90,38 @@ test.describe("Pareto happy-path smoke", () => {
         // 1 header + 5 defect-bucket data rows.
         expect(csvLines.length).toBeGreaterThanOrEqual(6);
     });
+
+    test("log in → open Pareto (Subpanel axis) → verify terminal axis and slot rows", async ({
+        page,
+        request,
+    }) => {
+        await signInViaSpa(page);
+        const token = await loginForToken(request);
+
+        const search = { ...PARETO_SEARCH, axis: "Subpanel" as const };
+        await page.goto(paretoRouteUrl(search));
+        await expect(
+            page.getByRole("heading", { name: "Pareto" }).first(),
+        ).toBeVisible();
+        await expect(page.getByText(/Total defects/i).first()).toBeVisible();
+        await expect(page.getByTestId("pareto-axis")).toHaveValue("Subpanel");
+        await expect(page.getByTestId("pareto-weight")).toBeEnabled();
+
+        const jsonPath = `/api/reports/pareto?${paretoSearchParams(search)}`;
+        const jsonResp = await request.get(jsonPath, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        expect(jsonResp.status(), `${jsonPath} should return 200`).toBe(200);
+        const json = (await jsonResp.json()) as {
+            axis: string;
+            rows: Array<{ groupKey: string; defectCount: number }>;
+        };
+        expect(json.axis).toBe("Subpanel");
+        expect(json.rows.length).toBeGreaterThan(0);
+        for (const row of json.rows) {
+            expect(row.groupKey).toMatch(/^\d+$/);
+        }
+    });
 });
 
 // ---------------------------------------------------------------------
@@ -100,7 +132,7 @@ type ParetoSmokeSearch = {
     sourceId: string;
     startUtc: string;
     endUtc: string;
-    axis: "Defect" | "Product" | "AoiMachine";
+    axis: "Defect" | "Product" | "AoiMachine" | "Subpanel";
 };
 
 function paretoRouteUrl(search: ParetoSmokeSearch): string {

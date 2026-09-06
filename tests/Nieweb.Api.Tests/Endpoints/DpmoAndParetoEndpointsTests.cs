@@ -460,6 +460,209 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         await factory!.DisposeAsync();
     }
 
+    [Theory]
+    [InlineData("subpanel")]
+    [InlineData("Subpanel")]
+    public async Task Pareto_SubpanelAxis_AcceptsKebabAndCanonicalNames(string axis)
+    {
+        var fake = TwoSlotFake();
+        var (authed, factory) = await AuthedClientAsync($"pareto-subpanel-{axis}@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis={axis}", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+        Assert.NotNull(payload);
+        Assert.Equal(ParetoAxis.Subpanel, payload!.Axis);
+        Assert.Equal(2, payload.Rows.Count);
+        Assert.Equal("1", payload.Rows[0].GroupKey);
+        Assert.Equal(3L, payload.Rows[0].DefectCount);
+        Assert.True(payload.Rows[0].OpportunitiesApplicable);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Pareto_CardNumbers_EchoedAndScopesBothPasses()
+    {
+        var fake = TwoSlotFake();
+        var (authed, factory) = await AuthedClientAsync("pareto-cardnumbers@nieweb.test", fake);
+
+        using var unfiltered = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel", UriKind.Relative));
+        using var filtered = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel&cardNumbers=1,2", UriKind.Relative));
+        using var slot1 = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=product&cardNumbers=1", UriKind.Relative));
+
+        var all = await unfiltered.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+        var echoed = await filtered.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+        var scoped = await slot1.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+
+        Assert.Equal(HttpStatusCode.OK, filtered.StatusCode);
+        Assert.Equal([1, 2], echoed!.AppliedFilters.CardNumbers);
+        Assert.Equal(all!.Overall.OpportunityCount, echoed.Overall.OpportunityCount);
+
+        Assert.Equal(HttpStatusCode.OK, slot1.StatusCode);
+        Assert.Equal([1], scoped!.AppliedFilters.CardNumbers);
+        Assert.Equal(50L, scoped.Overall.OpportunityCount);
+        Assert.Equal(3L, scoped.Overall.DefectBitCount);
+        Assert.True(scoped.Overall.OpportunityCount < all.Overall.OpportunityCount);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Pareto_SubpanelDrillShapedRequest_ReturnsMatchingContributors()
+    {
+        var fake = TwoSlotFake(withTopology: true);
+        var (authed, factory) = await AuthedClientAsync("pareto-subpanel-drill@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel&topologies=R12&partNumbers=PN-A&defectBits=1", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+        Assert.NotNull(payload);
+        Assert.Equal(ParetoAxis.Subpanel, payload!.Axis);
+        Assert.Equal(["R12"], payload.AppliedFilters.Topologies);
+        Assert.Equal(["PN-A"], payload.AppliedFilters.PartNumbers);
+        Assert.Equal([1], payload.AppliedFilters.DefectBits);
+        Assert.Single(payload.Rows);
+        Assert.Equal("1", payload.Rows[0].GroupKey);
+        Assert.Equal(3L, payload.Rows[0].DefectCount);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Pareto_UnknownAxis_Returns400()
+    {
+        var fake = new FakeAoiSource(_postDescriptor);
+        var (authed, factory) = await AuthedClientAsync("pareto-bogus-axis@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=bogus", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Pareto_EmptyValidWindow_Returns200WithZeroRows()
+    {
+        var fake = new FakeAoiSource(_postDescriptor);
+        var (authed, factory) = await AuthedClientAsync("pareto-empty-window@nieweb.test", fake);
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+        Assert.NotNull(payload);
+        Assert.Empty(payload!.Rows);
+        Assert.Equal(0L, payload.Overall.DefectBitCount);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ParetoCsv_CardNumbers_ContainsOnlySelectedSlot()
+    {
+        var fake = TwoSlotFake();
+        var (authed, factory) = await AuthedClientAsync("pareto-csv-slots@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.csv?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel&cardNumbers=1", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var csv = await response.Content.ReadAsStringAsync();
+        Assert.Contains("1,", csv, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n2,", csv, StringComparison.Ordinal);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ParetoPdf_CardNumbers_Succeeds()
+    {
+        var fake = TwoSlotFake();
+        var (authed, factory) = await AuthedClientAsync("pareto-pdf-slots@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.pdf?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel&cardNumbers=1", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        Assert.True(bytes.Length > 4);
+        Assert.Equal("%PDF"u8.ToArray(), bytes.AsSpan(0, 4).ToArray());
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ParetoFromTile_SubpanelAxis_ReturnsSubpanelResult()
+    {
+        var fake = TwoSlotFake();
+        var (authed, factory) = await AuthedClientAsync("pareto-from-tile-sub@nieweb.test", fake);
+
+        using var response = await authed.PostAsJsonAsync(
+            new Uri("/api/reports/pareto/from-tile", UriKind.Relative),
+            new ReportEndpoints.ParetoFromTileRequest(
+                SourceId: "postreflow",
+                StartUtc: StartUtc,
+                EndUtc: EndUtc,
+                MachineIds: null,
+                ProductIds: null,
+                ConfigJson: "{\"axis\":\"Subpanel\"}"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadFromJsonAsync<ParetoResult>(_responseJson);
+        Assert.NotNull(payload);
+        Assert.Equal(ParetoAxis.Subpanel, payload!.Axis);
+        Assert.Equal(2, payload.Rows.Count);
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    private static FakeAoiSource TwoSlotFake(bool withTopology = false)
+    {
+        var objects = new List<TestedObjectRow>();
+        for (var i = 0; i < 3; i++)
+        {
+            objects.Add(Obj(
+                10, WindowStartEpoch + 60 + i, 10_000 + i, ComponentType,
+                BitObjectMissing, BitObjectMissing,
+                topology: withTopology ? "R12" : null,
+                partNumberName: withTopology ? "PN-A" : null,
+                cardIdOnPanel: 1));
+        }
+        objects.Add(Obj(
+            10, WindowStartEpoch + 70, 20_000, ComponentType,
+            BitObjectMissing, BitObjectMissing,
+            topology: withTopology ? "U1" : null,
+            partNumberName: withTopology ? "PN-B" : null,
+            cardIdOnPanel: 2));
+
+        return new FakeAoiSource(_postDescriptor)
+        {
+            SeededCards =
+            [
+                Card(10, WindowStartEpoch + 5, nbTestsOnComp: 50, cardIdOnPanel: 1),
+                Card(10, WindowStartEpoch + 6, nbTestsOnComp: 50, cardIdOnPanel: 2),
+            ],
+            SeededTestedObjects = objects,
+        };
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
@@ -512,11 +715,13 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         int productId = 500,
         string? topology = null,
         string? partNumberName = null,
-        string? jedecName = null)
+        string? jedecName = null,
+        int panelId = 1,
+        int cardIdOnPanel = 1)
     {
         return new TestedObjectRow(
-            PanelId: 1,
-            CardIdOnPanel: 1,
+            PanelId: panelId,
+            CardIdOnPanel: cardIdOnPanel,
             ObjectId: objectId,
             ObjectTypeId: objectTypeId,
             ErrorTable: errorTable,
@@ -537,10 +742,12 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
     // CARDS row carrying the DPMO/PPM opportunity denominator
     // (Nb_Of_Tests_On_Comp). Opportunities come from cards, never from a
     // (defect-only) tested-object row count.
-    private static CardRow Card(int machineId, int date, int nbTestsOnComp, int productId = 500)
+    private static CardRow Card(
+        int machineId, int date, int nbTestsOnComp, int productId = 500,
+        int panelId = 1, int cardIdOnPanel = 1)
         => new(
-            PanelId: 1,
-            CardIdOnPanel: 1,
+            PanelId: panelId,
+            CardIdOnPanel: cardIdOnPanel,
             CardStatus: 0,
             AnomalyBr: 0,
             AnomalyAr: 0,
@@ -938,9 +1145,10 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         // Applied Filters sheet: DefectBits row must echo "1".
         var filters = workbook.Worksheet("Applied Filters");
         Assert.Equal("Filter", filters.Cell(1, 1).GetString());
-        // Row order: Machine, Product, DefectBits, Topologies, PartNumbers, JedecNames.
+        // Row order: Machine, Product, DefectBits, Topologies, PartNumbers, JedecNames, CardNumbers.
         Assert.Equal("DefectBits", filters.Cell(4, 1).GetString());
         Assert.Equal("1", filters.Cell(4, 2).GetString());
+        Assert.Equal("CardNumbers", filters.Cell(8, 1).GetString());
 
         // Rows sheet: PN-A first (5), PN-B second (2).
         var rows = workbook.Worksheet("Rows");
@@ -951,6 +1159,30 @@ public sealed class DpmoAndParetoEndpointsTests : IClassFixture<NiewebApiFactory
         Assert.Equal("2", rows.Cell(3, 1).GetString());
         Assert.Equal("PN-B", rows.Cell(3, 2).GetString());
         Assert.Equal(2, (int)rows.Cell(3, 4).GetDouble());
+
+        authed.Dispose();
+        await factory!.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ParetoXlsx_CardNumbers_EchoedOnAppliedFiltersSheet()
+    {
+        var fake = TwoSlotFake();
+        var (authed, factory) = await AuthedClientAsync("pareto-xlsx-slots@nieweb.test", fake);
+
+        using var response = await authed.GetAsync(
+            new Uri($"/api/reports/pareto/export.xlsx?sourceId=postreflow&startUtc={StartUtc}&endUtc={EndUtc}&axis=subpanel&cardNumbers=1", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        using var ms = new MemoryStream(bytes);
+        using var workbook = new XLWorkbook(ms);
+        var filters = workbook.Worksheet("Applied Filters");
+        Assert.Equal("CardNumbers", filters.Cell(8, 1).GetString());
+        Assert.Equal("1", filters.Cell(8, 2).GetString());
+        var rows = workbook.Worksheet("Rows");
+        Assert.Equal("1", rows.Cell(2, 2).GetString());
+        Assert.Equal("", rows.Cell(3, 2).GetString());
 
         authed.Dispose();
         await factory!.DisposeAsync();

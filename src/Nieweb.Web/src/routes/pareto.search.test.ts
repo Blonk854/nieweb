@@ -6,6 +6,8 @@ import {
     validateParetoSearch,
     withDefectBit,
     withoutDefectBit,
+    withNumericFilter,
+    withoutNumericFilter,
     type ParetoSearch,
 } from "./pareto.search";
 import type { SourceInfo } from "../api/sources";
@@ -27,6 +29,7 @@ describe("validateParetoSearch", () => {
             topologies: undefined,
             partNumbers: undefined,
             jedecNames: undefined,
+            cardNumbers: undefined,
         });
     });
 
@@ -36,6 +39,8 @@ describe("validateParetoSearch", () => {
         );
         expect(validateParetoSearch({ axis: "Jedec", weight: "Ppm" }).weight).toBe("Count");
         expect(validateParetoSearch({ axis: "Product", weight: "Dpmo" }).weight).toBe("Dpmo");
+        expect(validateParetoSearch({ axis: "Subpanel", weight: "Dpmo" }).weight).toBe("Dpmo");
+        expect(validateParetoSearch({ axis: "Subpanel", weight: "Ppm" }).weight).toBe("Ppm");
     });
 
     it("parses canonical enum names case-insensitively", () => {
@@ -97,6 +102,13 @@ describe("validateParetoSearch", () => {
         expect(s.topologies).toEqual(["R1", "R2", "R3"]);
         expect(s.partNumbers).toEqual(["PN-A", "PN-B"]);
         expect(s.jedecNames).toEqual(["SOT23"]);
+    });
+
+    it("parses cardNumbers from CSV and arrays, including zero", () => {
+        expect(validateParetoSearch({ cardNumbers: "0,3" }).cardNumbers).toEqual([0, 3]);
+        expect(validateParetoSearch({ cardNumbers: ["1", 2] }).cardNumbers).toEqual([1, 2]);
+        expect(validateParetoSearch({ cardNumbers: 0 }).cardNumbers).toEqual([0]);
+        expect(validateParetoSearch({ axis: "subpanel" }).axis).toBe("Subpanel");
     });
 
     it("parses skip exclusion and statuses", () => {
@@ -177,6 +189,7 @@ describe("toApiQuery", () => {
                 topologies: ["R1"],
                 partNumbers: ["PN-A"],
                 jedecNames: ["SOT23"],
+                cardNumbers: [0, 3],
             }),
         ).toEqual({
             sourceId: "postreflow",
@@ -193,6 +206,7 @@ describe("toApiQuery", () => {
             topologies: "R1",
             partNumbers: "PN-A",
             jedecNames: "SOT23",
+            cardNumbers: "0,3",
         });
     });
 });
@@ -261,18 +275,24 @@ describe("paretoDrillInto", () => {
         expect(next.machineIds).toEqual([1, 7]);
     });
 
-    it("advances part number to reference designator (Count scale) and leaves reference designator terminal", () => {
-        // Part number advances to reference designator and forces Count.
+    it("advances part number to reference designator, then subpanel, and leaves subpanel terminal", () => {
         const pn = paretoDrillInto({ axis: "PartNumber" }, "PN-A");
         expect(pn).toMatchObject({
             axis: "ReferenceDesignator",
             partNumbers: ["PN-A"],
             weight: "Count",
         });
-        // Reference designator is terminal — clicks are a no-op.
-        const rd: ParetoSearch = { axis: "ReferenceDesignator" };
-        expect(paretoDrillInto(rd, "R12")).toBe(rd);
-        // JEDEC advances to Defect (Defect keeps whatever scale was set).
+        const rd = paretoDrillInto(
+            { axis: "ReferenceDesignator", weight: "Dpmo" },
+            "R12",
+        );
+        expect(rd).toMatchObject({
+            axis: "Subpanel",
+            topologies: ["R12"],
+            weight: "Dpmo",
+        });
+        const sub: ParetoSearch = { axis: "Subpanel" };
+        expect(paretoDrillInto(sub, "3")).toBe(sub);
         expect(paretoDrillInto({ axis: "Jedec" }, "0402")).toMatchObject({
             axis: "Defect",
             jedecNames: ["0402"],
@@ -300,7 +320,7 @@ describe("paretoDrillInto", () => {
         expect(paretoDrillInto(search, "not-a-number")).toBe(search);
     });
 
-    it("walks the full Product → Defect → Part number → Reference designator chain", () => {
+    it("walks the full Product → Defect → Part number → Reference designator → Subpanel chain", () => {
         let s: ParetoSearch = { axis: "Product" };
         s = paretoDrillInto(s, "42");
         expect(s.axis).toBe("Defect");
@@ -312,8 +332,22 @@ describe("paretoDrillInto", () => {
         s = paretoDrillInto(s, "PN-A");
         expect(s.axis).toBe("ReferenceDesignator");
         expect(s.partNumbers).toEqual(["PN-A"]);
-        // Terminal — a further click changes nothing.
-        expect(paretoDrillInto(s, "R7")).toBe(s);
+        s = paretoDrillInto(s, "R7");
+        expect(s.axis).toBe("Subpanel");
+        expect(s.topologies).toEqual(["R7"]);
+        expect(s.weight).toBe("Count");
+        expect(paretoDrillInto(s, "1")).toBe(s);
+    });
+});
+
+describe("withNumericFilter / withoutNumericFilter", () => {
+    it("supports cardNumbers including zero", () => {
+        const added = withNumericFilter({}, "cardNumbers", 0);
+        expect(added.cardNumbers).toEqual([0]);
+        const next = withNumericFilter(added, "cardNumbers", 3);
+        expect(next.cardNumbers).toEqual([0, 3]);
+        expect(withoutNumericFilter(next, "cardNumbers", 0).cardNumbers).toEqual([3]);
+        expect(withoutNumericFilter({ cardNumbers: [3] }, "cardNumbers", 3).cardNumbers).toBeUndefined();
     });
 });
 

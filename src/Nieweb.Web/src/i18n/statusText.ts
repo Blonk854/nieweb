@@ -59,22 +59,22 @@ function hasSkipBit(anomalyBr: number | null | undefined, anomalyAr: number | nu
  * `traceability.board.panelStatus.*`. Callers pass the numeric
  * status straight from the server DTO.
  */
-export function panelStatusKey(status: number | null | undefined): string {
+export function panelStatusKey(status: number | null | undefined) {
     switch (status) {
         case -2:
-            return "traceability.board.panelStatus.koOperator";
+            return "traceability.board.panelStatus.koOperator" as const;
         case -1:
-            return "traceability.board.panelStatus.ko";
+            return "traceability.board.panelStatus.ko" as const;
         case 0:
-            return "traceability.board.panelStatus.notInspected";
+            return "traceability.board.panelStatus.notInspected" as const;
         case 1:
-            return "traceability.board.panelStatus.ok";
+            return "traceability.board.panelStatus.ok" as const;
         case 2:
-            return "traceability.board.panelStatus.okOperator";
+            return "traceability.board.panelStatus.okOperator" as const;
         case 3:
-            return "traceability.board.panelStatus.okRepaired";
+            return "traceability.board.panelStatus.okRepaired" as const;
         default:
-            return "traceability.board.panelStatus.unknown";
+            return "traceability.board.panelStatus.unknown" as const;
     }
 }
 
@@ -88,9 +88,9 @@ export function panelStatusOrSkippedKey(
     status: number | null | undefined,
     anomalyBr: number | null | undefined,
     anomalyAr: number | null | undefined,
-): string {
+) {
     if (status === 0 && hasSkipBit(anomalyBr, anomalyAr)) {
-        return "traceability.board.panelStatus.skipped";
+        return "traceability.board.panelStatus.skipped" as const;
     }
     return panelStatusKey(status);
 }
@@ -100,22 +100,22 @@ export function panelStatusOrSkippedKey(
  * `traceability.board.cardStatus.*`. Card_Status uses the same
  * enum as Panel_Status.
  */
-export function cardStatusKey(status: number | null | undefined): string {
+export function cardStatusKey(status: number | null | undefined) {
     switch (status) {
         case -2:
-            return "traceability.board.cardStatus.koOperator";
+            return "traceability.board.cardStatus.koOperator" as const;
         case -1:
-            return "traceability.board.cardStatus.ko";
+            return "traceability.board.cardStatus.ko" as const;
         case 0:
-            return "traceability.board.cardStatus.notInspected";
+            return "traceability.board.cardStatus.notInspected" as const;
         case 1:
-            return "traceability.board.cardStatus.ok";
+            return "traceability.board.cardStatus.ok" as const;
         case 2:
-            return "traceability.board.cardStatus.okOperator";
+            return "traceability.board.cardStatus.okOperator" as const;
         case 3:
-            return "traceability.board.cardStatus.okRepaired";
+            return "traceability.board.cardStatus.okRepaired" as const;
         default:
-            return "traceability.board.cardStatus.unknown";
+            return "traceability.board.cardStatus.unknown" as const;
     }
 }
 
@@ -129,9 +129,9 @@ export function cardStatusOrSkippedKey(
     status: number | null | undefined,
     anomalyBr: number | null | undefined,
     anomalyAr: number | null | undefined,
-): string {
+) {
     if (status === 0 && hasSkipBit(anomalyBr, anomalyAr)) {
-        return "traceability.board.cardStatus.skipped";
+        return "traceability.board.cardStatus.skipped" as const;
     }
     return cardStatusKey(status);
 }

@@ -616,11 +616,14 @@ public sealed class ParetoReportTests
         int productId = 500,
         string? topology = null,
         string? partNumberName = null,
-        string? jedecName = null)
+        string? jedecName = null,
+        int panelId = 1,
+        int cardIdOnPanel = 1,
+        string? repairButtonComment = null)
     {
         return new TestedObjectRow(
-            PanelId: 1,
-            CardIdOnPanel: 1,
+            PanelId: panelId,
+            CardIdOnPanel: cardIdOnPanel,
             ObjectId: objectId,
             ObjectTypeId: objectTypeId,
             ErrorTable: errorTable,
@@ -631,16 +634,23 @@ public sealed class ParetoReportTests
             PanelNumericDate: date,
             Topology: topology,
             PartNumberName: partNumberName,
-            JedecName: jedecName);
+            JedecName: jedecName,
+            RepairButtonComment: repairButtonComment);
     }
 
     // CARDS row carrying the DPMO/PPM opportunity denominator
     // (Nb_Of_Tests_On_Comp). Opportunities come from cards, never from a
     // (defect-only) tested-object row count.
-    private static CardRow Card(int machineId, int date, int nbTestsOnComp, int productId = 500)
+    private static CardRow Card(
+        int machineId,
+        int date,
+        int nbTestsOnComp,
+        int productId = 500,
+        int panelId = 1,
+        int cardIdOnPanel = 1)
         => new(
-            PanelId: 1,
-            CardIdOnPanel: 1,
+            PanelId: panelId,
+            CardIdOnPanel: cardIdOnPanel,
             CardStatus: 0,
             AnomalyBr: 0,
             AnomalyAr: 0,
@@ -650,6 +660,24 @@ public sealed class ParetoReportTests
             ProductId: productId,
             PanelNumericDate: date,
             NbOfTestsOnComp: nbTestsOnComp);
+
+    private static PanelRow Panel(int id, bool reviewed = true) => new(
+        PanelId: id,
+        MachineId: 10,
+        LaneNumber: 1,
+        PanelBarCode: $"BC-{id:D3}",
+        PanelNumericDate: (int)_oneDay.StartEpochSeconds + id,
+        NbOfValidCards: 1,
+        TestTime: 5.0,
+        PanelStatus: 1,
+        AnomalyBr: 0,
+        AnomalyAr: 0,
+        HasBeenReviewed: reviewed,
+        NbOfTestedObject: 100,
+        NbOfErrorObject: 0,
+        OperatorId: null,
+        ProductId: 500,
+        RecipeId: 1);
 
     // ---------------------------------------------------------------
     // CR1: Day / Shift axes + Dpmo / Ppm weights
@@ -909,6 +937,8 @@ public sealed class ParetoReportTests
         }
     }
 
+    /// Object-level axes have no per-group card denominator. Subpanel is
+    /// card-derivable and must not be added to this theory.
     [Theory]
     [InlineData(ParetoAxis.ReferenceDesignator)]
     [InlineData(ParetoAxis.PartNumber)]
@@ -1067,6 +1097,441 @@ public sealed class ParetoReportTests
             TestContext.Current.CancellationToken);
         Assert.Equal(byDpmo.OthersBucket!.DpmoPpm, byDpmo.OthersBucket.WeightedScore);
         Assert.Equal(result.Overall.OpportunityCount, byDpmo.OthersBucket.OpportunityCount);
+    }
+
+    // ---------------------------------------------------------------
+    // Subpanel axis (Card_Number / CardIdOnPanel)
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public async Task SubpanelAxis_DifferentSlotsProduceDifferentBars()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = TwoSlotSource(
+            start,
+            slot1Defects: 3,
+            slot1Opps: 50,
+            slot2Defects: 1,
+            slot2Opps: 50);
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Rows.Count);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.Equal("1", result.Rows[0].GroupName);
+        Assert.Equal(3L, result.Rows[0].DefectCount);
+        Assert.Equal("2", result.Rows[1].GroupKey);
+        Assert.Equal("2", result.Rows[1].GroupName);
+        Assert.Equal(1L, result.Rows[1].DefectCount);
+        Assert.Equal(4L, result.Overall.DefectBitCount);
+        Assert.Equal(100L, result.Overall.OpportunityCount);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_SameSlotAcrossPanelsCombines()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(10, start + 10, nbTestsOnComp: 40, panelId: 10, cardIdOnPanel: 1),
+                Card(10, start + 20, nbTestsOnComp: 60, panelId: 11, cardIdOnPanel: 1),
+            ],
+            SeededTestedObjects =
+            [
+                ..DefectsOnSlot(start, panelId: 10, cardIdOnPanel: 1, count: 3, idBase: 100),
+                ..DefectsOnSlot(start, panelId: 11, cardIdOnPanel: 1, count: 2, idBase: 200),
+            ],
+        };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel),
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.Equal("1", result.Rows[0].GroupName);
+        Assert.Equal(5L, result.Rows[0].DefectCount);
+        Assert.Equal(100L, result.Rows[0].OpportunityCount);
+        Assert.Equal(100L, result.Overall.OpportunityCount);
+        Assert.Equal(100d, result.Rows[0].OpportunitySharePercent);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_UsesPerSlotOpportunityDenominator()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = TwoSlotSource(
+            start,
+            slot1Defects: 2,
+            slot1Opps: 80,
+            slot2Defects: 2,
+            slot2Opps: 20);
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ParetoWeight.Count, result.Weight);
+        Assert.All(result.Rows, r => Assert.True(r.OpportunitiesApplicable));
+        Assert.Equal(100L, result.Overall.OpportunityCount);
+        var slot1 = result.Rows.Single(r => r.GroupKey == "1");
+        var slot2 = result.Rows.Single(r => r.GroupKey == "2");
+        Assert.Equal(80L, slot1.OpportunityCount);
+        Assert.Equal(20L, slot2.OpportunityCount);
+        Assert.Equal(80d, slot1.OpportunitySharePercent);
+        Assert.Equal(20d, slot2.OpportunitySharePercent);
+        Assert.Equal(25_000d, slot1.DpmoPpm);
+        Assert.Equal(100_000d, slot2.DpmoPpm);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_DpmoCanReorderCountRanking()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = TwoSlotSource(
+            start,
+            slot1Defects: 10,
+            slot1Opps: 100,
+            slot2Defects: 5,
+            slot2Opps: 10);
+
+        var byCount = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Weight: ParetoWeight.Count),
+            TestContext.Current.CancellationToken);
+        var byDpmo = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Weight: ParetoWeight.Dpmo),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("1", byCount.Rows[0].GroupKey);
+        Assert.Equal(10L, byCount.Rows[0].DefectCount);
+        Assert.Equal(ParetoWeight.Dpmo, byDpmo.Weight);
+        Assert.Equal("2", byDpmo.Rows[0].GroupKey);
+        Assert.Equal(500_000d, byDpmo.Rows[0].WeightedScore);
+        Assert.Equal(byDpmo.Rows[0].DpmoPpm, byDpmo.Rows[0].WeightedScore);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_PpmUsesSameRateAsDpmo()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = TwoSlotSource(
+            start,
+            slot1Defects: 10,
+            slot1Opps: 100,
+            slot2Defects: 5,
+            slot2Opps: 10);
+
+        var byDpmo = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Weight: ParetoWeight.Dpmo),
+            TestContext.Current.CancellationToken);
+        var byPpm = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Weight: ParetoWeight.Ppm),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(ParetoWeight.Ppm, byPpm.Weight);
+        Assert.Equal(byDpmo.Rows.Count, byPpm.Rows.Count);
+        for (var i = 0; i < byDpmo.Rows.Count; i++)
+        {
+            Assert.Equal(byDpmo.Rows[i].GroupKey, byPpm.Rows[i].GroupKey);
+            Assert.Equal(byDpmo.Rows[i].WeightedScore, byPpm.Rows[i].WeightedScore);
+            Assert.Equal(byDpmo.Rows[i].DpmoPpm, byPpm.Rows[i].DpmoPpm);
+        }
+    }
+
+    [Fact]
+    public async Task CardNumbersFilter_ScopesBothNumeratorAndDenominator()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = TwoSlotSource(
+            start,
+            slot1Defects: 2,
+            slot1Opps: 10,
+            slot2Defects: 8,
+            slot2Opps: 40);
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Product) { CardNumbers = [1] },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal([1], result.AppliedFilters.CardNumbers);
+        Assert.Equal(10L, result.Overall.OpportunityCount);
+        Assert.Equal(2L, result.Overall.DefectBitCount);
+        Assert.Equal(2L, result.Overall.TestedObjectCount);
+        Assert.Single(result.Rows);
+        Assert.Equal(2L, result.Rows[0].DefectCount);
+        Assert.Equal(10L, result.Rows[0].OpportunityCount);
+    }
+
+    [Fact]
+    public async Task CardNumbersFilter_AndsWithTopologyPartNumberAndDefectBits()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(10, start + 10, nbTestsOnComp: 50, cardIdOnPanel: 1),
+                Card(10, start + 11, nbTestsOnComp: 50, cardIdOnPanel: 2),
+            ],
+            SeededTestedObjects =
+            [
+                Obj(10, start + 60, 1, ComponentType, BitObjectMissing, BitObjectMissing,
+                    topology: "R12", partNumberName: "PN-A", cardIdOnPanel: 1),
+                Obj(10, start + 61, 2, ComponentType, BitObjectMissing, BitObjectMissing,
+                    topology: "R12", partNumberName: "PN-B", cardIdOnPanel: 1),
+                Obj(10, start + 62, 3, ComponentType, BitObjectMissing, BitObjectMissing,
+                    topology: "R12", partNumberName: "PN-A", cardIdOnPanel: 2),
+                Obj(10, start + 63, 4, ComponentType, BitPolarityError, BitPolarityError,
+                    topology: "R12", partNumberName: "PN-A", cardIdOnPanel: 1),
+            ],
+        };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel)
+            {
+                CardNumbers = [1],
+                Topologies = ["R12"],
+                PartNumbers = ["PN-A"],
+                DefectBits = [1],
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.Equal(1L, result.Rows[0].DefectCount);
+        Assert.Equal(1L, result.Overall.DefectBitCount);
+        Assert.Equal(50L, result.Overall.OpportunityCount);
+        Assert.Equal(["R12"], result.AppliedFilters.Topologies);
+        Assert.Equal(["PN-A"], result.AppliedFilters.PartNumbers);
+        Assert.Equal([1], result.AppliedFilters.DefectBits);
+        Assert.Equal([1], result.AppliedFilters.CardNumbers);
+    }
+
+    [Fact]
+    public async Task CardNumbersFilter_ScopesSkipExcludedCount()
+    {
+        var source = BuildSkipPairSource();
+
+        var allSlots = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Numerator: DpmoNumerator.Aoi)
+            {
+                SkipExclusion = SkipExclusion.Clean,
+            },
+            TestContext.Current.CancellationToken);
+        var skippedSlot = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Numerator: DpmoNumerator.Aoi)
+            {
+                SkipExclusion = SkipExclusion.Clean,
+                CardNumbers = [2],
+            },
+            TestContext.Current.CancellationToken);
+        var keptSlot = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Numerator: DpmoNumerator.Aoi)
+            {
+                SkipExclusion = SkipExclusion.Clean,
+                CardNumbers = [1],
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1L, allSlots.SkipExcludedCards);
+        Assert.Equal(1L, allSlots.Overall.DefectBitCount);
+        Assert.Equal(100L, allSlots.Overall.OpportunityCount);
+
+        Assert.Equal(1L, skippedSlot.SkipExcludedCards);
+        Assert.Equal(0L, skippedSlot.Overall.DefectBitCount);
+        Assert.Equal(0L, skippedSlot.Overall.OpportunityCount);
+
+        Assert.Equal(0L, keptSlot.SkipExcludedCards);
+        Assert.Equal(1L, keptSlot.Overall.DefectBitCount);
+        Assert.Equal(100L, keptSlot.Overall.OpportunityCount);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_SkipExclusionDropsCardFromBothPasses()
+    {
+        var source = BuildSkipPairSource();
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, Numerator: DpmoNumerator.Aoi)
+            {
+                SkipExclusion = SkipExclusion.Clean,
+            },
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.Equal(1L, result.Rows[0].DefectCount);
+        Assert.Equal(100L, result.Rows[0].OpportunityCount);
+        Assert.Equal(100L, result.Overall.OpportunityCount);
+        Assert.Equal(1L, result.SkipExcludedCards);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_ZeroDefectSlotsAreOmitted()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = TwoSlotSource(
+            start,
+            slot1Defects: 3,
+            slot1Opps: 40,
+            slot2Defects: 0,
+            slot2Opps: 40);
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel),
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.Equal(80L, result.Overall.OpportunityCount);
+        Assert.Equal(40L, result.Rows[0].OpportunityCount);
+        Assert.Equal(50d, result.Rows[0].OpportunitySharePercent);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_TopNOthersSumsHiddenSlotOpportunities()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(10, start + 10, nbTestsOnComp: 100, cardIdOnPanel: 1),
+                Card(10, start + 11, nbTestsOnComp: 40, cardIdOnPanel: 2),
+                Card(10, start + 12, nbTestsOnComp: 10, cardIdOnPanel: 3),
+            ],
+            SeededTestedObjects =
+            [
+                ..DefectsOnSlot(start, panelId: 1, cardIdOnPanel: 1, count: 8, idBase: 100),
+                ..DefectsOnSlot(start, panelId: 1, cardIdOnPanel: 2, count: 4, idBase: 200),
+                ..DefectsOnSlot(start, panelId: 1, cardIdOnPanel: 3, count: 2, idBase: 300),
+            ],
+        };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel, TopN: 1),
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("1", result.Rows[0].GroupKey);
+        Assert.NotNull(result.OthersBucket);
+        Assert.True(result.OthersBucket!.OpportunitiesApplicable);
+        Assert.Equal(6L, result.OthersBucket.DefectCount);
+        Assert.Equal(50L, result.OthersBucket.OpportunityCount);
+        Assert.NotEqual(result.Overall.OpportunityCount, result.OthersBucket.OpportunityCount);
+        Assert.Equal(150L, result.Overall.OpportunityCount);
+        Assert.Equal(
+            1_000_000d * 6 / 50,
+            result.OthersBucket.DpmoPpm);
+    }
+
+    [Fact]
+    public async Task SubpanelAxis_ZeroSlotIsAValidGroup()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var source = new FakeAoiSource(_postReflow)
+        {
+            SeededCards = [Card(10, start + 10, nbTestsOnComp: 25, cardIdOnPanel: 0)],
+            SeededTestedObjects = [..DefectsOnSlot(start, panelId: 1, cardIdOnPanel: 0, count: 2, idBase: 10)],
+        };
+
+        var result = await ParetoReport.Instance.RunAsync(
+            source,
+            new ParetoFilter(_oneDay, ParetoAxis.Subpanel),
+            TestContext.Current.CancellationToken);
+
+        Assert.Single(result.Rows);
+        Assert.Equal("0", result.Rows[0].GroupKey);
+        Assert.Equal("0", result.Rows[0].GroupName);
+        Assert.Equal(2L, result.Rows[0].DefectCount);
+        Assert.Equal(25L, result.Rows[0].OpportunityCount);
+        Assert.True(result.Rows[0].OpportunitiesApplicable);
+    }
+
+    private static FakeAoiSource TwoSlotSource(
+        int start,
+        int slot1Defects,
+        int slot1Opps,
+        int slot2Defects,
+        int slot2Opps)
+        => new(_postReflow)
+        {
+            SeededCards =
+            [
+                Card(10, start + 10, nbTestsOnComp: slot1Opps, cardIdOnPanel: 1),
+                Card(10, start + 11, nbTestsOnComp: slot2Opps, cardIdOnPanel: 2),
+            ],
+            SeededTestedObjects =
+            [
+                ..DefectsOnSlot(start, panelId: 1, cardIdOnPanel: 1, count: slot1Defects, idBase: 100),
+                ..DefectsOnSlot(start, panelId: 1, cardIdOnPanel: 2, count: slot2Defects, idBase: 200),
+            ],
+        };
+
+    private static List<TestedObjectRow> DefectsOnSlot(
+        int start, int panelId, int cardIdOnPanel, int count, int idBase)
+    {
+        var rows = new List<TestedObjectRow>(count);
+        for (var i = 0; i < count; i++)
+        {
+            rows.Add(Obj(
+                machineId: 10,
+                date: start + 60 + i,
+                objectId: idBase + i,
+                objectTypeId: ComponentType,
+                errorTable: BitObjectMissing,
+                errorTableAr: BitObjectMissing,
+                panelId: panelId,
+                cardIdOnPanel: cardIdOnPanel));
+        }
+        return rows;
+    }
+
+    private static FakeAoiSource BuildSkipPairSource()
+    {
+        var start = (int)_oneDay.StartEpochSeconds;
+        var tos = new List<TestedObjectRow>
+        {
+            Obj(10, start + 60, 1, ComponentType, BitObjectMissing, BitObjectMissing,
+                panelId: 1, cardIdOnPanel: 1),
+        };
+        for (var i = 0; i < 50; i++)
+        {
+            tos.Add(Obj(
+                10, start + 70 + i, 100 + i, ComponentType, BitObjectMissing, BitObjectMissing,
+                panelId: 1, cardIdOnPanel: 2,
+                repairButtonComment: i == 0 ? "X-OUT" : null));
+        }
+
+        return new FakeAoiSource(_postReflow)
+        {
+            SeededPanels = [Panel(1, reviewed: true)],
+            SeededCards =
+            [
+                Card(10, start + 10, nbTestsOnComp: 100, panelId: 1, cardIdOnPanel: 1),
+                Card(10, start + 11, nbTestsOnComp: 100, panelId: 1, cardIdOnPanel: 2),
+            ],
+            SeededTestedObjects = tos,
+        };
     }
 }
 

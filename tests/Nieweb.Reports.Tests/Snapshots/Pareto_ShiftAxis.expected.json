@@ -22,7 +22,8 @@
     "defectBits": [],
     "topologies": [],
     "partNumbers": [],
-    "jedecNames": []
+    "jedecNames": [],
+    "cardNumbers": []
   },
   "overall": {
     "testedObjectCount": 4,

@@ -21,7 +21,7 @@ public sealed class ParetoChartSvgTests
         new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero));
 
     private static readonly ParetoAppliedFilters NoFilters =
-        new([], [], [], [], [], []);
+        new([], [], [], [], [], [], []);
 
     private static ParetoResult Result(
         IReadOnlyList<ParetoRow> rows,

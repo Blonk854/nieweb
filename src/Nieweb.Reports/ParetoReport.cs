@@ -31,7 +31,11 @@ namespace Nieweb.Reports;
 /// (<see cref="ParetoFilter.DefectBits"/>,
 /// <see cref="ParetoFilter.Topologies"/>,
 /// <see cref="ParetoFilter.PartNumbers"/>,
-/// <see cref="ParetoFilter.JedecNames"/>) row-by-row.
+/// <see cref="ParetoFilter.JedecNames"/>,
+/// <see cref="ParetoFilter.CardNumbers"/>) row-by-row.
+/// <see cref="ParetoFilter.CardNumbers"/> also applies to the card pass
+/// so overall opportunities and skip-excluded counts stay in the same
+/// slot population as the numerator.
 /// </para>
 /// <para>
 /// Bars (absolute defect counts) are unaffected by the denominator, so
@@ -39,7 +43,7 @@ namespace Nieweb.Reports;
 /// (opportunity share, DPMO) and the <see cref="ParetoWeight.Dpmo"/> /
 /// <see cref="ParetoWeight.Ppm"/> weights use the card-derived
 /// denominator on the card-derivable axes (AOI machine, product,
-/// defect, day, shift). Object-level axes (reference designator, part
+/// defect, day, shift, subpanel). Object-level axes (reference designator, part
 /// number, JEDEC) have no card denominator on a defect-only table;
 /// those rows carry <see cref="ParetoRow.OpportunitiesApplicable"/>
 /// false, and a requested DPMO/PPM weight is applied as
@@ -65,7 +69,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         Id: "pareto-defects",
         DisplayName: "Volume-weighted defect Pareto",
         Category: ReportCategory.Chart,
-        Description: "Ranks AOI defect contributors by absolute count with volume context (opportunity share, DPMO, cumulative %). Supports interactive drill-down across defect / product / machine / part / package / reference designator axes.");
+        Description: "Ranks AOI defect contributors by absolute count with volume context (opportunity share, DPMO, cumulative %). Supports interactive drill-down across defect / product / machine / part / package / reference designator / subpanel axes.");
 
     /// <summary>Stateless singleton; safe to share across all callers.</summary>
     public static readonly ParetoReport Instance = new();
@@ -140,7 +144,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         // count: production TESTED_OBJECT is defect-only, so counting
         // its rows collapses the denominator and pins DPMO near 1e6.
         // Only card-derivable axes (AOI / product / defect / day /
-        // shift / overall) get a per-group denominator; object-level
+        // shift / subpanel / overall) get a per-group denominator; object-level
         // axes fall back to a count-only ranking below.
         long opportunitiesOverall = 0;
         var opportunitiesByMachine = filter.Axis == ParetoAxis.AoiMachine
@@ -151,6 +155,13 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             : null;
         var opportunitiesByBucket = filter.Axis is ParetoAxis.Day or ParetoAxis.Shift
             ? new Dictionary<string, long>(StringComparer.Ordinal)
+            : null;
+        var opportunitiesByCardNumber = filter.Axis == ParetoAxis.Subpanel
+            ? new Dictionary<int, long>()
+            : null;
+
+        var cardNumberSet = filter.CardNumbers is { Count: > 0 }
+            ? new HashSet<int>(filter.CardNumbers)
             : null;
 
         // Skip filtering (mirrors DpmoTableReport). Clean mode drops
@@ -203,6 +214,10 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             {
                 continue;
             }
+            if (cardNumberSet is not null && !cardNumberSet.Contains(card.CardIdOnPanel))
+            {
+                continue;
+            }
             if (skipIndex is not null && !KeepClass(skipIndex.Classify(card, skipConfig)))
             {
                 skippedCards!.Add((card.PanelId, card.CardIdOnPanel));
@@ -230,6 +245,11 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                     opportunitiesByBucket.TryGetValue(bucket.Label, out var b);
                     opportunitiesByBucket[bucket.Label] = b + opp;
                 }
+            }
+            if (opportunitiesByCardNumber is not null)
+            {
+                opportunitiesByCardNumber.TryGetValue(card.CardIdOnPanel, out var c);
+                opportunitiesByCardNumber[card.CardIdOnPanel] = c + opp;
             }
         }
 
@@ -280,6 +300,11 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         {
             // Drop NOGO-product defects (matches the card-pass exclusion).
             if (nogoProductIds is not null && nogoProductIds.Contains(obj.ProductId))
+            {
+                continue;
+            }
+
+            if (cardNumberSet is not null && !cardNumberSet.Contains(obj.CardIdOnPanel))
             {
                 continue;
             }
@@ -416,6 +441,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             opportunitiesByMachine,
             opportunitiesByProduct,
             opportunitiesByBucket,
+            opportunitiesByCardNumber,
             machineNames,
             productNames);
 
@@ -438,7 +464,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
     public static bool OpportunitiesApplicableForAxis(ParetoAxis axis) => axis switch
     {
         ParetoAxis.AoiMachine or ParetoAxis.Product or ParetoAxis.Day
-            or ParetoAxis.Shift or ParetoAxis.Defect => true,
+            or ParetoAxis.Shift or ParetoAxis.Defect or ParetoAxis.Subpanel => true,
         ParetoAxis.ReferenceDesignator or ParetoAxis.PartNumber or ParetoAxis.Jedec => false,
         _ => false,
     };
@@ -459,6 +485,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
         Dictionary<int, long>? opportunitiesByMachine,
         Dictionary<int, long>? opportunitiesByProduct,
         Dictionary<string, long>? opportunitiesByBucket,
+        Dictionary<int, long>? opportunitiesByCardNumber,
         Dictionary<int, string?>? machineNames,
         Dictionary<int, string?>? productNames)
     {
@@ -475,6 +502,8 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 key.IntValue is int pid && opportunitiesByProduct!.TryGetValue(pid, out var p) ? p : 0,
             ParetoAxis.Day or ParetoAxis.Shift =>
                 key.StringValue is string lbl && opportunitiesByBucket!.TryGetValue(lbl, out var b) ? b : 0,
+            ParetoAxis.Subpanel =>
+                key.IntValue is int cid && opportunitiesByCardNumber!.TryGetValue(cid, out var c) ? c : 0,
             ParetoAxis.Defect => totalOpportunities,
             _ => 0,
         };
@@ -624,6 +653,7 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 => machineNames.TryGetValue(mid, out var name) ? name : null,
             ParetoAxis.Product when productNames is not null && key.IntValue is int pid
                 => productNames.TryGetValue(pid, out var name) ? name : null,
+            ParetoAxis.Subpanel => key.ToDisplayKey(),
             ParetoAxis.ReferenceDesignator
                 or ParetoAxis.PartNumber
                 or ParetoAxis.Jedec
@@ -655,6 +685,8 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
                 return GroupKey.Int(obj.ProductId);
             case ParetoAxis.ReferenceDesignator:
                 return GroupKey.String(obj.Topology);
+            case ParetoAxis.Subpanel:
+                return GroupKey.Int(obj.CardIdOnPanel);
             case ParetoAxis.PartNumber:
                 return GroupKey.String(obj.PartNumberName);
             case ParetoAxis.Jedec:
@@ -779,7 +811,8 @@ public sealed class ParetoReport : IReport<ParetoFilter, ParetoResult>
             DefectBits: filter.DefectBits is null ? [] : [.. filter.DefectBits],
             Topologies: filter.Topologies is null ? [] : [.. filter.Topologies],
             PartNumbers: filter.PartNumbers is null ? [] : [.. filter.PartNumbers],
-            JedecNames: filter.JedecNames is null ? [] : [.. filter.JedecNames]);
+            JedecNames: filter.JedecNames is null ? [] : [.. filter.JedecNames],
+            CardNumbers: filter.CardNumbers is null ? [] : [.. filter.CardNumbers]);
     }
 
     /// <summary>

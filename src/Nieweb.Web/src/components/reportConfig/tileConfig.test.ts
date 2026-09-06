@@ -9,6 +9,7 @@ import {
     serializePanelYieldTileConfig,
     serializeParetoTileConfig,
 } from "./tileConfig";
+import { TILE_CONFIG_SCHEMAS } from "./tileConfigSchema";
 
 describe("parseParetoTileConfig", () => {
     it("returns the canonical default for empty / null / undefined", () => {
@@ -67,6 +68,26 @@ describe("parseParetoTileConfig", () => {
         );
         expect(cfg.axis).toBe("Jedec");
         expect(cfg).not.toHaveProperty("somethingElse");
+    });
+
+    it("retains Subpanel as a selectable Pareto tile axis", () => {
+        const cfg = parseParetoTileConfig(JSON.stringify({ axis: "Subpanel" }));
+        expect(cfg.axis).toBe("Subpanel");
+    });
+});
+
+describe("TILE_CONFIG_SCHEMAS pareto axis options", () => {
+    it("includes Subpanel and excludes Day and Shift", () => {
+        const axisField = TILE_CONFIG_SCHEMAS.pareto?.find((f) => f.key === "axis");
+        expect(axisField?.kind).toBe("select");
+        if (axisField?.kind !== "select") {
+            throw new Error("expected pareto axis field to be a select");
+        }
+        const values = axisField.options.map((o) => o.value);
+        expect(values).toContain("Subpanel");
+        expect(values).toContain("Defect");
+        expect(values).not.toContain("Day");
+        expect(values).not.toContain("Shift");
     });
 });
 

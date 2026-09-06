@@ -26,7 +26,8 @@ export type ParetoAxis =
     | "PartNumber"
     | "Jedec"
     | "Day"
-    | "Shift";
+    | "Shift"
+    | "Subpanel";
 
 export const PARETO_AXES: readonly ParetoAxis[] = [
     "Defect",
@@ -37,6 +38,7 @@ export const PARETO_AXES: readonly ParetoAxis[] = [
     "Jedec",
     "Day",
     "Shift",
+    "Subpanel",
 ];
 
 /** Post-review is the boss-approved default (matches Vieweb "DPMO real defects"). */
@@ -117,6 +119,8 @@ export type ParetoSearch = {
     partNumbers?: string[];
     /** JEDEC / package narrowing filter. */
     jedecNames?: string[];
+    /** Within-panel slot numbers (`CARDS.Card_Number`). */
+    cardNumbers?: number[];
     /** Skip-exclusion mode: `Raw` (default) or `Clean` (drop skipped boards). */
     skipExclusion?: SkipExclusion;
     /** Narrow to specific skip classes (e.g. only ManualSkip). */
@@ -167,6 +171,9 @@ export function toApiQuery(search: ParetoSearch): Record<string, string> {
     if (search.jedecNames && search.jedecNames.length > 0) {
         out.jedecNames = search.jedecNames.join(",");
     }
+    if (search.cardNumbers && search.cardNumbers.length > 0) {
+        out.cardNumbers = search.cardNumbers.join(",");
+    }
     if (search.skipExclusion === "Clean") {
         out.skipExclusion = "Clean";
     }
@@ -211,6 +218,7 @@ export function validateParetoSearch(raw: Record<string, unknown>): ParetoSearch
         topologies: toStringArray(raw.topologies),
         partNumbers: toStringArray(raw.partNumbers),
         jedecNames: toStringArray(raw.jedecNames),
+        cardNumbers: toNumberArray(raw.cardNumbers),
         skipExclusion: toEnumOrUndef<SkipExclusion>(raw.skipExclusion, SKIP_EXCLUSIONS),
         skipStatuses: toEnumArray<SkipStatus>(raw.skipStatuses, SKIP_STATUS_VALUES),
         excludeNogo: toBoolOrUndef(raw.excludeNogo),
@@ -258,7 +266,7 @@ export function withoutDefectBit(search: ParetoSearch, bit: number): ParetoSearc
  */
 export function withNumericFilter(
     search: ParetoSearch,
-    key: "machineIds" | "productIds",
+    key: "machineIds" | "productIds" | "cardNumbers",
     value: number,
 ): ParetoSearch {
     if (!Number.isFinite(value) || !Number.isInteger(value)) return search;
@@ -270,7 +278,7 @@ export function withNumericFilter(
 /** Remove a numeric id from `machineIds` / `productIds` (used by chips). */
 export function withoutNumericFilter(
     search: ParetoSearch,
-    key: "machineIds" | "productIds",
+    key: "machineIds" | "productIds" | "cardNumbers",
     value: number,
 ): ParetoSearch {
     const existing = search[key] ?? [];
@@ -313,11 +321,10 @@ export function withoutStringFilter(
  * map). Clicking a bar narrows by the clicked bucket and advances the
  * axis one step along this chain:
  *
- *   Product / AOI machine / JEDEC → Defect → Part number → Reference designator
+ *   Product / AOI machine / JEDEC → Defect → Part number → Reference designator → Subpanel
  *
- * Reference designator is the terminal step — it has no entry here, so
- * its bars are not drillable (the caller also drops it from the
- * clickable set). Day / Shift bars carry no narrowing filter and are
+ * Subpanel is the terminal step — it has no entry here, so its bars
+ * are not drillable. Day / Shift bars carry no narrowing filter and are
  * likewise absent, so they are not drillable.
  */
 export const PARETO_DRILL_NEXT_AXIS: Partial<Record<ParetoAxis, ParetoAxis>> = {
@@ -326,7 +333,8 @@ export const PARETO_DRILL_NEXT_AXIS: Partial<Record<ParetoAxis, ParetoAxis>> = {
     Jedec: "Defect",
     Defect: "PartNumber",
     PartNumber: "ReferenceDesignator",
-    // ReferenceDesignator: terminal (no next axis).
+    ReferenceDesignator: "Subpanel",
+    // Subpanel: terminal (no next axis).
     // Day / Shift: not drillable (no next axis).
 };
 
@@ -335,14 +343,14 @@ export const PARETO_DRILL_NEXT_AXIS: Partial<Record<ParetoAxis, ParetoAxis>> = {
  * matching narrowing filter and advances the axis per
  * {@link PARETO_DRILL_NEXT_AXIS}. When the next axis is object-level the
  * scale is forced to Count (see {@link PARETO_OBJECT_LEVEL_AXES}).
- * Terminal (Reference designator) and non-drillable (Day / Shift) bars
+ * Terminal (Subpanel) and non-drillable (Day / Shift) bars
  * return the same reference so the caller can skip navigation.
  */
 export function paretoDrillInto(search: ParetoSearch, groupKey: string): ParetoSearch {
     const axis = search.axis ?? "Defect";
     const nextAxis = PARETO_DRILL_NEXT_AXIS[axis];
     if (nextAxis === undefined) {
-        // Terminal (reference designator) or non-drillable (day / shift).
+        // Terminal (subpanel) or non-drillable (day / shift).
         return search;
     }
     let narrowed: ParetoSearch;
@@ -369,6 +377,9 @@ export function paretoDrillInto(search: ParetoSearch, groupKey: string): ParetoS
             break;
         case "Jedec":
             narrowed = withStringFilter(search, "jedecNames", groupKey);
+            break;
+        case "ReferenceDesignator":
+            narrowed = withStringFilter(search, "topologies", groupKey);
             break;
         default:
             return search;
@@ -437,6 +448,9 @@ function toFiniteNumberOrUndef(v: unknown): number | undefined {
 }
 
 function toNumberArray(v: unknown): number[] | undefined {
+    if (typeof v === "number" && Number.isFinite(v) && Number.isInteger(v)) {
+        return [v];
+    }
     if (Array.isArray(v)) {
         const nums = v
             .map((x) => (typeof x === "string" || typeof x === "number" ? Number(x) : NaN))

@@ -397,6 +397,7 @@ export type TranslationBundle = {
             Jedec: string;
             Day: string;
             Shift: string;
+            Subpanel: string;
         };
         numerator: {
             Aoi: string;
@@ -506,6 +507,7 @@ export type TranslationBundle = {
                 Jedec: string;
                 Day: string;
                 Shift: string;
+                Subpanel: string;
             };
         };
         drillMap: {
@@ -1537,6 +1539,7 @@ export type TranslationBundle = {
                                     Jedec: string;
                                     Day: string;
                                     Shift: string;
+                                    Subpanel: string;
                                 };
                             };
                             numerator: {

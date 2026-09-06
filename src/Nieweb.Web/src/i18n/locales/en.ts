@@ -393,7 +393,7 @@ export const en: TranslationBundle = {
     pareto: {
         title: "Pareto",
         subtitle:
-            "Rank the vital few defect bits, products, machines, or packages driving line loss.",
+            "Rank the vital few defect bits, products, machines, packages, or subpanels driving line loss.",
         axis: {
             Defect: "Defect",
             Product: "Product",
@@ -403,6 +403,7 @@ export const en: TranslationBundle = {
             Jedec: "JEDEC / package",
             Day: "Day",
             Shift: "Shift",
+            Subpanel: "Subpanel",
         },
         numerator: {
             Aoi: "AOI (pre-review)",
@@ -514,6 +515,7 @@ export const en: TranslationBundle = {
                 Jedec: "JEDEC / package",
                 Day: "Day",
                 Shift: "Shift",
+                Subpanel: "Subpanel",
             },
         },
         drillMap: {
@@ -521,7 +523,8 @@ export const en: TranslationBundle = {
             intro:
                 "Click a bar to drill in — each click filters by what you clicked and advances the axis one step:",
             endLabel: "end",
-            notDrillable: "Day and Shift bars aren't drillable.",
+            notDrillable:
+                "Day and Shift bars aren't drillable. Subpanel is the last step.",
         },
     },
     skipSummary: {
@@ -1564,6 +1567,7 @@ export const en: TranslationBundle = {
                                     Jedec: "Package (JEDEC)",
                                     Day: "Day",
                                     Shift: "Shift",
+                                    Subpanel: "Subpanel",
                                 },
                             },
                             numerator: {

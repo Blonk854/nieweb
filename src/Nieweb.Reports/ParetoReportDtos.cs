@@ -6,8 +6,8 @@ using Nieweb.Reports.Common.Skips;
 namespace Nieweb.Reports;
 
 /// <summary>
-/// Category axis a Pareto chart groups on. All six axes share the same
-/// data source (<c>TESTED_OBJECT</c>) and are stateless: drilling from
+/// Category axis a Pareto chart groups on. Every axis shares the same
+/// data source (<c>TESTED_OBJECT</c>) and is stateless: drilling from
 /// one axis to another is expressed by combining
 /// <see cref="ParetoFilter.Axis"/> with any of the narrowing filter
 /// collections on <see cref="ParetoFilter"/> — no server-side session
@@ -51,6 +51,14 @@ public enum ParetoAxis
     /// same-name shifts on different days remain distinct.
     /// </summary>
     Shift = 7,
+
+    /// <summary>
+    /// One bar per within-panel slot (<c>CARDS.Card_Number</c>,
+    /// surfaced as <see cref="Nieweb.DataSources.CardRow.CardIdOnPanel"/>).
+    /// The same slot on different panels combines into one bar — this is
+    /// a cavity distribution, not an instance list.
+    /// </summary>
+    Subpanel = 8,
 }
 
 /// <summary>
@@ -118,7 +126,8 @@ public enum ParetoWeight
 /// AND, so the client drills any depth by adding one more filter
 /// value per call (e.g. call 1: <c>Axis=Defect</c>; call 2:
 /// <c>Axis=PartNumber, DefectBits=[1]</c>; call 3:
-/// <c>Axis=ReferenceDesignator, DefectBits=[1], PartNumbers=["PN-A"]</c>).
+/// <c>Axis=ReferenceDesignator, DefectBits=[1], PartNumbers=["PN-A"]</c>;
+/// call 4: <c>Axis=Subpanel</c> plus those inherited filters).
 /// </summary>
 /// <param name="Window">Half-open UTC time window over <c>Panel_Numeric_Date</c>.</param>
 /// <param name="Axis">Primary category axis.</param>
@@ -213,6 +222,14 @@ public enum ParetoWeight
 /// defect numerator. NOGO boards are known-defect calibration coupons
 /// run at changeover and normally must not skew production KPIs.
 /// </param>
+/// <param name="CardNumbers">
+/// In-memory within-panel slot filter on <c>CARDS.Card_Number</c>
+/// (<see cref="Nieweb.DataSources.CardRow.CardIdOnPanel"/> /
+/// <see cref="Nieweb.DataSources.TestedObjectRow.CardIdOnPanel"/>).
+/// Applied to both the card opportunity pass and the tested-object
+/// defect pass so overall counts, rates, and skip-excluded totals
+/// describe only the selected slots. Zero is a valid slot number.
+/// </param>
 public sealed record ParetoFilter(
     DateRange Window,
     ParetoAxis Axis,
@@ -235,7 +252,8 @@ public sealed record ParetoFilter(
     SkipExclusion SkipExclusion = SkipExclusion.Raw,
     SkipClassificationConfig? SkipConfig = null,
     IReadOnlyCollection<SkipClass>? SkipStatuses = null,
-    bool ExcludeNogo = false);
+    bool ExcludeNogo = false,
+    IReadOnlyCollection<int>? CardNumbers = null);
 
 /// <summary>
 /// One row of a Pareto chart. <see cref="DefectCount"/> is the bar
@@ -297,8 +315,9 @@ public sealed record ParetoFilter(
 /// Whether <see cref="OpportunityCount"/> and <see cref="DpmoPpm"/>
 /// are a measured per-group denominator. False for reference
 /// designator, part number, and JEDEC (no card-derived per-group
-/// count). True for machine, product, day, shift, and defect
-/// (defect uses the overall card denominator).
+/// count). True for machine, product, day, shift, subpanel, and defect
+/// (defect uses the overall card denominator; subpanel uses the per-slot
+/// card denominator).
 /// </param>
 public sealed record ParetoRow(
     string? GroupKey,
@@ -381,4 +400,5 @@ public sealed record ParetoAppliedFilters(
     IReadOnlyList<int> DefectBits,
     IReadOnlyList<string> Topologies,
     IReadOnlyList<string> PartNumbers,
-    IReadOnlyList<string> JedecNames);
+    IReadOnlyList<string> JedecNames,
+    IReadOnlyList<int> CardNumbers);

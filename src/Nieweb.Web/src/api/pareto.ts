@@ -39,6 +39,7 @@ export type ParetoAppliedFilters = {
     topologies: string[];
     partNumbers: string[];
     jedecNames: string[];
+    cardNumbers: number[];
 };
 
 export type ParetoSourceRef = {
